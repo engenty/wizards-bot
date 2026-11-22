@@ -11,15 +11,19 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <title>wizards.bot</title>
     <script>
-      // Before first paint, so a dark page never flashes light (lib/theme.ts keeps it).
+      // Before first paint, so a page never flashes in the wrong colours (lib/theme.ts keeps it).
       var pick = null;
+      var ground = null;
       try {
         pick = localStorage.getItem("wizards.theme");
+        ground = localStorage.getItem("wizards.ground");
       } catch {}
-      var mode = ["light", "branded", "dark"].indexOf(pick) >= 0 ? pick
-        : matchMedia("(prefers-color-scheme: dark)").matches ? "branded" : "light";
-      if (mode !== "light") document.documentElement.classList.add("dark");
-      if (mode === "branded") document.documentElement.classList.add("branded");
+      var mode = ["light", "branded", "dark"].indexOf(pick) >= 0 ? pick : "branded";
+      if (["cobalt", "violet", "berry", "petrol", "emerald", "brick", "citron"].indexOf(ground) < 0) ground = "citron";
+      var root = document.documentElement;
+      if (mode === "dark" || (mode === "branded" && ground !== "citron")) root.classList.add("dark");
+      if (mode === "branded") root.classList.add("branded");
+      if (mode === "branded" && ground !== "cobalt") root.dataset.ground = ground;
     </script>
   </head>
   <body>
