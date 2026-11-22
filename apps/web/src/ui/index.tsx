@@ -267,11 +267,11 @@ export function Dialog({
       ) : shown ? (
         // As tall as the dialog has been, so a step can keep its buttons at the lower edge.
         wide === "settings" ? (
-          // A compact bar with the title and a line under it; the children lay out the rest.
+          // A compact bar with the title; the children lay out the rest.
           <div className="flex h-full min-h-[inherit] flex-col">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-border-soft border-b px-5 py-2.5">
-              <h2 className="min-w-0 truncate font-medium text-[1rem]">{title}</h2>
-              <IconButton label={t("common.close")} onClick={onClose} className="-mr-2">
+            <div className="flex shrink-0 items-center justify-between gap-3 py-1 pr-2 pl-5">
+              <h2 className="min-w-0 truncate font-medium text-[0.9375rem]">{title}</h2>
+              <IconButton label={t("common.close")} onClick={onClose} className="size-8">
                 <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
                   <path
                     d="M4 4l8 8M12 4l-8 8"

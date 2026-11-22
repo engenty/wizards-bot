@@ -178,7 +178,7 @@ export function SettingsDialog({
       <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
         <nav
           aria-label={t("settings.title")}
-          className="flex shrink-0 gap-0.5 overflow-x-auto border-border-soft border-b p-2 sm:w-48 sm:flex-col sm:overflow-visible sm:border-r sm:border-b-0"
+          className="flex shrink-0 gap-0.5 overflow-x-auto px-2 pb-2 sm:w-48 sm:flex-col sm:overflow-visible"
         >
           {pages.map(({ id, icon: Icon, label }) => (
             <button
@@ -196,7 +196,7 @@ export function SettingsDialog({
             </button>
           ))}
         </nav>
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 pt-1 pb-4">
           {page === "models" ? (
             models.data?.sources.length ? (
               <Section title={t("models.title")}>
