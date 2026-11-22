@@ -324,6 +324,71 @@ export interface OllamaModel {
 export const MEMORY_SHARE = 0.55;
 
 /**
+ * Models with tools the setup offers to pull, largest first, with their size on disk. The setup
+ * offers the largest that fits the computer (`MEMORY_SHARE`).
+ */
+export const SUGGESTED: readonly { model: string; size: number }[] = [
+  { model: "qwen3:14b", size: 9.3e9 },
+  { model: "qwen3:8b", size: 5.2e9 },
+  { model: "qwen3:4b", size: 2.5e9 },
+  { model: "qwen3:1.7b", size: 1.4e9 },
+];
+
+/** The model to pull on a computer with `memory` bytes: the largest that leaves it room. */
+export function suggestedModel(memory: number): { model: string; size: number } {
+  return (
+    SUGGESTED.find((entry) => entry.size <= memory * MEMORY_SHARE) ??
+    (SUGGESTED[SUGGESTED.length - 1] as { model: string; size: number })
+  );
+}
+
+/**
+ * Pulls `model` into the Ollama at `baseUrl`. `onProgress` hears the bytes of the layer that
+ * loads. Rejects with what Ollama said when it fails.
+ */
+export async function pullModel(
+  baseUrl: string,
+  model: string,
+  onProgress: (done: number, total: number) => void,
+  doFetch: typeof fetch = fetch,
+): Promise<void> {
+  const response = await doFetch(`${baseUrl}/api/pull`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ model, stream: true }),
+  });
+  if (!(response.ok && response.body)) {
+    throw new Error(`Ollama answered ${response.status}.`);
+  }
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finished = false;
+  const read = (line: string) => {
+    if (!line.trim()) return;
+    const step = JSON.parse(line) as {
+      status?: string;
+      total?: number;
+      completed?: number;
+      error?: string;
+    };
+    if (step.error) throw new Error(step.error);
+    if (step.total) onProgress(step.completed ?? 0, step.total);
+    if (step.status === "success") finished = true;
+  };
+  for await (const chunk of response.body) {
+    buffer += decoder.decode(chunk as Uint8Array, { stream: true });
+    let newline = buffer.indexOf("\n");
+    while (newline >= 0) {
+      read(buffer.slice(0, newline));
+      buffer = buffer.slice(newline + 1);
+      newline = buffer.indexOf("\n");
+    }
+  }
+  read(buffer);
+  if (!finished) throw new Error("Ollama stopped before the model was complete.");
+}
+
+/**
  * The order a home prefers an Ollama's models in: those that take tools first, then the
  * largest that leaves the computer room, then the smallest of those that do not.
  */

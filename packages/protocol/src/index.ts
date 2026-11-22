@@ -792,8 +792,24 @@ export const SetupCheck = z.object({
   model: z.string().optional(),
   /** When the test call ran. */
   at: z.string().optional(),
+  /**
+   * A model the home can pull into Ollama on this computer itself, on the person's yes
+   * (`POST /v1/setup/pull`): the largest of its suggestions that fits the computer's memory.
+   */
+  pull: z.object({ model: z.string(), size: z.number() }).optional(),
 });
 export type SetupCheck = z.infer<typeof SetupCheck>;
+
+/** A model the home pulls into Ollama: how far it is, in bytes. */
+export const SetupPulling = z.object({
+  model: z.string(),
+  state: z.enum(["pulling", "done", "failed"]),
+  done: z.number(),
+  total: z.number(),
+  /** What Ollama said when it failed. */
+  error: z.string().optional(),
+});
+export type SetupPulling = z.infer<typeof SetupPulling>;
 
 export const Setup = z.object({
   /** The person went through the first start, or used the home before there was one. */
@@ -809,8 +825,14 @@ export const Setup = z.object({
   models: z.array(SetupCheck),
   home: z.array(SetupCheck),
   capabilities: z.array(SetupCheck),
+  /** The model the home pulls, or pulled last, while the home runs. */
+  pulling: SetupPulling.optional(),
 });
 export type Setup = z.infer<typeof Setup>;
+
+/** Pulls one of the models a check offers (`SetupCheck.pull`). */
+export const PullSetup = z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9._:/-]{0,80}$/) });
+export type PullSetup = z.infer<typeof PullSetup>;
 
 export const ChangeSetup = z.object({
   name: z.string().trim().min(1).max(80).optional(),
