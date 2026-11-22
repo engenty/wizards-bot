@@ -87,7 +87,7 @@ export function Menu({
           role="menu"
           aria-label={label}
           style={{ top: at.top, bottom: at.bottom, left: Math.max(8, at.left) }}
-          className="enter-pop fixed z-50 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-card p-1 shadow-overlay ring-1 ring-border"
+          className="enter-pop fixed z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xl bg-card p-1 shadow-overlay ring-1 ring-border"
         >
           {head ? <div className="px-3 pt-2 pb-1.5">{head}</div> : null}
           {items.map((item, i) =>

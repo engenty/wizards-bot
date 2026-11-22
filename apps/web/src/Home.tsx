@@ -276,6 +276,8 @@ export function Home() {
     setDrawer(false);
     setDialog("settings");
   };
+  // Where the list fits, it opens beside the chat and stays; where not, over the chat.
+  const openList = () => (sidebarFits(windowWidth, pane) ? setCollapsed(false) : setDrawer(true));
   const list = (rail: boolean, onToggle: () => void) => (
     <Sidebar
       agents={agents.data ?? []}
@@ -309,8 +311,7 @@ export function Home() {
         {side === "open" ? (
           <div className="h-full w-72">{list(false, () => setCollapsed(true))}</div>
         ) : side === "rail" ? (
-          // Where the list fits, it opens beside the chat and stays; where not, over the chat.
-          list(true, () => (sidebarFits(windowWidth, pane) ? setCollapsed(false) : setDrawer(true)))
+          list(true, openList)
         ) : null}
       </div>
       <SidebarDrawer open={drawer} onClose={() => setDrawer(false)}>
@@ -323,6 +324,7 @@ export function Home() {
             items={items.data ?? []}
             link={link}
             onAgents={side === "none" ? () => setDrawer(true) : undefined}
+            onList={side === "rail" ? openList : undefined}
             onAgent={() => {
               setDocumentId(null);
               setArtifactId(null);

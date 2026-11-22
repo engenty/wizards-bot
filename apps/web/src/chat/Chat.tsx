@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { Agent, Card, FileRef, Message } from "@wizards-bot/protocol";
-import { ChevronLeft, FolderPlus, House, Paperclip } from "lucide-react";
+import { ChevronLeft, FolderPlus, House, PanelLeft, Paperclip } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { withConsent } from "../lib/consent";
@@ -39,6 +39,7 @@ export function Chat({
   items,
   link,
   onAgents,
+  onList,
   onAgent,
   unread,
   onItems,
@@ -52,6 +53,8 @@ export function Chat({
   link: Link;
   /** Opens the list of agents, where the window has no column for it. */
   onAgents?: () => void;
+  /** Opens the list of agents from its narrow column of figures. */
+  onList?: () => void;
   /** Opens what there is to know about the agent. */
   onAgent: () => void;
   /** Whether another agent wrote something the person has not read. */
@@ -139,8 +142,20 @@ export function Chat({
           {t("chat.drop")}
         </div>
       ) : null}
-      <header className="mx-auto flex w-full max-w-[46rem] items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+      {onList ? (
+        // At the chat's left edge, beside the column of figures, where the list opens.
+        <IconButton
+          label={t("agents.show")}
+          onClick={onList}
+          className="absolute top-2.5 left-2 z-10"
+        >
+          <PanelLeft className="size-[1.125rem]" />
+        </IconButton>
+      ) : null}
+      {/* Three parts, as in the iOS app: the way back at the left, the Wizard in the middle,
+          what needs the person at the right. */}
+      <header className="mx-auto grid w-full max-w-[46rem] grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-2.5 sm:px-4">
+        <div className="flex min-w-0 items-center">
           {onAgents ? (
             <IconButton label={t("agents.show")} onClick={onAgents} className="relative -ml-1.5">
               <ChevronLeft className="size-5" />
@@ -149,27 +164,29 @@ export function Chat({
               ) : null}
             </IconButton>
           ) : null}
-          <button
-            type="button"
-            title={t("agent.about", { name: agent.name })}
-            onClick={onAgent}
-            className="flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 transition hover:bg-accent active:scale-[0.98]"
-          >
-            <Face key={agent.id} agent={agent} size={32} className="enter-pop" />
-            <h1 className="truncate font-display font-semibold text-[1.0625rem]">{agent.name}</h1>
-          </button>
         </div>
-        {items.length ? (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            onClick={onItems}
-            className="enter-pop inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-ember-tint px-3 font-medium text-[0.8125rem] text-ember-strong transition hover:brightness-[0.97] active:scale-95 coarse:h-11"
-          >
-            <span className="size-1.5 rounded-full bg-ember" />
-            {t("needs.count", { n: items.length })}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          title={t("agent.about", { name: agent.name })}
+          onClick={onAgent}
+          className="flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 transition hover:bg-accent active:scale-[0.98]"
+        >
+          <Face key={agent.id} agent={agent} size={32} className="enter-pop" />
+          <h1 className="truncate font-display font-semibold text-[1.0625rem]">{agent.name}</h1>
+        </button>
+        <div className="flex min-w-0 items-center justify-end">
+          {items.length ? (
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              onClick={onItems}
+              className="enter-pop inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-ember-tint px-3 font-medium text-[0.8125rem] text-ember-strong transition hover:brightness-[0.97] active:scale-95 coarse:h-11"
+            >
+              <span className="size-1.5 rounded-full bg-ember" />
+              {t("needs.count", { n: items.length })}
+            </button>
+          ) : null}
+        </div>
       </header>
       {link === "away" ? (
         <p
