@@ -1,6 +1,8 @@
 // From engenty wizards, apps/web/src/lib/i18n.ts and packages/shared/src/texts.ts: the table
 // pattern, one line per key and language, plural forms by `{n}`.
 
+import { useSyncExternalStore } from "react";
+
 /**
  * A line with a form for each plural category of its `{n}` (`Intl.PluralRules`): "one" and
  * "other" in English and German.
@@ -146,37 +148,60 @@ export const en = {
   "agents.unread": { one: "{n} unread message", other: "{n} unread messages" },
   "setup.title": "Set up your Bot Server",
   "setup.step": "Step {n} of {total}",
-  "setup.name.title": "What should your agents call you?",
-  "setup.name.hint": "Your agents use this name. To change it later, tell your agent.",
+  "setup.name.title": "What should your wizards call you?",
+  "setup.name.hint": "Your wizards use this name. To change it later, tell one of them.",
   "setup.name.label": "Your name",
   "setup.models.title": "Models",
-  "setup.models.hint":
-    "Your Bot Server talks through a model on this computer or one of your subscriptions. Each one is tested with a short call.",
+  "setup.models.hint": "Your wizards think with a model. Each one is tested with a short call.",
   "setup.models.gate": "Set up one of these until it answers. Then you can go on.",
-  "setup.models.working": "A model answers. You can go on.",
   "setup.test": "Test again",
   "setup.testAll": "Test all again",
   "setup.testing": "Testing",
-  "setup.gateway.title": "Or use a gateway",
-  "setup.gateway.hint":
-    "A gateway reaches models in the cloud with a key of yours. The key goes into a card and stays in your Bot Server.",
   "setup.gateway.choose": "Which gateway",
   "setup.gateway.add": "Add a key",
   "setup.gateway.saved": "The key is saved. Your Bot Server tests the gateway now.",
-  "setup.abilities.title": "What your agents can do",
-  "setup.abilities.hint": "Text is enough to start. The rest comes once you add it.",
+  "setup.abilities.title": "What your wizards can do",
   "setup.devices.hint": "Both are optional. You can add them later in the chat.",
   "setup.phone.title": "Add your phone",
   "setup.phone.hint": "Scan the code with the wizards.bot app on your iPhone.",
   "setup.phone.show": "Show the code",
   "setup.folder.title": "Connect a folder",
-  "setup.folder.hint": "Your agents read the files in it. The files stay where they are.",
+  "setup.folder.hint": "Your wizards read the files in it. The files stay where they are.",
   "setup.folder.add": "Connect a folder",
   "setup.folder.count": { one: "{n} folder connected", other: "{n} folders connected" },
   "setup.next": "Go on",
   "setup.finish": "Open the chat",
   "setup.copy": "Copy",
   "setup.copied": "Copied",
+  "setup.account.label": "Your wizards account",
+  "setup.account.in": "your wizards account",
+  "setup.account.ok": "Answers, on your credits.",
+  "setup.account.untested": "Not tested yet.",
+  "setup.account.problem": "Does not answer right now.",
+  "setup.more": "More options",
+  "setup.ownKey.title": "A key of your own",
+  "setup.ownKey.hint": "A gateway or a provider, with a key of yours. It stays on your Bot Server.",
+  "setup.computer.title": "Your computer",
+  "setup.computer.hint": "Ollama, Claude or Codex on your computer answer here while it is on.",
+  "setup.computer.show": "Show how",
+  "setup.computer.how":
+    "Run this on your computer, with a pairing code from the chat (“add a device”):",
+  "setup.ability.text": "Text",
+  "setup.ability.text.ok": "Your wizards write with {models}.",
+  "setup.ability.text.none": "No model answers yet.",
+  "setup.ability.pictures": "Pictures",
+  "setup.ability.pictures.ok": "Your wizards read the pictures you send.",
+  "setup.ability.phone": "Your phone’s model",
+  "setup.ability.phone.ok": "Your phone answers by itself while your Bot Server is out of reach.",
+  "setup.devices.hintOne": "Optional. You can add it later in the chat.",
+  "theme.label": "Theme",
+  "theme.light": "Light theme",
+  "theme.branded": "Branded theme",
+  "theme.dark": "Dark theme",
+  "lang.label": "Language",
+  "legal.imprint": "Imprint",
+  "legal.privacy": "Privacy",
+  "legal.terms": "Terms",
   "status.title": "Status",
   "status.models": "Models",
   "status.home": "Bot Server",
@@ -593,38 +618,64 @@ export const de: Record<Key, Line> = {
   "agents.unread": { one: "{n} ungelesene Nachricht", other: "{n} ungelesene Nachrichten" },
   "setup.title": "Deinen Bot Server einrichten",
   "setup.step": "Schritt {n} von {total}",
-  "setup.name.title": "Wie sollen dich deine Agenten nennen?",
-  "setup.name.hint":
-    "Deine Agenten nennen dich so. Ändern kannst du es später im Gespräch mit deinem Agenten.",
+  "setup.name.title": "Wie sollen dich deine Wizards nennen?",
+  "setup.name.hint": "Deine Wizards nennen dich so. Ändern kannst du ihn später im Chat.",
   "setup.name.label": "Dein Name",
   "setup.models.title": "Modelle",
   "setup.models.hint":
-    "Dein Bot Server spricht über ein Modell auf diesem Computer oder über eines deiner Abos. Jedes wird mit einem kurzen Aufruf getestet.",
+    "Deine Wizards denken mit einem Modell. Jedes wird mit einem kurzen Aufruf getestet.",
   "setup.models.gate": "Richte eines davon ein, bis es antwortet. Dann geht es weiter.",
-  "setup.models.working": "Ein Modell antwortet. Es kann weitergehen.",
   "setup.test": "Erneut testen",
   "setup.testAll": "Alle erneut testen",
   "setup.testing": "Wird getestet",
-  "setup.gateway.title": "Oder ein Gateway nutzen",
-  "setup.gateway.hint":
-    "Ein Gateway erreicht Modelle in der Cloud mit einem Schlüssel von dir. Der Schlüssel kommt in eine Karte und bleibt in deinem Bot Server.",
   "setup.gateway.choose": "Welches Gateway",
   "setup.gateway.add": "Schlüssel hinzufügen",
   "setup.gateway.saved": "Der Schlüssel ist gespeichert. Dein Bot Server testet das Gateway jetzt.",
-  "setup.abilities.title": "Was deine Agenten können",
-  "setup.abilities.hint": "Für den Anfang reicht Text. Der Rest kommt, sobald du ihn hinzufügst.",
+  "setup.abilities.title": "Was deine Wizards können",
   "setup.devices.hint": "Beides ist freiwillig. Du kannst es später im Chat hinzufügen.",
   "setup.phone.title": "Dein Telefon hinzufügen",
   "setup.phone.hint": "Scanne den Code mit der wizards.bot-App auf deinem iPhone.",
   "setup.phone.show": "Code zeigen",
   "setup.folder.title": "Einen Ordner verbinden",
-  "setup.folder.hint": "Deine Agenten lesen die Dateien darin. Die Dateien bleiben, wo sie sind.",
+  "setup.folder.hint": "Deine Wizards lesen die Dateien darin. Die Dateien bleiben, wo sie sind.",
   "setup.folder.add": "Ordner verbinden",
   "setup.folder.count": { one: "{n} Ordner verbunden", other: "{n} Ordner verbunden" },
   "setup.next": "Weiter",
   "setup.finish": "Zum Chat",
   "setup.copy": "Kopieren",
   "setup.copied": "Kopiert",
+  "setup.account.label": "Dein wizards-Konto",
+  "setup.account.in": "deinem wizards-Konto",
+  "setup.account.ok": "Antwortet, mit deinen Credits.",
+  "setup.account.untested": "Noch nicht getestet.",
+  "setup.account.problem": "Antwortet gerade nicht.",
+  "setup.more": "Weitere Möglichkeiten",
+  "setup.ownKey.title": "Ein eigener Schlüssel",
+  "setup.ownKey.hint":
+    "Ein Gateway oder ein Anbieter, mit einem Schlüssel von dir. Er bleibt auf deinem Bot Server.",
+  "setup.computer.title": "Dein Computer",
+  "setup.computer.hint":
+    "Ollama, Claude oder Codex auf deinem Computer antworten hier, solange er läuft.",
+  "setup.computer.show": "Zeigen, wie",
+  "setup.computer.how":
+    "Führe das auf deinem Computer aus, mit einem Kopplungscode aus dem Chat („Gerät hinzufügen“):",
+  "setup.ability.text": "Text",
+  "setup.ability.text.ok": "Deine Wizards schreiben mit {models}.",
+  "setup.ability.text.none": "Noch antwortet kein Modell.",
+  "setup.ability.pictures": "Bilder",
+  "setup.ability.pictures.ok": "Deine Wizards lesen die Bilder, die du schickst.",
+  "setup.ability.phone": "Das Modell deines Telefons",
+  "setup.ability.phone.ok":
+    "Dein Telefon antwortet selbst, wenn dein Bot Server nicht erreichbar ist.",
+  "setup.devices.hintOne": "Freiwillig. Du kannst es später im Chat hinzufügen.",
+  "theme.label": "Design",
+  "theme.light": "Helles Design",
+  "theme.branded": "Farbiges Design",
+  "theme.dark": "Dunkles Design",
+  "lang.label": "Sprache",
+  "legal.imprint": "Impressum",
+  "legal.privacy": "Datenschutz",
+  "legal.terms": "Nutzungsbedingungen",
   "status.title": "Status",
   "status.models": "Modelle",
   "status.home": "Bot Server",
@@ -916,9 +967,51 @@ export function langOf(languages: readonly string[]): Lang {
   return languages[0]?.toLowerCase().startsWith("de") ? "de" : "en";
 }
 
-/** The language this browser reads. */
-export const lang: Lang =
-  typeof navigator === "undefined" ? "en" : langOf(navigator.languages ?? [navigator.language]);
+const LANG_KEY = "wizards.lang";
+const langListeners = new Set<() => void>();
+
+/** The language the person picked here, else the one this browser reads. */
+function startLang(): Lang {
+  try {
+    const picked = localStorage.getItem(LANG_KEY);
+    if (picked === "en" || picked === "de") {
+      return picked;
+    }
+  } catch {}
+  return typeof navigator === "undefined"
+    ? "en"
+    : langOf(navigator.languages ?? [navigator.language]);
+}
+
+/** The language the page shows. */
+export let lang: Lang = startLang();
+
+/** Shows the page in another language from now on, and keeps the pick in this browser. */
+export function setLang(next: Lang) {
+  if (next === lang) {
+    return;
+  }
+  try {
+    localStorage.setItem(LANG_KEY, next);
+  } catch {}
+  lang = next;
+  document.documentElement.lang = next;
+  for (const listener of langListeners) {
+    listener();
+  }
+}
+
+/** The language shown; a component that reads it is drawn again when it changes. */
+export function useLang(): Lang {
+  return useSyncExternalStore(
+    (listener) => {
+      langListeners.add(listener);
+      return () => langListeners.delete(listener);
+    },
+    () => lang,
+    () => lang,
+  );
+}
 
 const plurals = new Map<Lang, Intl.PluralRules>();
 
@@ -954,6 +1047,11 @@ export function textOf(key: Key, lang: Lang, vars?: Record<string, string | numb
 /** Names as one phrase of choices in the language this browser reads: “Claude or Codex”. */
 export function orList(names: string[]): string {
   return new Intl.ListFormat(lang, { type: "disjunction" }).format(names);
+}
+
+/** Names as one phrase in the language shown: “Claude and Codex”. */
+export function andList(names: string[]): string {
+  return new Intl.ListFormat(lang, { type: "conjunction" }).format(names);
 }
 
 /** A line in the language this browser reads. */

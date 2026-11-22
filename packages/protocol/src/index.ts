@@ -804,6 +804,8 @@ export const Setup = z.object({
   working: z.boolean(),
   /** The home has a model it would ask, tested or not. */
   hasModel: z.boolean(),
+  /** The home runs on wizards.bot: its models come from the account, not from this computer. */
+  hosted: z.boolean().optional(),
   models: z.array(SetupCheck),
   home: z.array(SetupCheck),
   capabilities: z.array(SetupCheck),

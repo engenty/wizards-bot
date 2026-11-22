@@ -4,6 +4,7 @@ import { Engenty } from "./engenty/Engenty";
 import { ApiError, api } from "./lib/api";
 import { t } from "./lib/i18n";
 import { setDeviceToken } from "./lib/session";
+import { Frame } from "./setup/Frame";
 import { Button, Input } from "./ui";
 
 /**
@@ -59,42 +60,46 @@ export function Pairing() {
   }, []);
 
   return (
-    <form
-      className="mx-auto flex min-h-full max-w-sm flex-col items-center justify-center gap-4 px-5 py-10 text-center"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (code.trim()) {
-          void pair(code.trim());
-        }
-      }}
-    >
-      <Engenty kind="round" size={120} />
-      <h1 className="font-display font-semibold text-2xl leading-tight">{t("pair.title")}</h1>
-      <p className="text-ink-2 leading-relaxed">{t("pair.hint")}</p>
-      <div className="mt-2 w-full text-left">
-        <label htmlFor="pair-code" className="mb-1.5 block font-medium text-[0.875rem]">
-          {t("pair.code")}
-        </label>
-        <Input
-          id="pair-code"
-          value={code}
-          autoComplete="off"
-          autoCapitalize="characters"
-          spellCheck={false}
-          placeholder={t("pair.placeholder")}
-          aria-describedby={problem ? "pair-problem" : undefined}
-          onChange={(e) => setCode(e.target.value)}
-          className="text-center font-mono tracking-widest placeholder:tracking-normal"
-        />
-      </div>
-      {problem ? (
-        <p id="pair-problem" role="alert" className="text-[0.875rem] text-rose">
-          {problem}
-        </p>
-      ) : null}
-      <Button type="submit" busy={busy} disabled={!code.trim()} className="w-full">
-        {t("pair.connect")}
-      </Button>
-    </form>
+    <div className="h-full overflow-y-auto">
+      <Frame>
+        <form
+          className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-4 px-5 py-10 text-center"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (code.trim()) {
+              void pair(code.trim());
+            }
+          }}
+        >
+          <Engenty kind="round" size={120} />
+          <h1 className="font-display font-semibold text-2xl leading-tight">{t("pair.title")}</h1>
+          <p className="text-ink-2 leading-relaxed">{t("pair.hint")}</p>
+          <div className="mt-2 w-full text-left">
+            <label htmlFor="pair-code" className="mb-1.5 block font-medium text-[0.875rem]">
+              {t("pair.code")}
+            </label>
+            <Input
+              id="pair-code"
+              value={code}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              placeholder={t("pair.placeholder")}
+              aria-describedby={problem ? "pair-problem" : undefined}
+              onChange={(e) => setCode(e.target.value)}
+              className="text-center font-mono tracking-widest placeholder:tracking-normal"
+            />
+          </div>
+          {problem ? (
+            <p id="pair-problem" role="alert" className="text-[0.875rem] text-rose">
+              {problem}
+            </p>
+          ) : null}
+          <Button type="submit" busy={busy} disabled={!code.trim()} className="w-full">
+            {t("pair.connect")}
+          </Button>
+        </form>
+      </Frame>
+    </div>
   );
 }

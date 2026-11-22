@@ -19,7 +19,7 @@ const ICONS: Record<SetupCheck["state"], React.ReactNode> = {
 };
 
 /** A command for a terminal on the home's computer, with a way to copy it. */
-function Command({ text }: { text: string }) {
+export function Command({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const copy = () =>
     navigator.clipboard?.writeText(text).then(
@@ -39,9 +39,43 @@ function Command({ text }: { text: string }) {
   );
 }
 
+/** The hosted Bot Server's checks, in the language shown: the Bot Server words them in English. */
+const ACCOUNT = "wizards";
+
+export function labelOf(check: SetupCheck): string {
+  if (check.id === "own-key") {
+    return t("setup.ownKey.title");
+  }
+  if (check.id === "link") {
+    return t("setup.computer.title");
+  }
+  return check.id === ACCOUNT ? t("setup.account.label") : check.label;
+}
+
+function saidOf(check: SetupCheck): { said: string; detail?: string } {
+  if (check.id === "own-key") {
+    return { said: t("setup.ownKey.hint") };
+  }
+  if (check.id === "link") {
+    return { said: t("setup.computer.hint"), detail: t("setup.computer.how") };
+  }
+  if (check.id !== ACCOUNT) {
+    return { said: check.said, detail: check.todo };
+  }
+  if (check.state === "ok" || check.state === "warning") {
+    return { said: t("setup.account.ok") };
+  }
+  if (check.state === "problem") {
+    // What the gateway said is the one way to tell no credits from a refused key.
+    return { said: t("setup.account.problem"), detail: check.said };
+  }
+  return { said: t(check.state === "testing" ? "setup.testing" : "setup.account.untested") };
+}
+
 /** One check: what was found and, while it is not fine, what to do. */
 function CheckRow({ check, onTest }: { check: SetupCheck; onTest?: (source: string) => void }) {
   const fine = check.state === "ok";
+  const { said, detail } = saidOf(check);
   return (
     <li className="flex gap-3 py-3">
       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
@@ -49,7 +83,7 @@ function CheckRow({ check, onTest }: { check: SetupCheck; onTest?: (source: stri
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <p className="min-w-0 flex-1 font-medium text-[0.9375rem]">{check.label}</p>
+          <p className="min-w-0 flex-1 font-medium text-[0.9375rem]">{labelOf(check)}</p>
           <span
             className={cn(
               "shrink-0 text-[0.75rem]",
@@ -62,9 +96,9 @@ function CheckRow({ check, onTest }: { check: SetupCheck; onTest?: (source: stri
             {t(`status.state.${check.state}`)}
           </span>
         </div>
-        <p className="mt-0.5 break-words text-[0.875rem] text-ink-2 leading-snug">{check.said}</p>
-        {check.todo && !fine ? (
-          <p className="mt-1 text-[0.8125rem] text-ink-3 leading-snug">{check.todo}</p>
+        <p className="mt-0.5 break-words text-[0.875rem] text-ink-2 leading-snug">{said}</p>
+        {detail && !fine ? (
+          <p className="mt-1 text-[0.8125rem] text-ink-3 leading-snug">{detail}</p>
         ) : null}
         {check.command && !fine ? <Command text={check.command} /> : null}
         {onTest && check.source && testable(check) && check.state !== "ok" ? (

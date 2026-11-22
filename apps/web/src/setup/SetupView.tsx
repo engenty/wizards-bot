@@ -1,17 +1,17 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Card, Setup } from "@wizards-bot/protocol";
-import { FolderPlus, KeyRound, Smartphone } from "lucide-react";
+import type { Card, Setup, SetupCheck } from "@wizards-bot/protocol";
+import { ChevronDown, FolderPlus, KeyRound, Smartphone } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { CardView } from "../chat/CardView";
 import { FolderDialog } from "../chat/FolderDialog";
-import { Engenty } from "../engenty/Engenty";
 import { api } from "../lib/api";
-import { t } from "../lib/i18n";
+import { andList, t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { useFolders, useItems } from "../lib/queries";
 import { Button, cn, Input, Select } from "../ui";
-import { CheckList, TestAgain, useTest } from "./Checks";
-import { canGoOn, type Step, stepsOf, testOnOpen } from "./steps";
+import { CheckList, Command, labelOf, TestAgain, useTest } from "./Checks";
+import { Frame } from "./Frame";
+import { canGoOn, type Step, stepsOf, testing, testOnOpen } from "./steps";
 
 const GATEWAYS = [
   { value: "openrouter", label: "OpenRouter" },
@@ -120,6 +120,103 @@ function AddPhone({ onProblem }: { onProblem: (text: string) => void }) {
   );
 }
 
+/** What the setup offers besides the models that answer: a key, the person's computer. */
+const OPTIONS = ["own-key", "link"];
+
+/** A model source not on this computer and never tested: something to set up, not a state. */
+const notHere = (check: SetupCheck) => check.state === "absent" && !check.at;
+
+/** A quiet line that opens what else there is. */
+function More({ open: start, children }: { open: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(start);
+  return (
+    <section className="mt-6">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex cursor-pointer items-center gap-1.5 font-medium text-[0.875rem] text-ink-2 transition hover:text-ink"
+      >
+        {t("setup.more")}
+        <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+      </button>
+      {open ? <div className="mt-1 divide-y divide-border-soft">{children}</div> : null}
+    </section>
+  );
+}
+
+function Option({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
+  return (
+    <div className="py-3">
+      <h3 className="font-medium text-[0.9375rem]">{title}</h3>
+      <p className="mt-0.5 text-[0.8125rem] text-ink-3 leading-relaxed">{hint}</p>
+      <div className="mt-2">{children}</div>
+    </div>
+  );
+}
+
+/** The command that links the person's computer, once they ask how. */
+function LinkCommand({ command }: { command: string }) {
+  const [shown, setShown] = useState(false);
+  if (!shown) {
+    return (
+      <Button variant="secondary" size="sm" onClick={() => setShown(true)}>
+        {t("setup.computer.show")}
+      </Button>
+    );
+  }
+  return (
+    <>
+      <p className="text-[0.8125rem] text-ink-3 leading-relaxed">{t("setup.computer.how")}</p>
+      <Command text={command} />
+    </>
+  );
+}
+
+/**
+ * What the agents can do, one line for each thing that works, in the language shown. Text is
+ * always there, as it gates the chat; pictures and the phone's own model only once they work.
+ */
+function abilities(setup: Setup): SetupCheck[] {
+  const answering = setup.models.filter(
+    (check) => check.state === "ok" || check.state === "warning",
+  );
+  const of = (id: string) => setup.capabilities.find((check) => check.id === id);
+  const names = answering.map((check) =>
+    check.id === "wizards" ? t("setup.account.in") : labelOf(check),
+  );
+  const rows: SetupCheck[] = [
+    {
+      id: "text",
+      kind: "capability",
+      label: t("setup.ability.text"),
+      state: answering.length ? "ok" : (of("text")?.state ?? "untested"),
+      said: answering.length
+        ? t("setup.ability.text.ok", { models: andList(names) })
+        : t("setup.ability.text.none"),
+    },
+  ];
+  if (of("pictures")?.state === "ok") {
+    rows.push({
+      id: "pictures",
+      kind: "capability",
+      label: t("setup.ability.pictures"),
+      state: "ok",
+      said: t("setup.ability.pictures.ok"),
+    });
+  }
+  if (of("phone")?.state === "ok") {
+    rows.push({
+      id: "phone",
+      kind: "capability",
+      label: t("setup.ability.phone"),
+      state: "ok",
+      said: t("setup.ability.phone.ok"),
+    });
+  }
+  return rows;
+}
+
 /**
  * The first start of a home: who the person is, which model answers (tested with a short call
  * each), what the agents can do with it, and a phone and a folder. It stands where the chat
@@ -136,6 +233,10 @@ export function SetupView({ setup }: { setup: Setup }) {
   const [problem, setProblem] = useState<string | null>(null);
   const test = useTest(setProblem);
   const step = steps[at] ?? "models";
+  // The models that answer or could, here; the rest is under "More options".
+  const models = setup.models.filter((check) => !OPTIONS.includes(check.id) && !notHere(check));
+  const elsewhere = setup.models.filter((check) => !OPTIONS.includes(check.id) && notHere(check));
+  const link = setup.models.find((check) => check.id === "link");
   const last = at === steps.length - 1;
 
   // The models are tested once when their step opens, if they never were; later on request.
@@ -176,110 +277,124 @@ export function SetupView({ setup }: { setup: Setup }) {
 
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <main className="mx-auto flex min-h-full w-full max-w-xl flex-col px-4 pt-10 pb-8 sm:px-6">
-        <div className="flex items-center gap-3">
-          <Engenty kind="round" size={44} />
-          <div className="min-w-0 flex-1">
-            <h1 className="font-medium text-[1.125rem]">{t("setup.title")}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Dashes steps={steps} at={at} />
-              <p className="text-[0.75rem] text-ink-3">
-                {t("setup.step", { n: at + 1, total: steps.length })}
-              </p>
+      <Frame>
+        <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 pt-8 pb-8 sm:px-6">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="font-medium text-[1.125rem]">{t("setup.title")}</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <Dashes steps={steps} at={at} />
+                <p className="text-[0.75rem] text-ink-3">
+                  {t("setup.step", { n: at + 1, total: steps.length })}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div>
-          {step === "name" ? (
-            <Part title={t("setup.name.title")} hint={t("setup.name.hint")}>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (canGoOn("name", setup, name)) {
-                    void next();
-                  }
-                }}
-              >
-                <Input
-                  aria-label={t("setup.name.label")}
-                  value={name}
-                  maxLength={80}
-                  autoFocus
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </form>
-            </Part>
-          ) : null}
-
-          {step === "models" ? (
-            <>
-              <Part title={t("setup.models.title")} hint={t("setup.models.hint")}>
-                <CheckList checks={setup.models} onTest={(source) => void test(source)} />
-                <TestAgain setup={setup} onTest={() => void test()} />
+          <div>
+            {step === "name" ? (
+              <Part title={t("setup.name.title")} hint={t("setup.name.hint")}>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (canGoOn("name", setup, name)) {
+                      void next();
+                    }
+                  }}
+                >
+                  <Input
+                    aria-label={t("setup.name.label")}
+                    value={name}
+                    maxLength={80}
+                    autoFocus
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </form>
               </Part>
-              <Part title={t("setup.gateway.title")} hint={t("setup.gateway.hint")}>
-                <GatewayKey onProblem={setProblem} />
-              </Part>
-              <p
-                role="status"
-                className={cn(
-                  "mt-6 rounded-xl px-4 py-3 text-[0.875rem]",
-                  setup.working ? "bg-moss-tint text-moss" : "bg-paper-2 text-ink-2",
-                )}
-              >
-                {t(setup.working ? "setup.models.working" : "setup.models.gate")}
-              </p>
-            </>
-          ) : null}
+            ) : null}
 
-          {step === "abilities" ? (
-            <Part title={t("setup.abilities.title")} hint={t("setup.abilities.hint")}>
-              <CheckList checks={setup.capabilities} />
-            </Part>
-          ) : null}
-
-          {step === "devices" ? (
-            <>
-              <p className="mt-6 text-[0.8125rem] text-ink-3">{t("setup.devices.hint")}</p>
-              <Part title={t("setup.phone.title")} hint={t("setup.phone.hint")}>
-                <AddPhone onProblem={setProblem} />
-              </Part>
-              <Part title={t("setup.folder.title")} hint={t("setup.folder.hint")}>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button variant="secondary" size="sm" onClick={() => setFolder(true)}>
-                    <FolderPlus className="size-4" />
-                    {t("setup.folder.add")}
-                  </Button>
-                  {folders.data?.length ? (
-                    <span className="text-[0.8125rem] text-ink-3">
-                      {t("setup.folder.count", { n: folders.data.length })}
-                    </span>
+            {step === "models" ? (
+              <>
+                <Part
+                  title={t("setup.models.title")}
+                  hint={setup.hosted ? undefined : t("setup.models.hint")}
+                >
+                  <CheckList checks={models} onTest={(source) => void test(source)} />
+                  {setup.hosted ? null : <TestAgain setup={setup} onTest={() => void test()} />}
+                </Part>
+                <More open={models.length === 0}>
+                  {elsewhere.length ? (
+                    <CheckList checks={elsewhere} onTest={(source) => void test(source)} />
                   ) : null}
-                </div>
-              </Part>
-              <FolderDialog open={folder} onClose={() => setFolder(false)} />
-            </>
-          ) : null}
-        </div>
+                  <Option title={t("setup.ownKey.title")} hint={t("setup.ownKey.hint")}>
+                    <GatewayKey onProblem={setProblem} />
+                  </Option>
+                  {link?.command ? (
+                    <Option title={t("setup.computer.title")} hint={t("setup.computer.hint")}>
+                      <LinkCommand command={link.command} />
+                    </Option>
+                  ) : null}
+                </More>
+                {setup.working || testing(setup) ? null : (
+                  <p role="status" className="mt-6 text-[0.8125rem] text-ink-3">
+                    {t("setup.models.gate")}
+                  </p>
+                )}
+              </>
+            ) : null}
 
-        {problem ? (
-          <p role="alert" className="mt-4 text-[0.8125rem] text-rose">
-            {problem}
-          </p>
-        ) : null}
-        <div className="mt-8 flex items-center gap-2">
-          {at > 0 ? (
-            <Button variant="ghost" onClick={() => setAt(at - 1)}>
-              {t("common.back")}
-            </Button>
+            {step === "abilities" ? (
+              <Part title={t("setup.abilities.title")}>
+                <CheckList checks={abilities(setup)} />
+              </Part>
+            ) : null}
+
+            {step === "devices" ? (
+              <>
+                <p className="mt-6 text-[0.8125rem] text-ink-3">
+                  {t(setup.hosted ? "setup.devices.hintOne" : "setup.devices.hint")}
+                </p>
+                <Part title={t("setup.phone.title")} hint={t("setup.phone.hint")}>
+                  <AddPhone onProblem={setProblem} />
+                </Part>
+                {setup.hosted ? null : (
+                  <Part title={t("setup.folder.title")} hint={t("setup.folder.hint")}>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button variant="secondary" size="sm" onClick={() => setFolder(true)}>
+                        <FolderPlus className="size-4" />
+                        {t("setup.folder.add")}
+                      </Button>
+                      {folders.data?.length ? (
+                        <span className="text-[0.8125rem] text-ink-3">
+                          {t("setup.folder.count", { n: folders.data.length })}
+                        </span>
+                      ) : null}
+                    </div>
+                  </Part>
+                )}
+                <FolderDialog open={folder} onClose={() => setFolder(false)} />
+              </>
+            ) : null}
+          </div>
+
+          {problem ? (
+            <p role="alert" className="mt-4 text-[0.8125rem] text-rose">
+              {problem}
+            </p>
           ) : null}
-          <span className="flex-1" />
-          <Button busy={busy} disabled={!canGoOn(step, setup, name)} onClick={() => void next()}>
-            {last ? t("setup.finish") : t("setup.next")}
-          </Button>
-        </div>
-      </main>
+          <div className="mt-8 flex items-center gap-2">
+            {at > 0 ? (
+              <Button variant="ghost" onClick={() => setAt(at - 1)}>
+                {t("common.back")}
+              </Button>
+            ) : null}
+            <span className="flex-1" />
+            <Button busy={busy} disabled={!canGoOn(step, setup, name)} onClick={() => void next()}>
+              {last ? t("setup.finish") : t("setup.next")}
+            </Button>
+          </div>
+        </main>
+      </Frame>
     </div>
   );
 }

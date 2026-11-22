@@ -1161,6 +1161,8 @@ prints them. `GET /v1/setup` → `Setup`:
   `working`: a model answered its last test call. `hasModel`: the home has a model it would
   ask. The web app shows the setup instead of the chat while `done` is false or `hasModel` is.
 - `name`: the person's name, `confirmed` once they said it (here or with the main agent).
+- `hosted`: the home runs on wizards.bot. Its models come from the wizards account; the setup
+  offers a key of one's own and the person's computer as more options, and no folder.
 
 `said` is one sentence the person can act on, `todo` says what to do, `command` is what to run
 in a terminal on the home's computer, e.g.:

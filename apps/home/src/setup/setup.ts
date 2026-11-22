@@ -255,6 +255,7 @@ export class Setup {
       },
       working,
       hasModel: this.home.models.candidates().length > 0,
+      hosted: isHosted(this.home.config),
       models,
       home: [await this.address(), this.data(), this.folders(), this.push()],
       capabilities: this.capabilities(models),
