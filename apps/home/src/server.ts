@@ -32,6 +32,7 @@ import { FileRefused } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
 import type { Home } from "./home.ts";
 import { agree, takeBack } from "./models/services.ts";
+import { secretEntries } from "./secrets.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
 
 type Env = { Variables: { device: DeviceRecord } };
@@ -591,6 +592,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     }
     throw error;
   };
+
+  app.get("/v1/secrets", (c) => c.json({ secrets: secretEntries(home) }));
 
   app.get("/v1/folders", (c) => c.json({ folders: home.folders.list() }));
 

@@ -98,6 +98,13 @@ export class Secrets {
     return row ? unseal(this.ring, binding(name), row.value) : undefined;
   }
 
+  /** The names of the secrets and when each was set; never a value. */
+  list(): { name: string; updatedAt: string }[] {
+    return this.db.all<{ name: string; updatedAt: string }>(
+      "select name, updated_at as updatedAt from secret order by name",
+    );
+  }
+
   has(name: string): boolean {
     return this.db.get("select 1 from secret where name = ?", name) !== undefined;
   }

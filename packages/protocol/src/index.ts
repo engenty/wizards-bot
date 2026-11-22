@@ -494,6 +494,23 @@ export type Contact = z.infer<typeof Contact>;
 export const SendToContact = z.object({ kind: SharedKind, id: z.string(), handle: z.string() });
 export type SendToContact = z.infer<typeof SendToContact>;
 
+// ── Secrets ─────────────────────────────────────────────────────────────────
+
+/**
+ * A key, token or password the person gave the home, as the settings list it: what uses it and
+ * when it was set. Never its value.
+ */
+export const SecretEntry = z.object({
+  /** The secret's name in the home, e.g. `connection.<id>.key`. */
+  name: z.string(),
+  /** What uses it. */
+  kind: z.enum(["gateway", "account", "connection", "channel", "outside"]),
+  /** The name of what uses it: the gateway, the connection, the channel, the outside agent. */
+  label: z.string(),
+  setAt: z.string(),
+});
+export type SecretEntry = z.infer<typeof SecretEntry>;
+
 // ── Folders ─────────────────────────────────────────────────────────────────
 
 /**
