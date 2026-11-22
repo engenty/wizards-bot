@@ -4,6 +4,11 @@ All notable changes to wizards.bot. Generated from [Conventional Commits](https:
 by [git-cliff](https://git-cliff.org) via `pnpm release`. Pre-`1.0`: a **minor**
 bump is a notable or breaking change, **patch** is fixes and small features.
 
+## [0.1.1] - 2026-11-22
+
+- ADDED Hosted homes at <name>.wizards.bot (#3)
+- DOCS Plan for hosted homes at <name>.wizards.bot (#2)
+
 ## [0.1.0] - 2026-11-22
 
 - ADDED Person key, handles, invites, homes without an address, guest memory rules
