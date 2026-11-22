@@ -193,8 +193,8 @@ export function Dialog({
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
-  /** `"full"`: nearly the whole window, for a file to look at. */
-  wide?: "full";
+  /** `"full"`: nearly the whole window, for a file to look at. `"settings"`: room for two columns. */
+  wide?: "full" | "settings";
   /**
    * The children are the panel: the dialog itself draws no card, clips nothing and fills the
    * screen of a phone.
@@ -221,7 +221,7 @@ export function Dialog({
   // Open, the dialog never gets shorter than it has been, within what the window allows.
   useEffect(() => {
     const el = ref.current;
-    if (!el || !open || bare) {
+    if (!el || !open || bare || wide === "settings") {
       return;
     }
     let tallest = 0;
@@ -237,7 +237,7 @@ export function Dialog({
       window.removeEventListener("resize", keep);
       el.style.minHeight = "";
     };
-  }, [open, bare]);
+  }, [open, bare, wide]);
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: Esc closes a dialog; a click beside it is the pointer's way
     <dialog
@@ -255,18 +255,23 @@ export function Dialog({
         bare
           ? "w-[calc(100%-48px)] overflow-visible bg-transparent"
           : "max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] overflow-y-auto overscroll-contain rounded-2xl bg-card shadow-overlay max-sm:rounded-none max-sm:pt-[env(safe-area-inset-top)] max-sm:pb-[env(safe-area-inset-bottom)]",
-        wide === "full" ? "sm:max-w-7xl" : "sm:max-w-md",
+        wide === "full"
+          ? "sm:max-w-7xl"
+          : wide === "settings"
+            ? "sm:h-[min(36rem,calc(100dvh-32px))] sm:max-w-3xl sm:overflow-hidden"
+            : "sm:max-w-md",
       )}
     >
       {shown && bare ? (
         children
       ) : shown ? (
         // As tall as the dialog has been, so a step can keep its buttons at the lower edge.
-        <div className="flex min-h-[inherit] flex-col p-5 sm:p-7">
-          {title ? (
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <h2 className="min-w-0 font-display font-semibold text-xl">{title}</h2>
-              <IconButton label={t("common.close")} onClick={onClose} className="-mt-1.5 -mr-2">
+        wide === "settings" ? (
+          // A compact bar with the title and a line under it; the children lay out the rest.
+          <div className="flex h-full min-h-[inherit] flex-col">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-border-soft border-b px-5 py-2.5">
+              <h2 className="min-w-0 truncate font-medium text-[1rem]">{title}</h2>
+              <IconButton label={t("common.close")} onClick={onClose} className="-mr-2">
                 <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
                   <path
                     d="M4 4l8 8M12 4l-8 8"
@@ -277,9 +282,28 @@ export function Dialog({
                 </svg>
               </IconButton>
             </div>
-          ) : null}
-          {children}
-        </div>
+            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+          </div>
+        ) : (
+          <div className="flex min-h-[inherit] flex-col p-5 sm:p-7">
+            {title ? (
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <h2 className="min-w-0 font-display font-semibold text-xl">{title}</h2>
+                <IconButton label={t("common.close")} onClick={onClose} className="-mt-1.5 -mr-2">
+                  <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
+                    <path
+                      d="M4 4l8 8M12 4l-8 8"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </IconButton>
+              </div>
+            ) : null}
+            {children}
+          </div>
+        )
       ) : null}
     </dialog>
   );
