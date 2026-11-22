@@ -1,6 +1,6 @@
 import { DEFAULT_AVATAR } from "@wizards-bot/avatar";
 import type { Agent, Avatar } from "@wizards-bot/protocol";
-import { LogOut, Search, Settings, Smile } from "lucide-react";
+import { LogOut, Plus, Search, Settings, Smile } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { lang, t } from "../lib/i18n";
 import { useHome } from "../lib/queries";
@@ -163,6 +163,7 @@ export function Sidebar({
   rail,
   onPick,
   onSearch,
+  onNew,
   onSettings,
   onAvatar,
   onSignOut,
@@ -175,6 +176,8 @@ export function Sidebar({
   onPick: (agent: Agent) => void;
   /** Opens the search (⌘K). */
   onSearch: () => void;
+  /** Asks the main Wizard for a new bot. */
+  onNew: () => void;
   onSettings: () => void;
   onAvatar: () => void;
   onSignOut: () => void;
@@ -231,6 +234,9 @@ export function Sidebar({
         <IconButton label={`${t("search.label")} (⌘K)`} onClick={onSearch}>
           <Search className="size-[1.125rem]" />
         </IconButton>
+        <IconButton label={t("agents.new")} onClick={onNew}>
+          <Plus className="size-[1.125rem]" />
+        </IconButton>
         <ul className="mt-1 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
           {listed.map((agent) => (
             <Figure
@@ -261,6 +267,9 @@ export function Sidebar({
             <span className="truncate text-[0.8125rem] text-ink-3">{where}</span>
           </span>
         </Menu>
+        <IconButton label={t("agents.new")} onClick={onNew}>
+          <Plus className="size-[1.125rem]" />
+        </IconButton>
         <IconButton label={`${t("search.label")} (⌘K)`} onClick={onSearch}>
           <Search className="size-[1.125rem]" />
         </IconButton>

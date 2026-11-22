@@ -15,6 +15,7 @@ import type {
   Document,
   DocumentMark,
   DocumentMeta,
+  EngentyColor,
   EngentyKind,
   Event,
   FileRef,
@@ -36,6 +37,7 @@ interface AgentRow {
   id: string;
   name: string;
   kind: string;
+  color: string | null;
   about: string;
   instructions: string;
   memory: string;
@@ -184,6 +186,7 @@ export class Store {
   createAgent(input: {
     name: string;
     kind: EngentyKind;
+    color?: EngentyColor;
     about?: string;
     instructions?: string;
     main?: boolean;
@@ -195,10 +198,11 @@ export class Store {
     const at = now();
     this.db.transaction(() => {
       this.db.run(
-        "insert into agent (id, name, kind, about, instructions, origin, from_handle, remote, main, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "insert into agent (id, name, kind, color, about, instructions, origin, from_handle, remote, main, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         id,
         input.name,
         input.kind,
+        input.color ?? null,
         input.about ?? "",
         input.instructions ?? "",
         input.origin ?? "own",
@@ -336,15 +340,18 @@ export class Store {
 
   updateAgent(
     id: string,
-    patch: Partial<Pick<AgentRecord, "name" | "kind" | "about" | "instructions" | "memory">>,
+    patch: Partial<
+      Pick<AgentRecord, "name" | "kind" | "color" | "about" | "instructions" | "memory">
+    >,
   ): AgentRecord | undefined {
     const current = this.agent(id);
     if (!current) return undefined;
     const next = { ...current, ...patch };
     this.db.run(
-      "update agent set name = ?, kind = ?, about = ?, instructions = ?, memory = ? where id = ?",
+      "update agent set name = ?, kind = ?, color = ?, about = ?, instructions = ?, memory = ? where id = ?",
       next.name,
       next.kind,
+      next.color ?? null,
       next.about,
       next.instructions,
       next.memory,
@@ -404,6 +411,7 @@ export class Store {
       id: row.id,
       name: row.name,
       kind: row.kind as EngentyKind,
+      ...(row.color ? { color: row.color as EngentyColor } : {}),
       about: row.about,
       origin: row.origin as Agent["origin"],
       from: row.from_handle ?? undefined,

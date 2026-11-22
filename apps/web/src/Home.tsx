@@ -17,6 +17,7 @@ import { ConsentDialog } from "./chat/ConsentDialog";
 import { DocumentPane } from "./chat/DocumentPane";
 import { FolderDialog } from "./chat/FolderDialog";
 import { ItemsDialog } from "./chat/ItemsDialog";
+import { NewBotDialog } from "./chat/NewBotDialog";
 import { SearchDialog } from "./chat/SearchDialog";
 import { type Asker, SettingsDialog } from "./chat/SettingsDialog";
 import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
@@ -50,7 +51,7 @@ import { cn } from "./ui";
 const AGENT_KEY = "wizards.agent";
 
 /** The dialog that is open over the chat. */
-type Open = "settings" | "items" | "folder" | "avatar" | "search";
+type Open = "settings" | "items" | "folder" | "avatar" | "search" | "new";
 
 /** The agent whose chat was open last, kept per browser. */
 function lastAgent(): string | null {
@@ -88,9 +89,10 @@ function useWidth(ref: React.RefObject<HTMLElement | null>, key: unknown): numbe
 }
 
 /**
- * The line between the chat and what stands beside it. The person drags it, or moves it with
- * the arrow keys, to give the chat another width; a double click gives the width back to the
- * app.
+ * The line between two columns: the list and the chat, or the chat and what stands beside it.
+ * The person drags it (the whole page shows the resize cursor and selects no text meanwhile),
+ * or moves it with the arrow keys, Shift for larger steps; a double click gives the width back
+ * to the app. After engenty wizards' splitter (apps/web/src/studio/EditorPage.tsx).
  */
 function Divider({
   chat,
@@ -99,6 +101,7 @@ function Divider({
   label = t("split.resize"),
   onChange,
   onReset,
+  onDragging,
 }: {
   /** The width of the column at the line's left. */
   chat: number;
@@ -109,10 +112,31 @@ function Divider({
   label?: string;
   onChange: (chat: number) => void;
   onReset: () => void;
+  /** True while a drag goes on, so the columns follow without their easing. */
+  onDragging?: (dragging: boolean) => void;
 }) {
-  const drag = useRef<{ x: number; chat: number } | null>(null);
-  const end = () => {
-    drag.current = null;
+  const [dragging, setDragging] = useState(false);
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = chat;
+    const move = (ev: PointerEvent) => onChange(startWidth + ev.clientX - startX);
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+      setDragging(false);
+      onDragging?.(false);
+    };
+    setDragging(true);
+    onDragging?.(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
   return (
     // biome-ignore lint/a11y/useSemanticElements: a line the person moves is a separator with a value, which <hr> is not
@@ -122,27 +146,18 @@ function Divider({
       aria-label={label}
       aria-valuemin={least}
       aria-valuemax={most}
-      aria-valuenow={chat}
+      aria-valuenow={Math.round(chat)}
       tabIndex={0}
-      style={{ left: chat - 4 }}
-      className="group absolute inset-y-0 z-10 w-2 cursor-col-resize touch-none outline-none"
-      onPointerDown={(e) => {
-        e.preventDefault();
-        e.currentTarget.setPointerCapture(e.pointerId);
-        drag.current = { x: e.clientX, chat };
-      }}
-      onPointerMove={(e) => {
-        if (drag.current) {
-          onChange(drag.current.chat + e.clientX - drag.current.x);
-        }
-      }}
-      onPointerUp={end}
-      onPointerCancel={end}
+      title={label}
+      style={{ left: chat - 6 }}
+      className="group absolute inset-y-0 z-10 w-3 cursor-col-resize touch-none outline-none"
+      onPointerDown={onPointerDown}
       onDoubleClick={onReset}
       onKeyDown={(e) => {
+        const step = e.shiftKey ? 64 : 16;
         const to = {
-          ArrowLeft: chat - 16,
-          ArrowRight: chat + 16,
+          ArrowLeft: chat - step,
+          ArrowRight: chat + step,
           Home: least,
           End: most,
         }[e.key];
@@ -154,7 +169,19 @@ function Divider({
         }
       }}
     >
-      <span className="-translate-x-1/2 absolute inset-y-0 left-1/2 w-0.5 rounded-full transition group-hover:bg-ember group-focus-visible:bg-ember group-active:bg-ember" />
+      {/* The line lights up under the pointer; the grip in its middle shows it can be moved. */}
+      <span
+        className={cn(
+          "-translate-x-1/2 absolute inset-y-0 left-1/2 w-px transition group-hover:bg-ember/60 group-focus-visible:bg-ember",
+          dragging && "bg-ember",
+        )}
+      />
+      <span
+        className={cn(
+          "-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 h-8 w-1 rounded-full bg-ink-4/25 transition-all group-hover:bg-ember/70 group-focus-visible:bg-ember",
+          dragging && "h-12 bg-ember",
+        )}
+      />
     </div>
   );
 }
@@ -198,6 +225,7 @@ export function Home() {
   // The open list's width, as the person dragged it; the app's own until then.
   const [listChosen, setListChosen] = useStored<number | null>("wizards.agents.width", null);
   const listWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, listChosen ?? SIDEBAR));
+  const [resizingList, setResizingList] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const pane = Boolean(documentId || artifactId || about);
   const side = sidebar(windowWidth, pane, collapsed);
@@ -339,6 +367,10 @@ export function Home() {
         setDrawer(false);
         setDialog("search");
       }}
+      onNew={() => {
+        setDrawer(false);
+        setDialog("new");
+      }}
       onSettings={settings}
       onAvatar={() => {
         setDrawer(false);
@@ -359,7 +391,13 @@ export function Home() {
           side === "none" ? "w-0" : "border-border-soft border-r",
           side === "rail" && "w-16",
         )}
-        style={side === "open" ? { width: listWidth } : undefined}
+        // While the edge is dragged the list follows the pointer at once: the slot's easing
+        // (app.css, outside Tailwind's layers) is switched off right on the element.
+        style={
+          side === "open"
+            ? { width: listWidth, ...(resizingList ? { transition: "none" } : {}) }
+            : undefined
+        }
       >
         {side === "open" ? (
           <div className="h-full" style={{ width: listWidth }}>
@@ -379,6 +417,7 @@ export function Home() {
             setListChosen(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(width))))
           }
           onReset={() => setListChosen(null)}
+          onDragging={setResizingList}
         />
       ) : null}
       <SidebarDrawer open={drawer} onClose={() => setDrawer(false)}>
@@ -466,6 +505,7 @@ export function Home() {
           </div>
         ) : null}
       </div>
+      <NewBotDialog open={dialog === "new"} onClose={() => setDialog(null)} asker={asker} />
       <SearchDialog
         open={dialog === "search"}
         onClose={() => setDialog(null)}

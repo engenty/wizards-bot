@@ -72,6 +72,10 @@ that conversation for a list of agents: one line of its newest message, how many
 agent the person has not read, and when it last changed. The home sends `agent.updated` when a
 message arrives, when a reply is finished and when the conversation is read.
 
+An agent's `color` (one of the cast's fills: cobalt, amber, moss, rose, ember, teal, violet,
+magenta, citron, slate) is the colour its figure wears instead of its own; without it the figure
+keeps its own. The main agent sets it with `agent_create` and `agent_update`.
+
 `GET /v1/agents/:id` → `AgentDetail`: the agent, its `memory` (what it wrote down about the person
 and their work), its `tasks` and, while it works, `doing`.
 
