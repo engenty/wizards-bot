@@ -1,5 +1,5 @@
 # The web app is the same on every platform: it is built once, on the builder's own.
-FROM --platform=$BUILDPLATFORM node:24-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26-alpine AS web
 RUN corepack enable
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
@@ -14,7 +14,7 @@ COPY apps/web apps/web
 COPY docs/privacy.md docs/
 RUN pnpm --filter @wizards-bot/web build
 
-FROM node:24-alpine
+FROM node:26-alpine
 RUN corepack enable
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
