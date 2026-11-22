@@ -86,8 +86,6 @@ struct MenuCommands: View {
             Button("Check for Updates…") { Updates.shared.check() }
         }
         Button("Connect to Another Bot Server…") { AppModel.shared.forget() }
-        Button("Settings…") { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) }
-            .keyboardShortcut(",")
     }
 }
 

@@ -388,11 +388,28 @@ on a Mac (macOS 27.2, Apple silicon, Xcode 27.2):
 - The Swift tests (addresses, pairing links, `/health`, versions, `pair` output, the login
   shell's `PATH`, pairing) and the home's tests for 1 to 5.
 
-Not checked on a Mac: registering the LaunchAgent with `SMAppService` and the approval in
-System Settings, the take-over, removing, an update through Sparkle, notarization and what
-macOS names in its questions. The Mac the app was built on runs a Bot Server of `wizards bot
-install` on 4747, which the app rightly does not start a second one beside; these need a Mac
-without one, or that home stopped for the test, and the Developer ID secrets.
+The LaunchAgent, checked the same day with the Bot Server of `wizards bot install` stopped
+(`launchctl bootout`) and its data backed up:
+
+- The take-over in the settings set that LaunchAgent's plist aside (`.plist.off`), registered
+  `bot.wizards.home` with `SMAppService` and the Bot Server answered on 4747 within seconds, on
+  the same data. macOS asked nothing: the item was "enabled, allowed" in its background items,
+  under `bot.wizards.mac`. launchd's process is the bundled Node itself (the launcher's
+  `execv`), its log in `~/.wizards-bot/logs/home.log`.
+- The app wrote the login shell's `PATH` into `~/.wizards-bot/path`, and the Bot Server found
+  Claude Code with it (`claude:default`), which a LaunchAgent's own `PATH` does not reach.
+- The app paired itself with the code of its own `pair --json` and showed the person's chat.
+- The app quit: the Bot Server kept answering. The app started with an older version noted: it
+  started the Bot Server anew (`kickstart -k`, a new process).
+- "Entfernen, Daten behalten": launchd no longer knows `bot.wizards.home`, port 4747 is free,
+  the data stayed, the `path` file went; macOS keeps the background item as "disabled".
+- Afterwards the data from before and the plist of `wizards bot install` went back, and that
+  Bot Server ran as before.
+
+Not checked yet: the approval when the person turned background items off
+(`.requiresApproval`), an update through Sparkle, notarization, what macOS names in its
+questions about folders, and an app dragged to the Trash with its Bot Server registered. They
+need the Developer ID secrets, a published update, or a person at the Mac to answer macOS.
 
 ## Not built yet
 
