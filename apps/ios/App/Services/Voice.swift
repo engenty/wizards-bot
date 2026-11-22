@@ -62,6 +62,8 @@ final class Voice {
             cannotListen()
             return
         }
+        // The voice plays through the microphone's engine, so its echo cancellation knows it.
+        speaker.route = ear.playback
         heard = ""
         failures = 0
         lastChange = .now
@@ -90,8 +92,9 @@ final class Voice {
             heard = ""
             restartWindow()
             if !text.isEmpty { onUtterance(text) }
-        } else if wasSpeaking, !speaking, heard.isEmpty {
+        } else if wasSpeaking, !speaking, heard.isEmpty || Echo.isEcho(heard, of: speaker.recent) {
             // The voice went quiet: a fresh window, so what it said is not taken for the person.
+            heard = ""
             restartWindow()
         } else if !ear.isListening {
             restartWindow()
@@ -112,6 +115,10 @@ final class Voice {
             if Echo.isEcho(text, of: speaker.recent) { return }
             // The person talks over the voice: it stops and listens.
             reply?.silence()
+        } else if mode == .talking, Date.now.timeIntervalSince(speaker.quietSince) < 1.5,
+                  Echo.isEcho(text, of: speaker.recent) {
+            // What the microphone still hands over of the voice once it went quiet.
+            return
         }
         heard = text
         lastChange = .now
@@ -165,6 +172,7 @@ final class Voice {
         reply?.silence()
         reply = nil
         speaker.stop()
+        speaker.route = nil
         ear.close()
         AudioSession.rest()
         mode = .off
@@ -181,6 +189,8 @@ private final class Ear {
 
     private let engine = AVAudioEngine()
     private let target = Target()
+    /// Plays the voice through this engine while echo cancellation is on.
+    private(set) var playback: Playback?
     private var tapped = false
     private var recognizer: SFSpeechRecognizer?
     private var task: SFSpeechRecognitionTask?
@@ -199,6 +209,7 @@ private final class Ear {
             target.request?.append(buffer)
         }
         tapped = true
+        if echoCancelled { playback = Playback(engine: engine) }
         engine.prepare()
         do {
             try engine.start()
@@ -245,9 +256,12 @@ private final class Ear {
 
     func close() {
         endWindow()
+        playback?.stop()
         if engine.isRunning { engine.stop() }
         if tapped { engine.inputNode.removeTap(onBus: 0) }
         tapped = false
+        playback?.detach()
+        playback = nil
     }
 
     private func endWindow() {
@@ -273,6 +287,89 @@ private final class Ear {
         var request: SFSpeechAudioBufferRecognitionRequest? {
             get { lock.withLock { current } }
             set { lock.withLock { current = newValue } }
+        }
+    }
+}
+
+/// The voice played through the microphone's engine. Buffers come from the synthesizer on any
+/// thread; they are turned into the format the engine plays and played in order.
+nonisolated final class Playback: SpeechRoute, @unchecked Sendable {
+    private let lock = NSLock()
+    private let engine: AVAudioEngine
+    private let player = AVAudioPlayerNode()
+    private let format: AVAudioFormat
+    private var converter: AVAudioConverter?
+    private var outstanding = 0
+    private var drainedHandler: @Sendable () -> Void = {}
+
+    init(engine: AVAudioEngine) {
+        self.engine = engine
+        engine.attach(player)
+        format = engine.mainMixerNode.outputFormat(forBus: 0)
+        engine.connect(player, to: engine.mainMixerNode, format: format)
+    }
+
+    var onDrained: @Sendable () -> Void {
+        get { lock.withLock { drainedHandler } }
+        set { lock.withLock { drainedHandler = newValue } }
+    }
+
+    var isPlaying: Bool { lock.withLock { outstanding > 0 } }
+
+    func play(_ buffer: AVAudioPCMBuffer) {
+        guard let sound = lock.withLock({ converted(buffer) }) else { return }
+        lock.withLock { outstanding += 1 }
+        player.scheduleBuffer(sound) { [weak self] in self?.played() }
+        if engine.isRunning, !player.isPlaying { player.play() }
+    }
+
+    func stop() {
+        lock.withLock { outstanding = 0 }
+        player.stop()
+    }
+
+    func detach() {
+        player.stop()
+        engine.detach(player)
+    }
+
+    private func played() {
+        let (drained, handler) = lock.withLock { () -> (Bool, @Sendable () -> Void) in
+            outstanding = max(0, outstanding - 1)
+            return (outstanding == 0, drainedHandler)
+        }
+        if drained { handler() }
+    }
+
+    /// The buffer in the engine's format. Called with the lock held.
+    private func converted(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        if buffer.format == format { return buffer }
+        if converter?.inputFormat != buffer.format {
+            converter = AVAudioConverter(from: buffer.format, to: format)
+        }
+        guard let converter else { return nil }
+        let ratio = format.sampleRate / buffer.format.sampleRate
+        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1024
+        guard let out = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else { return nil }
+        let source = Source(buffer)
+        var error: NSError?
+        converter.convert(to: out, error: &error) { _, status in source.next(status) }
+        return error == nil && out.frameLength > 0 ? out : nil
+    }
+
+    /// Hands the converter one buffer, then says there is no more for now.
+    private final class Source: @unchecked Sendable {
+        private let buffer: AVAudioPCMBuffer
+        private var given = false
+        init(_ buffer: AVAudioPCMBuffer) { self.buffer = buffer }
+        func next(_ status: UnsafeMutablePointer<AVAudioConverterInputStatus>) -> AVAudioBuffer? {
+            if given {
+                status.pointee = .noDataNow
+                return nil
+            }
+            given = true
+            status.pointee = .haveData
+            return buffer
         }
     }
 }
