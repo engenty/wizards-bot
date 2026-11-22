@@ -32,6 +32,9 @@ importers:
       '@chat-adapter/slack':
         specifier: ^4.45.0
         version: 4.45.0(ai@7.0.163(zod@4.6.7))(zod@4.6.7)
+      '@engenty/vault':
+        specifier: 0.20.2
+        version: 0.20.2
       '@hono/node-server':
         specifier: 2.1.11
         version: 2.1.11(hono@4.13.19)
@@ -398,6 +401,9 @@ packages:
 
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
+
+  '@engenty/vault@0.20.2':
+    resolution: {integrity: sha512-p7wSsxeuO4dEMOGMyVw+0JSqZN/fzWokKZmreNgbTB2zQUJogNpsCQPGwbckne8rVOg+YG6GxfSrGvx6cW0hZA==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -3213,6 +3219,8 @@ snapshots:
     dependencies:
       tslib: 2.9.1
     optional: true
+
+  '@engenty/vault@0.20.2': {}
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true

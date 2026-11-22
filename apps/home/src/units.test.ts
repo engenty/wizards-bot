@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { createCipheriv, randomBytes } from "node:crypto";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "node:test";
@@ -198,6 +199,52 @@ describe("secrets", () => {
     assert.equal(new Secrets(db, dataDir).get("gateway.x"), "sk-123");
     secrets.delete("gateway.x");
     assert.equal(secrets.has("gateway.x"), false);
+    db.close();
+  });
+
+  test("are bound to their name: a value moved to another name doesn't open", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "wizards-bot-secret-"));
+    const db = new Db(dataDir);
+    const secrets = new Secrets(db, dataDir);
+    secrets.set("gateway.x", "sk-123");
+    db.run(
+      "insert into secret (name, value, updated_at) select 'gateway.y', value, updated_at from secret where name = 'gateway.x'",
+    );
+    assert.throws(() => secrets.get("gateway.y"), /doesn't open/);
+    db.close();
+  });
+
+  test("sealed before the vault are sealed again at start, and still read", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "wizards-bot-secret-"));
+    const key = randomBytes(32);
+    writeFileSync(join(dataDir, "secrets.key"), key, { mode: 0o600 });
+    const db = new Db(dataDir);
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const body = Buffer.concat([cipher.update("sk-earlier", "utf8"), cipher.final()]);
+    db.run(
+      "insert into secret (name, value, updated_at) values (?, ?, ?)",
+      "gateway.old",
+      Buffer.concat([iv, cipher.getAuthTag(), body]),
+      "2026-11-01T00:00:00.000Z",
+    );
+    const secrets = new Secrets(db, dataDir);
+    const stored = db.get<{ value: unknown }>(
+      "select value from secret where name = 'gateway.old'",
+    );
+    assert.equal(typeof stored?.value, "string");
+    assert.equal(secrets.get("gateway.old"), "sk-earlier");
+    db.close();
+  });
+
+  test("a home whose secrets.key was swapped doesn't start", () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "wizards-bot-secret-"));
+    const db = new Db(dataDir);
+    new Secrets(db, dataDir).set("gateway.x", "sk-123");
+    const file = join(dataDir, "secrets.key");
+    assert.equal(readFileSync(file).length, 32);
+    writeFileSync(file, randomBytes(32), { mode: 0o600 });
+    assert.throws(() => new Secrets(db, dataDir), /not the key/);
     db.close();
   });
 });
