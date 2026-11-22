@@ -7,7 +7,7 @@ import { serve } from "@hono/node-server";
 import type { Event, PairResponse, Setup, SetupCheck } from "@wizards-bot/protocol";
 import qrcode from "qrcode-terminal";
 import { exportData, importData, MIN_PASSPHRASE } from "./backup.ts";
-import { isHosted, loadConfig, VERSION } from "./config.ts";
+import { claimData, extendPath, isHosted, loadConfig, VERSION } from "./config.ts";
 import { Home } from "./home.ts";
 import { Secrets } from "./identity.ts";
 import { LinkedComputer } from "./link/computer.ts";
@@ -21,6 +21,7 @@ const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
 
   wizards-bot start              Start the Bot Server on this computer.
   wizards-bot pair               Show a code and a QR to add a phone or a computer.
+                                With --json: the address, the code and the link as JSON.
   wizards-bot link <address> <code>
                                 Offer this computer's models (Ollama, Claude, Codex) to your
                                 Bot Server on another computer or server. Later: wizards-bot link
@@ -41,10 +42,13 @@ const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
   WIZARDS_BOT_PORT   the port it listens on (default 4747)
   WIZARDS_BOT_URL    its public address, when it has one (https://…)
   WIZARDS_BOT_SUBSCRIPTIONS   the signed-in apps it may use (default claude,codex)
+  WIZARDS_BOT_PATH   folders to look for claude, codex and ollama in, before PATH (also the
+                     file path in the data folder)
 `;
 
 const [command = "help", ...rest] = process.argv.slice(2);
 const config = loadConfig();
+extendPath(config.dataDir);
 
 function option(name: string): string | undefined {
   const index = rest.indexOf(`--${name}`);
@@ -54,6 +58,7 @@ function option(name: string): string | undefined {
 const openHome = (): Home => new Home(config);
 
 async function start(): Promise<void> {
+  claimData(config.dataDir);
   const home = openHome();
   const app = createServer(home);
   const server = serve({ fetch: app.fetch, port: config.port, hostname: "0.0.0.0" });
@@ -101,6 +106,12 @@ function pair(): void {
   const home = openHome();
   const code = home.store.newPairingCode();
   const address = home.address();
+  if (rest.includes("--json")) {
+    const link = `wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`;
+    console.log(JSON.stringify({ address, code, link }));
+    home.close();
+    return;
+  }
   qrcode.generate(`wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`, {
     small: true,
   });
