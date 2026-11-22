@@ -177,6 +177,28 @@ export function Chip({
 }
 
 /**
+ * Whether the person last used a pointer rather than Tab: a dialog opened by a click gives the
+ * focus back to its button without the ring the browser would draw there; after Tab it stays.
+ */
+let byPointer = false;
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "pointerdown",
+    () => {
+      byPointer = true;
+    },
+    true,
+  );
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Tab") byPointer = false;
+    },
+    true,
+  );
+}
+
+/**
  * A centred modal on the native <dialog>; on a phone it fills the screen, with no gutter. Esc
  * and a click beside it close it. Its height does not jump while it is open: it keeps the
  * tallest height it has had, so a shorter step leaves it where it is.
@@ -216,6 +238,9 @@ export function Dialog({
       el.querySelector<HTMLElement>("[data-autofocus]")?.focus();
     } else if (!open && el.open) {
       el.close();
+      if (byPointer) {
+        (document.activeElement as HTMLElement | null)?.blur();
+      }
     }
   }, [open]);
   // Open, the dialog never gets shorter than it has been, within what the window allows.

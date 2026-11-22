@@ -31,6 +31,21 @@ export const EngentyKind = z.enum([
 ]);
 export type EngentyKind = z.infer<typeof EngentyKind>;
 
+/** A colour a figure can wear instead of its own: the engenty cast's fills. */
+export const EngentyColor = z.enum([
+  "cobalt",
+  "amber",
+  "moss",
+  "rose",
+  "ember",
+  "teal",
+  "violet",
+  "magenta",
+  "citron",
+  "slate",
+]);
+export type EngentyColor = z.infer<typeof EngentyColor>;
+
 /** Where a message came in or went out. */
 export const Channel = z.enum(["app", "watch", "slack", "email", "whatsapp", "signal", "home"]);
 export type Channel = z.infer<typeof Channel>;
@@ -266,6 +281,8 @@ export const Agent = z.object({
   id: z.string(),
   name: z.string(),
   kind: EngentyKind,
+  /** The colour its figure wears; without it, the figure's own. */
+  color: EngentyColor.optional(),
   about: z.string(),
   /**
    * `shared` agents live outside this home: in a contact's home, or as an outside agent.

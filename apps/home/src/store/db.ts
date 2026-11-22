@@ -114,6 +114,7 @@ create table if not exists invite (
 
 /** Columns a table got after homes were made with it: table, column, definition. */
 const ADDED: [string, string, string][] = [
+  ["agent", "color", "text"],
   ["outside_agent", "version", "text not null default '1.0'"],
   ["schedule", "quiet", "integer not null default 0"],
   ["schedule", "paused", "text"],

@@ -194,7 +194,7 @@ function MessageView({
         {message.from ? (
           <Writer from={message.from} size={28} />
         ) : (
-          <Engenty kind={agent.kind} size={28} animated={false} />
+          <Engenty kind={agent.kind} color={agent.color} size={28} animated={false} />
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-0.5">
