@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { serve } from "@hono/node-server";
 import type { Card, Message } from "@wizards-bot/protocol";
 import type { ChannelAdapter } from "../channels/channels.ts";
+import type { Config } from "../config.ts";
 import { Home } from "../home.ts";
 import { createServer } from "../server.ts";
 
@@ -104,8 +105,9 @@ export async function testHome(
   /**
    * `port`: where to answer, for a home that takes the place of another at its address.
    * `dataDir`: what an earlier home kept, for the same home at another address.
+   * `config`: settings of its start, e.g. those of a hosted home.
    */
-  at: { port?: number; dataDir?: string; unreachable?: boolean } = {},
+  at: { port?: number; dataDir?: string; unreachable?: boolean; config?: Partial<Config> } = {},
 ): Promise<TestHome> {
   const model = new FakeOllama();
   await model.start();
@@ -119,6 +121,7 @@ export async function testHome(
       publicUrl: at.unreachable ? undefined : url,
       ollamaUrl: model.url,
       subscriptions: [],
+      ...at.config,
     },
     adapters,
   );

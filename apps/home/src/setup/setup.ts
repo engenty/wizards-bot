@@ -1,11 +1,19 @@
 import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import type { Card, SetupCheck, Setup as SetupView } from "@wizards-bot/protocol";
+import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
-import { GATEWAY_PRESETS } from "../models/models.ts";
+import { ACCOUNT, GATEWAY_PRESETS } from "../models/models.ts";
 import { CLIENTS, type Client, type SubscriptionClient } from "../models/subscription.ts";
 import type { NewCard } from "../store/store.ts";
-import { installed, type Probe, probeClient, probeGateway, probeOllama } from "./probes.ts";
+import {
+  installed,
+  type Probe,
+  probeAccount,
+  probeClient,
+  probeGateway,
+  probeOllama,
+} from "./probes.ts";
 
 /** A test call's outcome as the home keeps it, with its time. */
 interface Kept extends Probe {
@@ -60,9 +68,12 @@ export class Setup {
 
   constructor(home: Home) {
     this.home = home;
-    this.clients = (Object.keys(CLIENTS) as SubscriptionClient[])
-      .filter((id) => home.config.subscriptions.includes(id))
-      .map((id) => CLIENTS[id]);
+    // A hosted home runs on a server: no one signs in to a subscription there.
+    this.clients = isHosted(home.config)
+      ? []
+      : (Object.keys(CLIENTS) as SubscriptionClient[])
+          .filter((id) => home.config.subscriptions.includes(id))
+          .map((id) => CLIENTS[id]);
   }
 
   // ── What the person said ──────────────────────────────────────────────────
@@ -173,7 +184,13 @@ export class Setup {
     const { models, config, secrets } = this.home;
     const probes = new Map<string, () => Promise<Probe>>();
     for (const client of this.clients) probes.set(client.id, () => probeClient(client));
-    probes.set("ollama", () => probeOllama(config.ollamaUrl, models.memory));
+    const account = models.account();
+    if (account) {
+      probes.set(ACCOUNT.id, () =>
+        probeAccount(account, models.accountKey(), undefined, this.gatewayFetch),
+      );
+    }
+    if (!isHosted(config)) probes.set("ollama", () => probeOllama(config.ollamaUrl, models.memory));
     for (const gateway of models.gateways()) {
       probes.set(gateway.id, () =>
         probeGateway(gateway, secrets.get(`gateway.${gateway.id}`), undefined, this.gatewayFetch),
@@ -293,9 +310,14 @@ export class Setup {
       }
       checks.push(row(client.id, name, `${name} is installed. It has not been tested yet.`));
     }
+    if (models.account()) {
+      checks.push(row(ACCOUNT.id, ACCOUNT.label, "Your wizards account has not been tested yet."));
+    }
     const ollama = models.localSources().find((source) => source.id === "ollama");
     const lastOllama = kept.ollama;
-    if (ollama || lastOllama || this.running.has("ollama")) {
+    // A server has no Ollama of its own; the person's computer brings it over the link.
+    const hosted = isHosted(this.home.config);
+    if (!hosted && (ollama || lastOllama || this.running.has("ollama"))) {
       checks.push(
         row(
           "ollama",
@@ -311,7 +333,7 @@ export class Setup {
             : {},
         ),
       );
-    } else {
+    } else if (!hosted) {
       checks.push({
         id: "ollama",
         kind: "model",
@@ -325,7 +347,8 @@ export class Setup {
     for (const gateway of models.gateways()) {
       checks.push(row(gateway.id, gateway.label, `${gateway.label} has not been tested yet.`));
     }
-    for (const source of models.remote?.sources() ?? []) {
+    const remote = models.remote?.sources() ?? [];
+    for (const source of remote) {
       checks.push({
         id: source.id,
         kind: "model",
@@ -337,7 +360,38 @@ export class Setup {
           : `${source.where} is not linked right now.`,
       });
     }
+    if (hosted) checks.push(...this.hostedOptions(remote.length > 0));
     return checks;
+  }
+
+  /**
+   * The two lines a hosted home offers besides the account: a key of the person's own, and
+   * their computer's models over the link. Neither is needed; each goes once it is there.
+   */
+  private hostedOptions(linked: boolean): SetupCheck[] {
+    const lines: SetupCheck[] = [];
+    if (!this.home.models.gateways().length) {
+      lines.push({
+        id: "own-key",
+        kind: "model",
+        label: "A key of your own",
+        state: "absent",
+        said: "Your home uses your account's credits. A key of a gateway or a provider can answer too.",
+        todo: 'Add it here, or tell your agent "add OpenRouter".',
+      });
+    }
+    if (!linked) {
+      lines.push({
+        id: "link",
+        kind: "model",
+        label: "Your computer",
+        state: "absent",
+        said: "Ollama, Claude or Codex on your computer can answer here while it is on.",
+        todo: "On your computer, link it with a code from Add a device.",
+        command: `wizards bot setup --link ${this.home.address()} <code>`,
+      });
+    }
+    return lines;
   }
 
   /** Where a phone reaches the home, and whether something answers there. */
@@ -478,7 +532,9 @@ export class Setup {
     const seeing = answering.filter((check) =>
       check.id === "ollama"
         ? vision.here.length > 0
-        : check.id in CLIENTS || this.home.models.gateways().some((g) => g.id === check.id),
+        : check.id in CLIENTS ||
+          check.id === ACCOUNT.id ||
+          this.home.models.gateways().some((g) => g.id === check.id),
     );
     const pictures: SetupCheck = seeing.length
       ? {

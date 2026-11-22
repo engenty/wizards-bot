@@ -4,12 +4,14 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import type { LanguageModel } from "ai";
 import { generateText } from "ai";
-import type { Gateway } from "../models/models.ts";
-import { clientEnv } from "../models/models.ts";
+import type { Account, Gateway } from "../models/models.ts";
+import { ACCOUNT, accountModel, clientEnv } from "../models/models.ts";
 import { ollamaModels } from "../models/ollama.ts";
 import type { Client } from "../models/subscription.ts";
 import {
+  explainAccount,
   explainClaude,
   explainCodex,
   explainGateway,
@@ -286,35 +288,75 @@ export async function probeGateway(
       todo: `Tell your agent "add ${gateway.label}" with a model.`,
     };
   }
+  return probeModel(
+    gateway.label,
+    model,
+    createOpenAICompatible({
+      name: gateway.id,
+      baseURL: gateway.baseUrl,
+      apiKey: key,
+      ...(doFetch ? { fetch: doFetch } : {}),
+    })(model),
+    timeout,
+  );
+}
+
+/** A test call to the wizards account's gateway with the home's key. */
+export async function probeAccount(
+  account: Account,
+  key: string | undefined,
+  timeout = GATEWAY_TIMEOUT,
+  doFetch?: typeof fetch,
+): Promise<Probe> {
+  const model = ACCOUNT.models[0];
+  if (!key) {
+    return {
+      state: "problem",
+      said: "Your home has no key for your wizards account.",
+      todo: "Ask for help at wizards.bot: the home could not fetch its key.",
+    };
+  }
+  return probeModel(
+    "Your wizards account",
+    model,
+    accountModel(account, key, model, doFetch),
+    timeout,
+    explainAccount,
+  );
+}
+
+/** One short call to a model of the cloud, and what came of it. */
+async function probeModel(
+  label: string,
+  model: string,
+  chat: LanguageModel,
+  timeout: number,
+  explain: typeof explainGateway = explainGateway,
+): Promise<Probe> {
   try {
     await generateText({
-      model: createOpenAICompatible({
-        name: gateway.id,
-        baseURL: gateway.baseUrl,
-        apiKey: key,
-        ...(doFetch ? { fetch: doFetch } : {}),
-      })(model),
+      model: chat,
       prompt: PROMPT,
       maxOutputTokens: 16,
       maxRetries: 0,
       abortSignal: AbortSignal.timeout(timeout),
     });
-    return { state: "ok", model, said: `${gateway.label} answers with ${model}.` };
+    return { state: "ok", model, said: `${label} answers with ${model}.` };
   } catch (error) {
     const failure = error as Error & { statusCode?: number; responseBody?: string };
     if (failure.name === "TimeoutError" || failure.name === "AbortError") {
       return {
         state: "problem",
         model,
-        said: `${gateway.label} did not answer within ${Math.round(timeout / 1000)} seconds.`,
+        said: `${label} did not answer within ${Math.round(timeout / 1000)} seconds.`,
         todo: "Test again later.",
       };
     }
     return {
       state: "problem",
       model,
-      ...explainGateway(
-        gateway.label,
+      ...explain(
+        label,
         `${failure.message} ${failure.responseBody ?? ""}`,
         failure.statusCode,
         model,

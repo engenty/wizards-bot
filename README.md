@@ -37,6 +37,7 @@ a browser.
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | local        | on your computer, with Claude Code, Codex or Ollama there                                                                                                                        |
 | self-hosted  | on your server ([docs/vps.md](docs/vps.md)), with a gateway, or with your computer's models while it is on (`pnpm wizards-bot link`)                                             |
+| hosted       | at `<name>.wizards.bot`, on the credits of your wizards account ([docs/vps.md](docs/vps.md#a-hosted-home))                                                                       |
 | peer to peer | homes talk to each other directly, with signed requests and no central server: share an agent, invite someone, meet in a room. A laptop home is reached through a contact's home |
 
 ## Repository

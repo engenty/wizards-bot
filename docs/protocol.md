@@ -6,7 +6,7 @@ one event stream. The shapes are in `packages/protocol/src/index.ts`; this file 
 and examples. Times are ISO 8601 in UTC. Ids are opaque strings.
 
 Base URL: the home's address, e.g. `http://192.168.1.20:4747` or `https://me.example.com`.
-Every route below except `GET /v1/home` and `POST /v1/pair` needs
+Every route below except `GET /health`, `GET /v1/home` and `POST /v1/pair` needs
 `Authorization: Bearer <device token>`. An artifact's page and the libraries it loads take no
 token either; see "Artifacts". Nor does a published link; see "Sharing".
 
@@ -15,6 +15,8 @@ status. Codes a device handles: `unauthorized` (401: pair again), `already_answe
 `version_conflict` (409), `needs_consent` (409: ask the person, see "Models"), `not_found` (404).
 
 ## Home and pairing
+
+`GET /health` → `{ "ok": true }`: the home runs. For a proxy, Coolify and a status page.
 
 `GET /v1/home` → `HomeInfo`
 
@@ -35,7 +37,8 @@ as kind `browser` from `<base url>/#code=<code>`; the code sits after the `#`, w
 never sends to a server. A wrong, used or
 expired code answers 401 `unauthorized`; five wrong codes in a minute answer 429 `too_many`.
 A demo home for App Review also takes `WIZARDS_BOT_DEMO_CODE` (at least 8 letters and digits),
-again and again and without running out; never on a home with a person's data.
+again and again and without running out; never on a home with a person's data. A hosted home
+takes `WIZARDS_BOT_SETUP_CODE` once, for its first device, and only while it has none.
 
 ```json
 {

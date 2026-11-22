@@ -1,7 +1,9 @@
 name: Release
 
 # A tag `v<version>` (pnpm release:tag) becomes a GitHub release whose notes are that version's
-# block of CHANGELOG.md.
+# block of CHANGELOG.md, with the tarball a computer installs the home from
+# (wizards-bot-<version>.tgz, docs/install.md), and the image hosted homes run
+# (ghcr.io/engenty/wizards-bot:<version> and :latest, docs/vps.md).
 on:
   push:
     tags: ["v*"]
@@ -14,6 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      - name: The tag is the version of package.json
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ "$(node -p 'require("./package.json").version')" != "$version" ]; then
+            echo "::error::package.json says $(node -p 'require("./package.json").version'), the tag $version"
+            exit 1
+          fi
 
       - name: Notes from CHANGELOG.md
         run: |
@@ -28,7 +38,76 @@ jobs:
             exit 1
           fi
 
+      # The pnpm version is the `packageManager` of package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: The tarball
+        run: node scripts/pack.mjs
+
+      - name: The tarball installs and the home answers
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dir="$(mktemp -d)"
+          tar -xzf "dist/wizards-bot-$version.tgz" -C "$dir" --strip-components=1
+          (cd "$dir" && npm install --omit=dev --no-audit --no-fund)
+          WIZARDS_BOT_DATA="$dir/data" WIZARDS_BOT_PORT=4799 OLLAMA_HOST=http://127.0.0.1:9 \
+            WIZARDS_BOT_SUBSCRIPTIONS= node "$dir/apps/home/src/cli.ts" start &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:4799/health && exit 0
+            sleep 1
+          done
+          echo "::error::The home from the tarball does not answer on /health"
+          exit 1
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" "dist/wizards-bot-$version.tgz" \
+            --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Tags
+        id: tags
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "list=ghcr.io/engenty/wizards-bot:$version,ghcr.io/engenty/wizards-bot:latest" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/engenty/wizards-bot
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir, totalmem } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
+import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   type ModelService,
@@ -76,6 +77,42 @@ export const GATEWAY_PRESETS: Record<string, Omit<Gateway, "models">> = {
   anthropic: { id: "anthropic", label: "Anthropic", baseUrl: "https://api.anthropic.com/v1" },
 };
 
+/**
+ * The wizards account: the Manage-App's gateway, paid with the credits of the team the home's
+ * key names. A hosted home gets the key with its claim (`hosted.ts`).
+ */
+export const ACCOUNT = {
+  id: "wizards",
+  label: "wizards account",
+  /** The gateway's classes of text models, the cheaper first: it binds each to a model. */
+  models: ["wizards/standard", "wizards/high", "wizards/highest"],
+} as const;
+
+/** Where the account's gateway is. Its key is in the home's secrets. */
+export interface Account {
+  gatewayUrl: string;
+}
+
+const ACCOUNT_KEY = "account.gateway";
+
+/**
+ * A model of the account's gateway: the AI SDK's gateway client, as engenty wizards' runtime
+ * calls the Manage-App, at `<gatewayUrl>/v4/ai` with the home's key as bearer. The key names
+ * the team, so no tenant header goes with it.
+ */
+export function accountModel(
+  account: Account,
+  key: string,
+  model: string,
+  doFetch?: typeof fetch,
+): LanguageModel {
+  return createGateway({
+    baseURL: `${account.gatewayUrl}/v4/ai`,
+    apiKey: key,
+    ...(doFetch ? { fetch: doFetch } : {}),
+  })(model);
+}
+
 const REFRESH_MS = 60_000;
 
 export class Models {
@@ -132,6 +169,22 @@ export class Models {
     this.secrets.delete(`gateway.${id}`);
   }
 
+  // ── The wizards account ───────────────────────────────────────────────────
+
+  account(): Account | undefined {
+    const saved = this.db.meta("models.account");
+    return saved ? (JSON.parse(saved) as Account) : undefined;
+  }
+
+  accountKey(): string | undefined {
+    return this.secrets.get(ACCOUNT_KEY);
+  }
+
+  setAccount(account: Account, key: string): void {
+    this.db.setMeta("models.account", JSON.stringify(account));
+    this.secrets.set(ACCOUNT_KEY, key);
+  }
+
   // ── What the person sees ──────────────────────────────────────────────────
 
   localSources(): ModelSource[] {
@@ -170,6 +223,17 @@ export class Models {
         models: gateway.models.map((id) => ({ id, label: id })),
       }),
     );
+    const account = this.account();
+    if (account) {
+      gateways.unshift({
+        id: ACCOUNT.id,
+        kind: "gateway",
+        label: ACCOUNT.label,
+        where: "the cloud",
+        online: this.secrets.has(ACCOUNT_KEY),
+        models: ACCOUNT.models.map((id) => ({ id, label: id })),
+      });
+    }
     return [...this.localSources(), ...(this.remote?.sources() ?? []), ...gateways].map(
       (source) => ({ ...source, service: serviceOf(source)?.id }),
     );
@@ -265,6 +329,13 @@ export class Models {
             sessions: clientSessions(this.db, conversationId, sourceId),
           }),
       };
+    }
+    const account = this.account();
+    if (sourceId === ACCOUNT.id && account) {
+      const key = this.accountKey();
+      if (!key) return undefined;
+      const chat = accountModel(account, key, model);
+      return { ref, model: () => chat };
     }
     const gateway = this.gateways().find((g) => g.id === sourceId);
     const key = this.secrets.get(`gateway.${sourceId}`);
