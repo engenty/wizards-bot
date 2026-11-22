@@ -6,6 +6,10 @@
 //   node scripts/pack-mac.mjs --no-build      take dist/wizards-bot-<version>.tgz as it is
 //   node scripts/pack-mac.mjs --dmg           also dist/mac/wizards-bot-mac-<arch>.dmg
 //
+// Updates: SPARKLE_PUBLIC_KEY goes into the app (without it the app does not look for updates);
+// with SPARKLE_PRIVATE_KEY the script also writes the update, wizards-bot-mac-<arch>.zip, and
+// appcast.xml, which the release attaches. The app asks the appcast of the newest release.
+//
 // Signing: MAC_SIGN_IDENTITY names the certificate ("Developer ID Application: …" for a
 // release); without it the first "Apple Development" certificate of the keychain, or none ("-").
 // Notarization runs when APPLE_API_KEY_PATH, APPLE_API_KEY_ID and APPLE_API_ISSUER are set.
@@ -133,6 +137,7 @@ run("xcodebuild", [
   `ARCHS=${ARCH}`,
   `MARKETING_VERSION=${version}`,
   `CURRENT_PROJECT_VERSION=${buildNumber(version)}`,
+  `SPARKLE_PUBLIC_KEY=${process.env.SPARKLE_PUBLIC_KEY ?? ""}`,
   "CODE_SIGNING_ALLOWED=NO",
   "build",
 ]);
@@ -209,6 +214,7 @@ if (args.includes("--dmg")) {
   cpSync(app, join(folder, "wizards.app"), { recursive: true, verbatimSymlinks: true });
   run("ln", ["-s", "/Applications", join(folder, "Applications")]);
   rmSync(dmg, { force: true });
+  // LZMA: 63 MB where LZFSE (ULFO) made 163 MB; macOS opens it since 10.15.
   run("hdiutil", [
     "create",
     "-volname",
@@ -216,7 +222,7 @@ if (args.includes("--dmg")) {
     "-srcfolder",
     folder,
     "-format",
-    "ULFO",
+    "ULMO",
     "-ov",
     dmg,
   ]);
@@ -233,6 +239,41 @@ if (args.includes("--dmg")) {
     run("xcrun", ["stapler", "staple", dmg]);
   }
   console.log(`${dmg} (${(statSync(dmg).size / 1e6).toFixed(0)} MB)`);
+}
+
+// ── The update for Sparkle ──────────────────────────────────────────────────────────────────
+if (process.env.SPARKLE_PRIVATE_KEY) {
+  say("The update and appcast.xml …");
+  const zipName = `wizards-bot-mac-${ARCH}.zip`;
+  const zip = join(out, zipName);
+  rmSync(zip, { force: true });
+  run("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, zip]);
+  const signUpdate = join(derived, "SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update");
+  const signature = execFileSync(signUpdate, ["--ed-key-file", "-", "-p", zip], {
+    input: process.env.SPARKLE_PRIVATE_KEY,
+    encoding: "utf8",
+  }).trim();
+  const base = `https://github.com/engenty/wizards-bot/releases`;
+  writeFileSync(
+    join(out, "appcast.xml"),
+    `<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>wizards.bot</title>
+    <item>
+      <title>${version}</title>
+      <pubDate>${new Date().toUTCString()}</pubDate>
+      <sparkle:version>${buildNumber(version)}</sparkle:version>
+      <sparkle:shortVersionString>${version}</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:releaseNotesLink>${base}/tag/v${version}</sparkle:releaseNotesLink>
+      <enclosure url="${base}/download/v${version}/${zipName}" length="${statSync(zip).size}" type="application/octet-stream" sparkle:edSignature="${signature}"/>
+    </item>
+  </channel>
+</rss>
+`,
+  );
+  console.log(`${zip}\n${join(out, "appcast.xml")}`);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────
