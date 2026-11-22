@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Engenty } from "./engenty/Engenty";
 import { ApiError, api } from "./lib/api";
 import { t } from "./lib/i18n";
+import { macName } from "./lib/mac";
 import { setDeviceToken } from "./lib/session";
 import { Frame } from "./setup/Frame";
 import { Button, Input } from "./ui";
@@ -31,7 +32,7 @@ export function Pairing() {
     try {
       const paired = await api.post<PairResponse>("/v1/pair", {
         code: entered,
-        name: t("pair.browser"),
+        name: macName() ?? t("pair.browser"),
         kind: "browser",
       });
       setDeviceToken(paired.token);
