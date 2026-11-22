@@ -9,9 +9,9 @@ import { type ChannelAdapter, type ChannelContext, cardsAsText } from "./channel
 const DAEMON = "http://127.0.0.1:8080";
 const LONGEST_WAIT = 60_000;
 
-const SETUP = `Your agent gets its own Signal number. The program signal-cli holds that number and runs beside your home.
+const SETUP = `Your agent gets its own Signal number. The program signal-cli holds that number and runs beside your Bot Server.
 
-1. Install [signal-cli](https://github.com/AsamK/signal-cli) on the computer your home runs on.
+1. Install [signal-cli](https://github.com/AsamK/signal-cli) on the computer your Bot Server runs on.
 2. Register a number for the agent with signal-cli. Use a number that is not your own Signal number. The signal-cli page shows how.
 3. Start signal-cli with the agent's number and leave it running:
 

@@ -14,7 +14,7 @@ struct ArtifactView: View {
                 ContentUnavailableView {
                     Label("The page isn’t shown", systemImage: "square.on.circle")
                 } description: {
-                    Text("Your home sent this page without closing it off, so it is not shown.")
+                    Text("Your Bot Server sent this page without closing it off, so it is not shown.")
                 }
             } else if let shown = session.shown {
                 ArtifactPage(shown: shown, refused: $session.refused) {

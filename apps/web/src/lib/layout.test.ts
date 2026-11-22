@@ -14,6 +14,9 @@ describe("the list of agents", () => {
 
   it("gives way to a document where the three do not fit", () => {
     expect(sidebar(1180, true, false)).toBe("rail");
+    // Where the column of figures would push a document over the chat, it gives way.
+    expect(sidebar(800, true, false)).toBe("none");
+    expect(sidebar(800, false, false)).toBe("rail");
     expect(sidebar(1280, true, false)).toBe("open");
   });
 });

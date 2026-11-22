@@ -254,7 +254,10 @@ export class Tasks {
       );
       if (!row) return c.json({ error: "not_found", message: "There is no such address." }, 404);
       const tooLarge = () =>
-        c.json({ error: "too_large", message: "This is more than the home takes at once." }, 413);
+        c.json(
+          { error: "too_large", message: "This is more than the Bot Server takes at once." },
+          413,
+        );
       if (Number(c.req.header("content-length") ?? 0) > HOOK_LIMIT) return tooLarge();
       const body = await c.req.text();
       if (Buffer.byteLength(body) > HOOK_LIMIT) return tooLarge();
@@ -592,7 +595,7 @@ export class Tasks {
                   "Whoever has the address can start the task, so give it to that service only. It is shown on this card and nowhere else.",
                   home.config.publicUrl
                     ? ""
-                    : "Your home has no public address yet: only what runs in your own network reaches it.",
+                    : "Your Bot Server has no public address yet: only what runs in your own network reaches it.",
                 ]
                   .filter(Boolean)
                   .join("\n\n"),
@@ -625,7 +628,7 @@ export class Tasks {
             what,
             { nextAt: now() },
           );
-          return `Set as ${id}. The home looks at ${connection.name} every ${minutes} minutes and starts the task when ${tool.name} answers differently than before.`;
+          return `Set as ${id}. The Bot Server looks at ${connection.name} every ${minutes} minutes and starts the task when ${tool.name} answers differently than before.`;
         },
       }),
       defineTool({
@@ -670,7 +673,7 @@ export class Tasks {
       defineTool({
         name: "task_resume",
         description:
-          "Let a task run again that the home paused because it kept failing. Do it when the person says so or the cause is gone.",
+          "Let a task run again that the Bot Server paused because it kept failing. Do it when the person says so or the cause is gone.",
         input: z.object({ id: z.string() }),
         label: () => "Resuming a task",
         run: async (input) =>

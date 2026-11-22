@@ -264,7 +264,7 @@ export class Outside {
       defineTool({
         name: "outside_agent_add",
         description:
-          "Add an agent that is not a wizards.bot home, by the address of its A2A agent card or of its site. Reads the card, shows the person who it is and asks first. When the agent asks for a token or a key, the card has a field for it: never ask for it in the chat. Ends your turn.",
+          "Add an agent that is not a Bot Server, by the address of its A2A agent card or of its site. Reads the card, shows the person who it is and asks first. When the agent asks for a token or a key, the card has a field for it: never ask for it in the chat. Ends your turn.",
         input: z.object({
           url: z.string().describe("The address the person gave."),
           kind: EngentyKind.optional().describe("Its figure in the list of agents."),
@@ -286,7 +286,7 @@ export class Outside {
           }
           const { signIn } = card;
           if ("why" in signIn)
-            return `${name} cannot be added yet. ${signIn.why} The home signs in with a token or a key. A sign-in with OAuth is not built yet.`;
+            return `${name} cannot be added yet. ${signIn.why} The Bot Server signs in with a token or a key. A sign-in with OAuth is not built yet.`;
           const known = home.db.get<{ agent_id: string }>(
             "select agent_id from outside_agent where card_url = ?",
             card.cardUrl,
@@ -302,10 +302,10 @@ export class Outside {
             `**${from}**${card.organization ? `, run by ${plain(card.organization, 80)}` : ""}`,
             plain(card.description, 400),
             skills.length ? `It says it can: ${skills.join(", ")}.` : "",
-            `It is not a wizards.bot home. What you write to it goes to ${address.host}. Your agents ask you before they write to it.`,
+            `It is not a Bot Server. What you write to it goes to ${address.host}. Your agents ask you before they write to it.`,
             signIn.kind === "none"
               ? ""
-              : `It asks for ${signIn.kind === "bearer" ? "an access token" : "a key"}. It stays in your home. No model reads it.`,
+              : `It asks for ${signIn.kind === "bearer" ? "an access token" : "a key"}. It stays on your Bot Server. No model reads it.`,
           ]
             .filter(Boolean)
             .join("\n\n");
@@ -352,7 +352,7 @@ export class Outside {
       defineTool({
         name: "outside_agent_let_in",
         description:
-          "Let an agent that is not a wizards.bot home write to one of the person's own agents over A2A. `name` says who it is, e.g. “the booking agent of Hotel Lux”. Asks the person first, then shows an access token once in a card. The caller gets a conversation of its own with that agent and reaches nothing else. Ends your turn.",
+          "Let an agent that is not a Bot Server write to one of the person's own agents over A2A. `name` says who it is, e.g. “the booking agent of Hotel Lux”. Asks the person first, then shows an access token once in a card. The caller gets a conversation of its own with that agent and reaches nothing else. Ends your turn.",
         input: z.object({ agentId: z.string(), name: z.string().min(1).max(80) }),
         label: () => "Asking to let an agent in",
         run: async (input) => {
@@ -360,15 +360,15 @@ export class Outside {
           if (target?.origin !== "own")
             return `There is no agent of your own with the id ${input.agentId}.`;
           if (target.main)
-            return "The first agent of a home is yours alone. Make an agent for the task and let the caller write to that one.";
+            return "The first agent of a Bot Server is yours alone. Make an agent for the task and let the caller write to that one.";
           if (!home.config.publicUrl)
-            return "Your home has no public address yet. It needs one (WIZARDS_BOT_URL) before an agent from outside can reach it.";
+            return "Your Bot Server has no public address yet. It needs one (WIZARDS_BOT_URL) before an agent from outside can reach it.";
           const card = home.store.createCard(
             {
               kind: "approval",
               level: "needs_you",
               title: `Let ${input.name} write to “${target.name}”?`,
-              body: `${target.name} answers it from its instructions and its memory and has no tools there. The caller reaches no other agent and nothing else in your home. You can shut it out at any time.`,
+              body: `${target.name} answers it from its instructions and its memory and has no tools there. The caller reaches no other agent and nothing else on your Bot Server. You can shut it out at any time.`,
               actions: [
                 { id: "let_in", label: "Let it in", style: "primary" },
                 { id: "refuse", label: "Don't let it in", style: "plain" },
@@ -475,7 +475,7 @@ export class Outside {
           level: "needs_you",
           title: `Access token for ${name}`,
           body: [
-            `Give both lines to whoever runs ${name}. The token is shown this once: the home keeps no copy it could show again.`,
+            `Give both lines to whoever runs ${name}. The token is shown this once: the Bot Server keeps no copy it could show again.`,
             `Agent card: \`${base}/a2a/agents/${agent.id}/agent-card.json\``,
             `Access token: \`${token}\``,
             "The caller sends the token as `Authorization: Bearer <token>`.",

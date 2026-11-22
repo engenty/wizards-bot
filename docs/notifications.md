@@ -1,6 +1,6 @@
 # Notifications
 
-The home notifies you in two cases, and nowhere else:
+The Bot Server notifies you in two cases, and nowhere else:
 
 |                     | When                                                                             | How it arrives                                                                           |
 | ------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -18,20 +18,20 @@ The home notifies you in two cases, and nowhere else:
   unread. A quiet run that failed leaves its line the same way.
 - Longer work notifies you once, at its end, not after each of its turns. A card in between
   notifies you as every card does.
-- A task the home paused, because it failed three times in a row or what it waits for is gone,
+- A task the Bot Server paused, because it failed three times in a row or what it waits for is gone,
   is something that needs you: a card with "Try again" and "Remove task".
-- The offer of a morning look in a new home is a card that does not notify.
+- The offer of a morning look in a new Bot Server is a card that does not notify.
 - A reply to a message from Slack, email, WhatsApp or Signal goes back there. What an agent
   starts by itself goes to your devices. Without a push key it goes to the channel you used last.
 
 ## Push to the phone
 
 Apple delivers a push only from a holder of a signing key of the app's developer account. The
-home sends pushes itself, so it needs that key once:
+Bot Server sends pushes itself, so it needs that key once:
 
 1. In the Apple developer account: Certificates, Identifiers & Profiles → Keys → new key with
    "Apple Push Notifications service (APNs)". Download the `.p8` file, note the key id.
-2. On the home's computer:
+2. On the Bot Server's computer:
 
 ```bash
 wizards-bot push --key AuthKey_ABC123.p8 --key-id ABC123 --team-id 7X9X3MSWJA
@@ -42,4 +42,4 @@ Without the key the app still notifies while it runs, from the event stream.
 ## Quiet hours
 
 A device sets them with `PATCH /v1/device` (`quiet: { from, to, timezone }`). In those hours the
-home pushes only what needs you.
+Bot Server pushes only what needs you.

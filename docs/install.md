@@ -1,6 +1,6 @@
-# Installing a home from a release
+# Installing a Bot Server from a release
 
-Every release of `engenty/wizards-bot` carries `wizards-bot-<version>.tgz`: the home, its web
+Every release of `engenty/wizards-bot` carries `wizards-bot-<version>.tgz`: the Bot Server, its web
 app built, and the packages of this repository it needs. It runs on macOS and Linux with Node
 24.11 or newer and needs no pnpm and no build.
 
@@ -22,7 +22,7 @@ npm install --omit=dev
 node apps/home/src/cli.ts start
 ```
 
-- Unpack it into a folder of its own, not into `node_modules`: Node runs the home's TypeScript
+- Unpack it into a folder of its own, not into `node_modules`: Node runs the Bot Server's TypeScript
   only outside `node_modules`. `npm install -g` of the tarball does not work for that reason.
 - `npm install` takes the versions of `package-lock.json` in the tarball. The packages of this
   repository are folders in it (`packages/`), linked from `node_modules`.

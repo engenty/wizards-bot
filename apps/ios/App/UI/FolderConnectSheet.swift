@@ -88,15 +88,15 @@ struct FolderConnectSheet: View {
                 .foregroundStyle(.secondary)
             placeChoice(
                 title: "On this \(thisDevice)",
-                note: "iCloud Drive, On My \(thisDevice) or another place in Files. The files stay here: your agents ask this \(thisDevice), and only the answer goes to your home.",
+                note: "iCloud Drive, On My \(thisDevice) or another place in Files. The files stay here: your agents ask this \(thisDevice), and only the answer goes to your Bot Server.",
                 symbol: "iphone"
             ) {
                 problem = nil
                 importing = true
             }
             placeChoice(
-                title: "On your home’s computer",
-                note: "Your home reads the files on its computer, in place.",
+                title: "On your Bot Server’s computer",
+                note: "Your Bot Server reads the files on its computer, in place.",
                 symbol: "desktopcomputer"
             ) {
                 problem = nil
@@ -136,13 +136,13 @@ struct FolderConnectSheet: View {
 
     private var start: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Choose a folder on your home’s computer. Once it is connected, your agents read its files.")
+            Text("Choose a folder on your Bot Server’s computer. Once it is connected, your agents read its files.")
                 .foregroundStyle(.secondary)
             if picking != nil {
                 HStack(spacing: 10) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("The folder dialog is open on your home’s computer.")
+                    Text("The folder dialog is open on your Bot Server’s computer.")
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -180,7 +180,7 @@ struct FolderConnectSheet: View {
                     .lineLimit(2)
                     .truncationMode(.middle)
                 Text(holds(files: folder.count.files, folders: folder.count.folders, bytes: folder.count.bytes, more: folder.count.more))
-                Text("The files stay on this \(thisDevice). When your agents need something in them, they ask this \(thisDevice): its own model reads the files here and sends back only the answer. A file goes to your home only after you said yes here.")
+                Text("The files stay on this \(thisDevice). When your agents need something in them, they ask this \(thisDevice): its own model reads the files here and sends back only the answer. A file goes to your Bot Server only after you said yes here.")
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -200,7 +200,7 @@ struct FolderConnectSheet: View {
     private func pathField(_ typing: Typing) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if typing == .noDialog {
-                Text("No folder dialog opens on your home’s computer. Type the path.")
+                Text("No folder dialog opens on your Bot Server’s computer. Type the path.")
                     .foregroundStyle(.secondary)
             }
             VStack(alignment: .leading, spacing: 6) {
@@ -239,7 +239,7 @@ struct FolderConnectSheet: View {
                     .lineLimit(2)
                     .truncationMode(.middle)
                 Text(holds(files: found.files, folders: found.folders, bytes: found.bytes, more: found.more))
-                Text("The files stay where they are. Your home reads them in place and copies nothing.")
+                Text("The files stay where they are. Your Bot Server reads them in place and copies nothing.")
             }
             .font(.subheadline)
             .foregroundStyle(.secondary)
@@ -411,7 +411,7 @@ struct FolderConnectSheet: View {
 
     private func sentence(for error: Error) -> String {
         switch error as? HomeError {
-        case .unreachable: String(localized: "Your home is out of reach. Try again in a moment.")
+        case .unreachable: String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         case .notFound: String(localized: "There is no folder at this path.")
         case let error?: error.message ?? String(localized: "That didn’t work. Try again.")
         case nil: String(localized: "That didn’t work. Try again.")

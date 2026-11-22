@@ -7,13 +7,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "wizards.bot talks to your home when it runs on a computer in your network."
+            "value" : "wizards.bot talks to your Bot Server when it runs on a computer in your network."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "wizards.bot spricht mit deinem Zuhause, wenn es auf einem Computer in deinem Netzwerk läuft."
+            "value" : "wizards.bot spricht mit deinem Bot Server, wenn er auf einem Computer in deinem Netzwerk läuft."
           }
         }
       }
@@ -24,13 +24,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The camera reads the code that connects this device to your home and the code of an invite, and takes the photos you send to your agents. A photo goes to your home only when you send it."
+            "value" : "The camera reads the code that connects this device to your Bot Server and the code of an invite, and takes the photos you send to your agents. A photo goes to your Bot Server only when you send it."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Kamera liest den Code, der dieses Gerät mit deinem Zuhause verbindet, und den Code einer Einladung und nimmt die Fotos auf, die du deinen Agenten schickst. Ein Foto geht erst an dein Zuhause, wenn du es sendest."
+            "value" : "Die Kamera liest den Code, der dieses Gerät mit deinem Bot Server verbindet, und den Code einer Einladung und nimmt die Fotos auf, die du deinen Agenten schickst. Ein Foto geht erst an deinen Bot Server, wenn du es sendest."
           }
         }
       }
@@ -75,13 +75,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your agents ask this phone about your calendar. It is read here, and only the answer goes to your home. A new or changed entry asks you first."
+            "value" : "Your agents ask this phone about your calendar. It is read here, and only the answer goes to your Bot Server. A new or changed entry asks you first."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Agenten fragen dieses Telefon nach deinem Kalender. Er wird hier gelesen, nur die Antwort geht an dein Zuhause. Ein neuer oder geänderter Termin fragt dich vorher."
+            "value" : "Deine Agenten fragen dieses Telefon nach deinem Kalender. Er wird hier gelesen, nur die Antwort geht an deinen Bot Server. Ein neuer oder geänderter Termin fragt dich vorher."
           }
         }
       }
@@ -92,13 +92,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your agents ask this phone about your reminders. They are read here, and only the answer goes to your home. A new or changed reminder asks you first."
+            "value" : "Your agents ask this phone about your reminders. They are read here, and only the answer goes to your Bot Server. A new or changed reminder asks you first."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Agenten fragen dieses Telefon nach deinen Erinnerungen. Sie werden hier gelesen, nur die Antwort geht an dein Zuhause. Eine neue oder geänderte Erinnerung fragt dich vorher."
+            "value" : "Deine Agenten fragen dieses Telefon nach deinen Erinnerungen. Sie werden hier gelesen, nur die Antwort geht an deinen Bot Server. Eine neue oder geänderte Erinnerung fragt dich vorher."
           }
         }
       }
@@ -109,13 +109,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your agents ask this phone about your contacts. They are read here, and only the answer goes to your home."
+            "value" : "Your agents ask this phone about your contacts. They are read here, and only the answer goes to your Bot Server."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Agenten fragen dieses Telefon nach deinen Kontakten. Sie werden hier gelesen, nur die Antwort geht an dein Zuhause."
+            "value" : "Deine Agenten fragen dieses Telefon nach deinen Kontakten. Sie werden hier gelesen, nur die Antwort geht an deinen Bot Server."
           }
         }
       }

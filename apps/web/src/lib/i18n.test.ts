@@ -25,7 +25,7 @@ const RULES: Record<"en" | "de", [string, RegExp][]> = {
     ["please", /\bplease\b/i],
     ["glossary: log in → sign in", /\blog ?in\b/i],
     // "bot" only as a word of its own: the product's name has it too, wizards.bot and the
-    // command wizards-bot.
+    // command wizards-bot. "Bot Server" is the copy word for the home (AGENTS.md).
     [
       "words: server, bot, assistant, widget, inbox",
       /\b(server|assistant|widget|inbox)\b|(?<!wizards[.-])\bbot\b/i,
@@ -55,7 +55,9 @@ describe("the copy", () => {
     it(`keeps the rules of the copy style in ${lang}`, () => {
       const broken = lines(table).flatMap(([key, text]) =>
         RULES[lang]
-          .filter(([, pattern]) => pattern.test(text.replace(/\{\w+\}/g, "{}")))
+          .filter(([, pattern]) =>
+            pattern.test(text.replace(/\{\w+\}/g, "{}").replace(/\bBot Servers?\b/g, "Home")),
+          )
           .map(([rule]) => `${key}: ${rule}`),
       );
       expect(broken).toEqual([]);

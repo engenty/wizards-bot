@@ -23,6 +23,6 @@ Without a connection
   - google-docs: `https://docsmcp.googleapis.com/mcp/v1`
   - google-sheets: `https://sheetsmcp.googleapis.com/mcp/v1`
   - google-slides: `https://slidesmcp.googleapis.com/mcp/v1`
-- These connect without a sign-in and list their tools. Google asks for the sign-in at the first call, and takes it only from an app registered with Google. When a call answers "does not support dynamic client registration", this home cannot sign in to Google yet: say so plainly, remove the connection with `connection_remove`, and offer the way below.
+- These connect without a sign-in and list their tools. Google asks for the sign-in at the first call, and takes it only from an app registered with Google. When a call answers "does not support dynamic client registration", this Bot Server cannot sign in to Google yet: say so plainly, remove the connection with `connection_remove`, and offer the way below.
 - `connection_find` searches the public registry for other services that reach Google. Such a service sees the person's files: say who runs it and let the person decide before you connect it.
 - What always works: make a Word, Excel or PowerPoint file with the skills word, excel or powerpoint. Google Drive opens them as Docs, Sheets and Slides.

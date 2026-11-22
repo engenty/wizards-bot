@@ -79,7 +79,7 @@ function snapshot(from: string, to: string): void {
 export async function exportData(dataDir: string, file: string, passphrase: string): Promise<void> {
   if (passphrase.length < MIN_PASSPHRASE)
     throw new Error(`The passphrase needs at least ${MIN_PASSPHRASE} characters.`);
-  if (!existsSync(join(dataDir, "home.db"))) throw new Error(`${dataDir} holds no home.`);
+  if (!existsSync(join(dataDir, "home.db"))) throw new Error(`${dataDir} holds no Bot Server.`);
   const work = mkdtempSync(join(tmpdir(), "wizards-bot-export-"));
   try {
     snapshot(dataDir, join(work, "data"));
@@ -105,9 +105,9 @@ export async function exportData(dataDir: string, file: string, passphrase: stri
  */
 export async function importData(file: string, dataDir: string, passphrase: string): Promise<void> {
   if (existsSync(join(dataDir, "home.db")))
-    throw new Error(`${dataDir} holds a home already. Import into an empty data folder.`);
+    throw new Error(`${dataDir} holds a Bot Server already. Import into an empty data folder.`);
   const size = statSync(file).size;
-  if (size < HEAD + TAG) throw new Error("That file is not an export of a home.");
+  if (size < HEAD + TAG) throw new Error("That file is not an export of a Bot Server.");
   const fd = openSync(file, "r");
   const head = Buffer.alloc(HEAD);
   const tag = Buffer.alloc(TAG);
@@ -118,9 +118,9 @@ export async function importData(file: string, dataDir: string, passphrase: stri
     closeSync(fd);
   }
   if (!head.subarray(0, MAGIC.length).equals(MAGIC))
-    throw new Error("That file is not an export of a home.");
+    throw new Error("That file is not an export of a Bot Server.");
   const cost = head[MAGIC.length] as number;
-  if (cost < 10 || cost > 22) throw new Error("That file is not an export of a home.");
+  if (cost < 10 || cost > 22) throw new Error("That file is not an export of a Bot Server.");
   const salt = head.subarray(MAGIC.length + 1, MAGIC.length + 17);
   const iv = head.subarray(MAGIC.length + 17, HEAD);
   const decipher = createDecipheriv("aes-256-gcm", await keyOf(passphrase, salt, cost), iv);

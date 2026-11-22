@@ -164,7 +164,7 @@ describe("a handle on a domain of the person's own", () => {
       { text: "The domain does not point here yet." },
     );
     await ada.say("my handle is ada at my domain");
-    assert.match(toolSaid(ada), /does not name this home/);
+    assert.match(toolSaid(ada), /does not name this Bot Server/);
     assert.ok(toolSaid(ada).includes(`{"names":{"ada":"${ada.url}"}}`));
     assert.equal(handle(ada), before_);
     assert.equal(ada.home.store.items().length, 0);
@@ -236,7 +236,7 @@ describe("a handle on a domain of the person's own", () => {
     assert.equal(handle(ada), mine);
     assert.equal(roomOf(ada).from, mine);
     const state = (await (await ada.request("/v1/person")).json()) as PersonState;
-    assert.equal(state.proposed?.why, "This home's address changed.");
+    assert.equal(state.proposed?.why, "This Bot Server's address changed.");
 
     // The domain points to the new address, but the person has not signed it: a contact
     // does not take a domain's word alone for where the home is.

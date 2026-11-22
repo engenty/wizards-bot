@@ -42,12 +42,12 @@ struct PairingView: View {
             VStack(spacing: 14) {
                 EngentyFigure(kind: .round)
                     .frame(width: 112, height: 112)
-                Text("Connect to your home")
+                Text("Connect to your Bot Server")
                     .font(.title.weight(.semibold))
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityAddTraits(.isHeader)
-                Text("Your agent runs in your home, on your computer or a server. This device talks to it.")
+                Text("Your agent runs on your Bot Server: on your computer or on a server. This device talks to it.")
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -72,7 +72,7 @@ struct PairingView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 VStack(spacing: 0) {
-                    TextField("Address of your home", text: $address, prompt: Text("e.g. 192.168.1.20:4747"))
+                    TextField("Address of your Bot Server", text: $address, prompt: Text("e.g. 192.168.1.20:4747"))
                         .textContentType(.URL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
@@ -81,7 +81,7 @@ struct PairingView: View {
                         .submitLabel(.next)
                         .onSubmit { focus = .code }
                         .padding(14)
-                        .accessibilityLabel("Address of your home")
+                        .accessibilityLabel("Address of your Bot Server")
                     Divider().padding(.leading, 14)
                     TextField("Code", text: $code, prompt: Text("e.g. K7QM-2RXD"))
                         .textInputAutocapitalization(.characters)
@@ -121,7 +121,7 @@ struct PairingView: View {
                 VStack(spacing: 8) {
                     Button("Use this device only") { model.useDeviceOnly() }
                         .font(.callout.weight(.medium))
-                    Text("Without a home, the model on this device answers. It can’t reach your mail, calendar or files.")
+                    Text("Without a Bot Server, the model on this device answers. It can’t reach your mail, calendar or files.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

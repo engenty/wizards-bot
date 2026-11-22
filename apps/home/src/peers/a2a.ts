@@ -62,7 +62,9 @@ export function outsideUrl(address: string, allowPrivate: boolean): URL {
     throw new Error("An address with a password in it is not taken.");
   const local = isPrivateHost(url.host);
   if (local && !allowPrivate)
-    throw new Error(`${url.host} is a private address. This home does not call private addresses.`);
+    throw new Error(
+      `${url.host} is a private address. This Bot Server does not call private addresses.`,
+    );
   if (url.protocol === "http:" && !local)
     throw new Error("An agent's address starts with https://.");
   return url;
@@ -175,12 +177,12 @@ function whyNot(raw: Record<string, unknown>): string {
   const jsonRpc = interfaces.filter((one) => one.protocolBinding?.toUpperCase() === "JSONRPC");
   if (jsonRpc.length) {
     const versions = jsonRpc.map((one) => one.protocolVersion || "an unnamed version").join(", ");
-    return `It speaks A2A ${versions}. The home speaks A2A ${A2A_VERSIONS.join(" and ")}.`;
+    return `It speaks A2A ${versions}. The Bot Server speaks A2A ${A2A_VERSIONS.join(" and ")}.`;
   }
   const bindings = interfaces.map((one) => one.protocolBinding).filter(Boolean);
   const other = typeof raw.preferredTransport === "string" ? [raw.preferredTransport] : bindings;
   return other.length
-    ? `It takes messages over ${other.join(", ")} only. The home speaks JSON-RPC.`
+    ? `It takes messages over ${other.join(", ")} only. The Bot Server speaks JSON-RPC.`
     : "Its card names no address that takes messages.";
 }
 
@@ -356,7 +358,7 @@ export async function say(
     throw new Error(said ? `${how}: ${said}` : `${how}.`);
   }
   if (state === "auth-required")
-    throw new Error(said || "It asks for a sign-in the home cannot do.");
+    throw new Error(said || "It asks for a sign-on the Bot Server cannot do.");
   if (room === A2A_TEXT_LIMIT) {
     // Nothing was streamed: the answer is in the result, as text or as other parts.
     const made = wordsOf(task?.artifacts?.flatMap((artifact) => artifact.parts) as Part[]);

@@ -30,10 +30,9 @@ describe("when the setup opens", () => {
   });
 
   it("asks the name only while the person has not said it", () => {
-    expect(stepsOf(setup())).toEqual(["name", "models", "abilities", "devices"]);
+    expect(stepsOf(setup())).toEqual(["name", "models", "devices"]);
     expect(stepsOf(setup({ name: { value: "Ada", confirmed: true } }))).toEqual([
       "models",
-      "abilities",
       "devices",
     ]);
   });
@@ -49,7 +48,6 @@ describe("going on", () => {
     expect(canGoOn("name", setup(), "Ada")).toBe(true);
     expect(canGoOn("models", setup())).toBe(false);
     expect(canGoOn("models", setup({ working: true }))).toBe(true);
-    expect(canGoOn("abilities", setup())).toBe(true);
     expect(canGoOn("devices", setup())).toBe(true);
   });
 });

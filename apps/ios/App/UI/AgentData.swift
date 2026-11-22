@@ -349,7 +349,7 @@ private struct AskedLine: View {
         case .working: when
         case .answered: String(localized: "Sent back \(when)")
         case .declined: String(localized: "Not answered \(when)")
-        case .unsent: String(localized: "Goes back when your home is in reach")
+        case .unsent: String(localized: "Goes back when your Bot Server is in reach")
         }
     }
 }

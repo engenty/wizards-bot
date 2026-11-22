@@ -25,6 +25,7 @@ import type {
 import type { Events } from "../events.ts";
 import { sha256 } from "../identity.ts";
 import { newId, newPairingCode, newToken, now } from "../ids.ts";
+import { langOf, MAIN_ABOUT, say } from "../setup/words.ts";
 import type { Db } from "./db.ts";
 
 /** A part as the database keeps it: a card is a reference, so its state has one place. */
@@ -225,7 +226,7 @@ export class Store {
     return this.createAgent({
       name: "Goose",
       kind: "round",
-      about: "Your own agent. It knows your other agents, your accounts and what needs you.",
+      about: say(MAIN_ABOUT, langOf(this.db)),
       main: true,
     });
   }

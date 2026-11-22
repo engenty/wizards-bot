@@ -233,7 +233,7 @@ describe("a home without an address", () => {
       // Under its own name it is no contact: nothing is kept for it and it gets nothing.
       await assert.rejects(
         zoe.home.peers.post(ada.home.handle() as string, "/peers/mailbox", { after: 0 }),
-        /Only a contact's home is heard/,
+        /Only a contact's Bot Server is heard/,
       );
       assert.equal(ada.home.peers.mailbox.kept(handle), kept);
       assert.equal(ada.home.peers.contact(handle)?.publicKey, lea.home.identity.publicKey);

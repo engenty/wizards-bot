@@ -36,9 +36,9 @@ final class DocumentSession: Identifiable {
         do {
             show(try await client.document(id))
         } catch HomeError.notFound {
-            problem = String(localized: "This document is no longer in your home.")
+            problem = String(localized: "This document is no longer on your Bot Server.")
         } catch HomeError.unreachable {
-            problem = String(localized: "Your home is out of reach. The document opens when it is back.")
+            problem = String(localized: "Your Bot Server is out of reach. The document opens when it is back.")
         } catch {
             problem = (error as? HomeError)?.message ?? String(localized: "The document didn’t open. Try again.")
         }
@@ -59,7 +59,7 @@ final class DocumentSession: Identifiable {
             }
             problem = nil
         } catch HomeError.unreachable {
-            problem = String(localized: "Your home is out of reach. Your text stays here. Save it again in a moment.")
+            problem = String(localized: "Your Bot Server is out of reach. Your text stays here. Save it again in a moment.")
         } catch {
             problem = (error as? HomeError)?.message ?? String(localized: "Saving didn’t work. Try again.")
         }

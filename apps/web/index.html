@@ -11,10 +11,15 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <title>wizards.bot</title>
     <script>
-      // Before first paint, so a dark system never sees the light page flash.
-      if (matchMedia("(prefers-color-scheme: dark)").matches) {
-        document.documentElement.classList.add("dark");
-      }
+      // Before first paint, so a dark page never flashes light (lib/theme.ts keeps it).
+      var pick = null;
+      try {
+        pick = localStorage.getItem("wizards.theme");
+      } catch {}
+      var mode = ["light", "branded", "dark"].indexOf(pick) >= 0 ? pick
+        : matchMedia("(prefers-color-scheme: dark)").matches ? "branded" : "light";
+      if (mode !== "light") document.documentElement.classList.add("dark");
+      if (mode === "branded") document.documentElement.classList.add("branded");
     </script>
   </head>
   <body>

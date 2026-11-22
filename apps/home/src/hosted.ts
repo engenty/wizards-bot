@@ -11,6 +11,8 @@ const Claimed = z.object({
   gatewayUrl: z.url(),
   gatewayKey: z.string().min(1),
   handle: z.string().regex(/^[a-z0-9][a-z0-9-]*@[a-z0-9.-]+$/i),
+  /** The person's name in their wizards account, when it has one. */
+  name: z.string().trim().max(80).optional(),
 });
 
 /** How a claim ended: kept from before, made now, refused for good, or to try again later. */
@@ -91,7 +93,7 @@ export class Hosted {
     }
     if (response.status === 401 || response.status === 403 || response.status === 409) {
       console.error(
-        `[hosted] The Manage-App refused the home's token (${response.status}). It works once; without the gateway's key this home has no account. Ask the Manage-App for a new token.`,
+        `[hosted] The Manage-App refused the Bot Server's token (${response.status}). It works once; without the gateway's key this Bot Server has no account. Ask the Manage-App for a new token.`,
       );
       return "refused";
     }
@@ -104,9 +106,11 @@ export class Hosted {
       console.error("[hosted] The Manage-App's answer to the claim is not what it should be.");
       return "later";
     }
-    const { gatewayUrl, gatewayKey, handle } = parsed.data;
+    const { gatewayUrl, gatewayKey, handle, name } = parsed.data;
     models.setAccount({ gatewayUrl: gatewayUrl.replace(/\/+$/, "") }, gatewayKey);
     this.takeHandle(handle.toLowerCase());
+    // The setup shows it for the person to confirm; a name they said already stays.
+    if (name && !this.home.db.meta("person.named")) this.home.db.setMeta("person.name", name);
     // The gateway is green when the person lands: one short test call, as at a first start.
     void this.home.setup.test("wizards").catch(() => {});
     return "claimed";

@@ -138,7 +138,7 @@ nonisolated struct SendFileTool: Tool {
     let tools: PhoneTools
     let asker: String
     let name = "sendFile"
-    let description = "Send a file of a connected folder to the home, when the asking agent needs the file itself. The person is asked first."
+    let description = "Send a file of a connected folder to the Bot Server, when the asking agent needs the file itself. The person is asked first."
 
     @Generable
     struct Arguments {

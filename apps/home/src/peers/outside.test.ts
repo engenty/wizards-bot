@@ -93,7 +93,7 @@ describe("an agent card", () => {
       { url: "https://a.example", protocolBinding: "GRPC", protocolVersion: "1.0" },
     ];
     await outside(grpc);
-    await assert.rejects(readCard(grpc.url, true), /GRPC only\. The home speaks JSON-RPC/);
+    await assert.rejects(readCard(grpc.url, true), /GRPC only\. The Bot Server speaks JSON-RPC/);
 
     const later = new Other();
     later.interfaces = [
@@ -102,7 +102,7 @@ describe("an agent card", () => {
     await outside(later);
     await assert.rejects(
       readCard(later.url, true),
-      /speaks A2A 2\.0\. The home speaks A2A 1\.0 and 0\.3/,
+      /speaks A2A 2\.0\. The Bot Server speaks A2A 1\.0 and 0\.3/,
     );
 
     // Nothing answers at this address.
@@ -190,7 +190,7 @@ describe("an agent that is not a wizards.bot home", () => {
     assert.equal(card.kind, "approval");
     assert.equal(card.title, "Add “Booking”?");
     assert.match(card.body ?? "", new RegExp(`\\*\\*${fake.host}\\*\\*, run by Hotel Lux`));
-    assert.match(card.body ?? "", /It is not a wizards.bot home/);
+    assert.match(card.body ?? "", /It is not a Bot Server/);
     assert.match(card.body ?? "", /Book a table/);
     assert.equal(
       t.home.store.agents().some((agent) => agent.origin === "shared"),
@@ -428,7 +428,7 @@ describe("an agent that is not a wizards.bot home", () => {
       { text: "A taxi at 8, to the station" },
     ]);
     const back = t.model.requests.at(-1)?.messages.at(-1)?.content ?? "";
-    assert.match(back, /Taxi, which is not in this home, answered/);
+    assert.match(back, /Taxi, which is not on this Bot Server, answered/);
     assert.match(back, /You said: A taxi at 8, to the station/);
     assert.equal(textOf(t.last()), "The taxi is booked.");
 
@@ -708,7 +708,7 @@ describe("a caller from outside", () => {
     const none = await rpc(travel.id);
     assert.equal(none.status, 401);
     assert.match(none.headers.get("www-authenticate") ?? "", /^Bearer/);
-    assert.equal((await answerOf(none)).message, "This home does not know the sender.");
+    assert.equal((await answerOf(none)).message, "This Bot Server does not know the sender.");
     assert.equal((await rpc(travel.id, { token: `${token}x` })).status, 401);
     assert.equal((await rpc(travel.id, { token: t.token })).status, 401);
     assert.equal(

@@ -5,9 +5,9 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
-import type { Event, Setup } from "@wizards-bot/protocol";
+import type { Event, Message, Setup } from "@wizards-bot/protocol";
 import { CLIENTS, type Client } from "../models/subscription.ts";
-import { FakeOllama, type TestHome, testHome } from "../test/fakes.ts";
+import { FakeOllama, type TestHome, testHome, textOf } from "../test/fakes.ts";
 import { explainClaude, explainCodex, explainGateway, explainOllama } from "./explain.ts";
 import { codexSetting, probeClient, probeGateway, probeOllama } from "./probes.ts";
 import { summary } from "./setup.ts";
@@ -50,13 +50,13 @@ test("Claude Code: an API key at its usage limit, signed out, and answering", as
     fakeClient(CLIENTS.claude, "claude-limit", claudeSays(CLAUDE_LIMIT, true)),
   );
   assert.equal(limit.state, "problem");
-  assert.match(limit.said, /API key whose usage limit is reached/);
-  assert.match(limit.todo ?? "", /\/login/);
+  assert.match(limit.said.en, /API key whose usage limit is reached/);
+  assert.match(limit.todo?.en ?? "", /\/login/);
 
   const out = await probeClient(
     fakeClient(CLIENTS.claude, "claude-out", claudeSays(CLAUDE_SIGNED_OUT, true)),
   );
-  assert.equal(out.said, "Claude is not signed in on this computer.");
+  assert.equal(out.said.en, "Claude is not signed in on this computer.");
   assert.equal(out.command, "claude");
 
   const ok = await probeClient(fakeClient(CLIENTS.claude, "claude-ok", claudeSays("ok", false)));
@@ -90,8 +90,8 @@ test("Codex: an Ollama cloud model without an Ollama sign-in, signed out, and an
     ),
   );
   assert.equal(ollama.state, "problem");
-  assert.match(ollama.said, /Ollama cloud model/);
-  assert.match(ollama.todo ?? "", /config\.toml/);
+  assert.match(ollama.said.en, /Ollama cloud model/);
+  assert.match(ollama.todo?.en ?? "", /config\.toml/);
   assert.equal(ollama.command, "ollama signin");
 
   const out = await probeClient(
@@ -101,7 +101,7 @@ test("Codex: an Ollama cloud model without an Ollama sign-in, signed out, and an
       `process.stderr.write("Error: Not logged in. Run codex login.\\n"); process.exit(1);`,
     ),
   );
-  assert.equal(out.said, "Codex is not signed in on this computer.");
+  assert.equal(out.said.en, "Codex is not signed in on this computer.");
   assert.equal(out.command, "codex login");
 
   const ok = await probeClient(
@@ -117,12 +117,12 @@ test("Codex: an Ollama cloud model without an Ollama sign-in, signed out, and an
 test("a client that is not installed, and one that does not answer in time", async () => {
   const missing = await probeClient({ ...CLIENTS.claude, bin: join(bin, "not-there") });
   assert.equal(missing.state, "absent");
-  assert.match(missing.said, /not installed/);
+  assert.match(missing.said.en, /not installed/);
 
   const slow = fakeClient(CLIENTS.codex, "codex-slow", "setTimeout(() => {}, 60_000);");
   const late = await probeClient(slow, 400);
   assert.equal(late.state, "problem");
-  assert.match(late.said, /did not answer within/);
+  assert.match(late.said.en, /did not answer within/);
 });
 
 test("the Ollama model Codex is set to, read from its config", () => {
@@ -160,19 +160,22 @@ const urlOf = (server: Server) => `http://127.0.0.1:${(server.address() as Addre
 test("Ollama: not running, a model too large for the memory, and one that answers", async () => {
   const off = await probeOllama("http://127.0.0.1:9", 16e9);
   assert.equal(off.state, "absent");
-  assert.match(off.said, /does not answer/);
+  assert.match(off.said.en, /does not answer/);
 
-  // Larger than half the memory: no test call, the computer would swap.
+  // Larger than a little over half the memory: no test call, the computer would swap.
   const large = await ollamaThat(40e9, { status: 200, body: {} });
   const tooLarge = await probeOllama(urlOf(large), 16e9);
   assert.equal(tooLarge.state, "problem");
-  assert.match(tooLarge.said, /too much for this computer/);
+  assert.equal(
+    tooLarge.said.en,
+    "big:70b needs 40 GB. On this computer the Bot Server takes a model of up to 9 GB, a little over half of its 16 GB of memory, so the computer stays quick.",
+  );
   large.close();
 
   // Ollama itself says so.
   const refusing = await ollamaThat(1e9, { status: 500, body: { error: OLLAMA_MEMORY } });
   const memory = await probeOllama(urlOf(refusing), 16e9);
-  assert.equal(memory.said, "big:70b is too large for this computer's memory.");
+  assert.equal(memory.said.en, "big:70b is too large for this computer's memory.");
   refusing.close();
 
   const fake = new FakeOllama();
@@ -190,25 +193,25 @@ test("a gateway: no key, and a key it refuses", async () => {
     baseUrl: "https://gateway.test/v1",
     models: ["openrouter/auto"],
   };
-  assert.match((await probeGateway(gateway, undefined)).said, /has no key/);
+  assert.match((await probeGateway(gateway, undefined)).said.en, /has no key/);
   const refused = await probeGateway(gateway, "sk-or-wrong", 5000, async () =>
     Response.json({ error: { message: "No auth credentials found", code: 401 } }, { status: 401 }),
   );
   assert.equal(refused.state, "problem");
-  assert.equal(refused.said, "OpenRouter refused the key.");
-  assert.match(refused.todo ?? "", /add OpenRouter/);
+  assert.equal(refused.said.en, "OpenRouter refused the key.");
+  assert.match(refused.todo?.en ?? "", /add OpenRouter/);
 });
 
 test("the sentences for what the services said", () => {
-  assert.match(explainClaude("Credit balance is too low").said, /no credit left/);
-  assert.match(explainClaude("Claude AI usage limit reached|1764000000").said, /plan's limit/);
-  assert.match(explainCodex("You've hit your usage limit.").said, /Codex limit/);
+  assert.match(explainClaude("Credit balance is too low").said.en, /no credit left/);
+  assert.match(explainClaude("Claude AI usage limit reached|1764000000").said.en, /plan's limit/);
+  assert.match(explainCodex("You've hit your usage limit.").said.en, /Codex limit/);
   assert.match(
-    explainOllama("pull model manifest: file does not exist", "x:1").said,
+    explainOllama("pull model manifest: file does not exist", "x:1").said.en,
     /does not have/,
   );
-  assert.match(explainGateway("OpenAI", "insufficient_quota", 429, "gpt").said, /no credit/);
-  assert.match(explainGateway("OpenAI", "model_not_found", 404, "gpt-9").said, /does not know/);
+  assert.match(explainGateway("OpenAI", "insufficient_quota", 429, "gpt").said.en, /no credit/);
+  assert.match(explainGateway("OpenAI", "model_not_found", 404, "gpt-9").said.en, /does not know/);
 });
 
 let t: TestHome;
@@ -284,6 +287,13 @@ test("the name, and the end of the first start", async () => {
     await t.request("/v1/setup", { method: "PATCH", body: { done: true } })
   ).json()) as Setup;
   assert.equal(finished.done, true);
+  // The chat starts with the main agent's greeting, once.
+  const main = t.home.store.mainAgent().conversationId;
+  const greeted = t.home.store.messages(main, { limit: 5 }).messages;
+  assert.equal(greeted.length, 1);
+  assert.match(textOf(greeted[0] as Message), /^Hello Ada Lovelace\. I am .+, your first wizard\./);
+  await t.request("/v1/setup", { method: "PATCH", body: { done: true } });
+  assert.equal(t.home.store.messages(main, { limit: 5 }).messages.length, 1);
 });
 
 test("a connected folder that is gone", async () => {
@@ -325,10 +335,35 @@ test("a gateway's key card from the setup, with the model the person named", asy
   assert.equal(check?.said, "OpenRouter refused the key.");
 });
 
-test("a pairing card from the setup", async () => {
-  const { card } = (await (await t.request("/v1/setup/pairing", { body: {} })).json()) as {
-    card: { kind: string; qr?: string };
+test("a pairing code for the setup's own page, not a card in the chat", async () => {
+  const before = t.home.store.items().length;
+  const pairing = (await (await t.request("/v1/setup/pairing", { body: {} })).json()) as {
+    address: string;
+    code: string;
+    link: string;
   };
-  assert.equal(card.kind, "pairing");
-  assert.match(card.qr ?? "", /^wizardsbot:\/\/pair\?home=/);
+  assert.match(pairing.code, /^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  assert.equal(pairing.address, t.home.address());
+  assert.match(pairing.link, /^wizardsbot:\/\/pair\?home=/);
+  assert.equal(t.home.store.items().length, before);
+});
+
+test("the checks in the language the person reads", async () => {
+  await t.request("/v1/setup", { method: "PATCH", body: { lang: "de" } });
+  assert.equal(
+    t.home.store.mainAgent().about,
+    "Dein eigener Wizard. Er kennt deine anderen Wizards, deine Konten und was dich braucht.",
+  );
+  const setup = await t.home.setup.view();
+  const gateway = setup.models.find((check) => check.id === "openrouter");
+  assert.equal(gateway?.said, "OpenRouter hat den Schlüssel abgelehnt.");
+  assert.equal(
+    setup.home.find((check) => check.id === "push")?.todo,
+    "Gib dem Bot Server deinen Apple-Schlüssel.",
+  );
+  await t.request("/v1/setup", { method: "PATCH", body: { lang: "en" } });
+  assert.equal(
+    (await t.home.setup.view()).models.find((check) => check.id === "openrouter")?.said,
+    "OpenRouter refused the key.",
+  );
 });

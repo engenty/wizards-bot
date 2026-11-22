@@ -18,7 +18,7 @@ const BUTTONS = 3;
 /** How many message ids the home remembers to drop a second delivery. */
 const REMEMBERED = 1000;
 
-const SETUP = `Your agent gets a WhatsApp business number from Meta. Meta calls your home when you write, so your home needs its public address.
+const SETUP = `Your agent gets a WhatsApp business number from Meta. Meta calls your Bot Server when you write, so your Bot Server needs its public address.
 
 1. Open [developers.facebook.com/apps](https://developers.facebook.com/apps) and create an app with the use case “Connect with customers through WhatsApp”.
 2. In the app, open “API Setup” and copy the phone number ID of the number your agent uses.
@@ -27,7 +27,7 @@ const SETUP = `Your agent gets a WhatsApp business number from Meta. Meta calls 
 5. Choose a verify token. Any word works.
 6. Enter the four values here and connect.
 
-Then tell Meta where your home is:
+Then tell Meta where your Bot Server is:
 
 7. In the app, open “Configuration” under WhatsApp. Enter \`{home}${WEBHOOK}\` as the callback URL and your verify token.
 8. Subscribe to the webhook field \`messages\`.
@@ -105,7 +105,9 @@ export function whatsappAdapter(options: WhatsAppOptions = {}): ChannelAdapter {
         if (!settings[id]) throw new Error(`The ${label} is missing`);
       }
       if (!context.publicUrl) {
-        throw new Error("Meta has to reach your home, and your home has no public address yet");
+        throw new Error(
+          "Meta has to reach your Bot Server, and your Bot Server has no public address yet",
+        );
       }
       await call(
         `${graph}/${settings.phoneNumberId}?fields=display_phone_number`,

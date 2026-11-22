@@ -50,7 +50,7 @@ struct MessageFiles: View {
             do {
                 open = try await FileCache.shared.openable(file, client: client)
             } catch {
-                problem = String(localized: "Your home could not send this file. Try again later.")
+                problem = String(localized: "Your Bot Server could not send this file. Try again later.")
             }
         }
     }

@@ -109,6 +109,13 @@
   color-scheme: dark;
 }
 
+/* Branded dark (engenty wizards' default dark): the page stands on the engenty's deep blue and
+   the inks take its full hue, instead of the near-black of plain dark. */
+.dark.branded {
+  --stage: oklch(34% 0.14 264);
+  --dark-tint: 1;
+}
+
 /* The system asks for more contrast: the grey steps, inks and lines move apart. */
 @media (prefers-contrast: more) {
   :root {

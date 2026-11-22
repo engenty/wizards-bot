@@ -21,9 +21,9 @@ const SETUP = `Your agent gets its own mailbox. You write to its address, and it
 3. If the provider wants an app password for mail programs, create one and use it as the password.
 4. Enter the four values here.
 
-The home uses port 993 for IMAP and port 465 for SMTP. For another port, write it after the name, as in \`smtp.example.com:587\`.
+The Bot Server uses port 993 for IMAP and port 465 for SMTP. For another port, write it after the name, as in \`smtp.example.com:587\`.
 
-The home marks every new mail in this inbox as read, so use a mailbox that only the agent has.`;
+The Bot Server marks every new mail in this inbox as read, so use a mailbox that only the agent has.`;
 
 export interface EmailOptions {
   /** Talks to the mail servers without TLS. Only tests do that, with servers on this computer. */

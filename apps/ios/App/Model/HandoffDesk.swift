@@ -162,7 +162,7 @@ final class HandoffDesk {
             setAllowed(handoff.agentId, true)
         }
         guard await work.consent() else {
-            let text = "The person has not allowed the model services of the home to read answers from this device."
+            let text = "The person has not allowed the model services of the Bot Server to read answers from this device."
             await finish(handoff, entry: entry(handoff, answer: text, state: .declined), send: AnswerHandoff(text: text, declined: true), client: work.client)
             return
         }

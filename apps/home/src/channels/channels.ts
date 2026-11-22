@@ -298,7 +298,7 @@ export class Channels {
               title: `Connect ${adapter.label}`,
               body: adapter.setup.body.replaceAll(
                 "{home}",
-                home.config.publicUrl ?? "(your home has no public address yet)",
+                home.config.publicUrl ?? "(your Bot Server has no public address yet)",
               ),
               fields: adapter.setup.fields,
               actions: [

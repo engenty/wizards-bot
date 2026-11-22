@@ -130,11 +130,8 @@ private struct DrawerPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text("Wizards")
-                    .font(.title3.weight(.semibold))
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 8)
+            HStack(spacing: 4) {
+                PersonMenu(close: close)
                 Button(action: close) {
                     Image(systemName: "sidebar.left")
                         .font(.body.weight(.medium))
@@ -145,9 +142,16 @@ private struct DrawerPanel: View {
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("Hide the wizards")
             }
-            .padding(.leading, 20)
-            .padding(.trailing, 8)
+            .padding(.horizontal, 8)
             .padding(.top, 4)
+            Text("Wizards")
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .accessibilityAddTraits(.isHeader)
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(AgentList.ordered(model.agents)) { agent in
@@ -168,7 +172,12 @@ private struct DrawerPanel: View {
                 .padding(.vertical, 4)
             }
             .scrollBounceBehavior(.basedOnSize)
-            YouRow(close: close)
+            HStack {
+                SettingsButton(before: close)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 4)
         }
     }
 }
@@ -186,80 +195,95 @@ private struct DrawerRowStyle: ButtonStyle {
     }
 }
 
-/// The foot of the drawer: the person's head and name, opening their own things, and the gear
-/// for the settings.
-private struct YouRow: View {
+/// Whose Bot Server this is: the person's head and name, and the Bot Server, opening their own
+/// things. It heads the drawer and the sidebar.
+struct PersonMenu: View {
     @Environment(AppModel.self) private var model
-    let close: () -> Void
+    var close: () -> Void = {}
     @State private var asksSignOut = false
     @State private var showsAvatar = false
 
     var body: some View {
-        HStack(spacing: 4) {
-            Menu {
-                if let link = model.link {
-                    Section(link.baseURL.host() ?? link.baseURL.absoluteString) {
-                        Button(AvatarPictures.shared.has ? LocalizedStringKey("Your avatar") : "Make your avatar", systemImage: "face.smiling") {
-                            showsAvatar = true
-                        }
-                    }
-                    Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                        asksSignOut = true
-                    }
-                } else {
-                    Button("Connect to a home", systemImage: "house") {
-                        close()
-                        model.showsPairing = true
-                    }
+        Menu {
+            if model.link != nil {
+                Button(AvatarPictures.shared.has ? LocalizedStringKey("Your avatar") : "Make your avatar", systemImage: "face.smiling") {
+                    showsAvatar = true
                 }
-            } label: {
-                HStack(spacing: 12) {
-                    AvatarPicture(view: .head)
-                        .frame(width: 40, height: 40)
-                        .frame(width: 44)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(model.link?.name ?? String(localized: "This device"))
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(Color.primary)
+                Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
+                    asksSignOut = true
+                }
+            } else {
+                Button("Connect to a Bot Server", systemImage: "house") {
+                    close()
+                    model.showsPairing = true
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                AvatarPicture(view: .head)
+                    .frame(width: 40, height: 40)
+                    .frame(width: 44)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(model.link?.name ?? String(localized: "This device"))
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(1)
+                    if let link = model.link {
+                        Text(BotServerName.of(link.baseURL))
+                            .font(.subheadline)
+                            .foregroundStyle(Color.secondary)
                             .lineLimit(1)
-                        if model.link != nil {
-                            Text("You")
-                                .font(.subheadline)
-                                .foregroundStyle(Color.secondary)
-                        }
                     }
-                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .contentShape(.rect)
+                Spacer(minLength: 0)
             }
-            .buttonStyle(DrawerRowStyle(current: false))
-            Button {
-                close()
-                model.showsSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.title3)
-                    .frame(width: 44, height: 44)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Settings")
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .contentShape(.rect)
         }
-        .padding(.horizontal, 8)
-        .padding(.bottom, 4)
-        .confirmationDialog("Sign out of this home?", isPresented: $asksSignOut, titleVisibility: .visible) {
+        .buttonStyle(.plain)
+        .confirmationDialog("Sign out of this Bot Server?", isPresented: $asksSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) {
                 Task { await model.signOut() }
             }
         } message: {
-            Text("This device forgets the home. Your conversations stay in your home.")
+            Text("This device forgets the Bot Server. Your conversations stay on your Bot Server.")
         }
         .sheet(isPresented: $showsAvatar) {
             AvatarSheet()
         }
+    }
+}
+
+/// Which Bot Server this is, as the person knows it: its host where it has a name of its own
+/// (`ada.wizards.bot`), "Your Bot Server" where it is reached at an address of the network.
+enum BotServerName {
+    static func of(_ url: URL) -> String {
+        let host = url.host() ?? ""
+        let numeric = host.isEmpty || host == "localhost" || host.contains(":")
+            || host.allSatisfy { $0.isNumber || $0 == "." }
+        return numeric ? String(localized: "Your Bot Server") : host
+    }
+}
+
+/// The gear at the foot of the drawer and the sidebar.
+struct SettingsButton: View {
+    @Environment(AppModel.self) private var model
+    var before: () -> Void = {}
+
+    var body: some View {
+        Button {
+            before()
+            model.showsSettings = true
+        } label: {
+            Image(systemName: "gearshape")
+                .font(.title3)
+                .frame(width: 44, height: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel("Settings")
     }
 }
 

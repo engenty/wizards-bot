@@ -318,16 +318,17 @@ export interface OllamaModel {
 
 /**
  * A model larger than this share of the computer's memory leaves too little for everything
- * else that runs there: the computer swaps, and an answer takes minutes.
+ * else that runs there: the computer swaps, and an answer takes minutes. A little over half: an
+ * 18 GB model runs on a computer with 32 GB, as it does in practice, and a 20 GB one does not.
  */
-const ROOM = 0.5;
+export const MEMORY_SHARE = 0.55;
 
 /**
  * The order a home prefers an Ollama's models in: those that take tools first, then the
  * largest that leaves the computer room, then the smallest of those that do not.
  */
 function preference(memory: number): (a: OllamaModel, b: OllamaModel) => number {
-  const fits = (model: OllamaModel) => model.size <= memory * ROOM;
+  const fits = (model: OllamaModel) => model.size <= memory * MEMORY_SHARE;
   return (a, b) =>
     Number(b.tools) - Number(a.tools) ||
     Number(fits(b)) - Number(fits(a)) ||

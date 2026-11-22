@@ -102,7 +102,7 @@ export function openSource(
   }
   if (!fits(file.name)) throw new Error(`${file.name} is not a ${kindName(kind as DocumentKind)}.`);
   const bytes = home.files.bytes(file.id);
-  if (!bytes) throw new Error(`${file.name} is not kept in the home any more.`);
+  if (!bytes) throw new Error(`${file.name} is not kept on the Bot Server any more.`);
   return { name: file.name, bytes };
 }
 

@@ -804,6 +804,8 @@ export const Setup = z.object({
   working: z.boolean(),
   /** The home has a model it would ask, tested or not. */
   hasModel: z.boolean(),
+  /** The home runs on wizards.bot: its models come from the account, not from this computer. */
+  hosted: z.boolean().optional(),
   models: z.array(SetupCheck),
   home: z.array(SetupCheck),
   capabilities: z.array(SetupCheck),
@@ -813,6 +815,8 @@ export type Setup = z.infer<typeof Setup>;
 export const ChangeSetup = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   done: z.boolean().optional(),
+  /** The language the person reads; what the Bot Server writes for them is in it. */
+  lang: z.enum(["en", "de"]).optional(),
 });
 export type ChangeSetup = z.infer<typeof ChangeSetup>;
 

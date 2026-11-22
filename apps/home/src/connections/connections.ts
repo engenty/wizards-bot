@@ -523,7 +523,7 @@ export class Connections {
             .filter(Boolean);
           return (
             lines.join("\n") ||
-            "Nothing found that a home can reach over the internet. Ask the person for the service's MCP address."
+            "Nothing found that a Bot Server can reach over the internet. Ask the person for the service's MCP address."
           );
         },
       }),
@@ -547,7 +547,7 @@ export class Connections {
                 kind: "secret",
                 level: "needs_you",
                 title: `Key for ${input.name}`,
-                body: "The key stays in your home. No model reads it.",
+                body: "The key stays on your Bot Server. No model reads it.",
                 fields: [{ id: "key", label: "API key", type: "secret", required: true }],
                 actions: [
                   { id: "save", label: "Save key", style: "primary" },
@@ -569,7 +569,7 @@ export class Connections {
                 kind: "connect",
                 level: "needs_you",
                 title: `Sign in to ${connection.name}`,
-                body: "The sign-in opens in your browser. Your home keeps the access, no model reads it.",
+                body: "The sign-in opens in your browser. Your Bot Server keeps the access, no model reads it.",
                 url: signIn,
                 actions: [{ id: "cancel", label: "Not now", style: "plain" }],
                 payload: { type: "connection", connectionId: connection.id, name: connection.name },

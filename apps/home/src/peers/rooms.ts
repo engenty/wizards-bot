@@ -293,7 +293,7 @@ export class Rooms {
     const joined = Joined.parse(answer);
     const known = this.room(roomId);
     if (known) {
-      if (known.keeper !== keeper) throw new Error("This home knows that room already.");
+      if (known.keeper !== keeper) throw new Error("This Bot Server knows that room already.");
       return known.name;
     }
     const carrier = home.store.createAgent({
@@ -645,7 +645,7 @@ export class Rooms {
     const member = members.find(
       (candidate) => candidate.id === input.as && candidate.handle === handle,
     );
-    if (!member) throw new Refused(403, "This home is not in the room as that member.");
+    if (!member) throw new Refused(403, "This Bot Server is not in the room as that member.");
     const text = input.text.trim();
     if (member.kind === "agent") {
       // An agent writes when it is its turn, and only then.
@@ -910,7 +910,7 @@ export class Rooms {
   ): void {
     const members = this.members(room.id);
     const owner = members.find((member) => member.id === handle && member.role !== "invited");
-    if (!owner) throw new Refused(403, "This home is not in the room.");
+    if (!owner) throw new Refused(403, "This Bot Server is not in the room.");
     const id = `${handle}/${agent.id}`;
     if (members.some((member) => member.id === id)) return;
     if (members.filter((member) => member.kind === "agent").length >= ROOM_AGENTS)
@@ -986,7 +986,8 @@ export class Rooms {
         .parse(body);
       const known = this.room(invite.room.id);
       if (known) {
-        if (known.keeper !== handle) throw new Refused(409, "This home knows that room already.");
+        if (known.keeper !== handle)
+          throw new Refused(409, "This Bot Server knows that room already.");
         return { state: "joined" };
       }
       const main = home.store.mainAgent();
@@ -1004,7 +1005,7 @@ export class Rooms {
           title: `${name} invites you to the room “${invite.room.name}”`,
           body: [
             invite.members.length ? `In it: ${invite.members.join(", ")}.` : "",
-            `Everyone in the room reads what you write there. ${name}'s home keeps the room. Nothing else of your home is shared.`,
+            `Everyone in the room reads what you write there. ${name}'s Bot Server keeps the room. Nothing else of your Bot Server is shared.`,
           ]
             .filter(Boolean)
             .join("\n\n"),
@@ -1024,7 +1025,7 @@ export class Rooms {
     from("/peers/rooms/join", ({ handle, name, body }) => {
       const room = kept(z.object({ room: z.string() }).parse(body).room);
       if (!this.members(room.id).some((member) => member.id === handle))
-        throw new Refused(403, "This home was not invited to the room.");
+        throw new Refused(403, "This Bot Server was not invited to the room.");
       return this.admit(room.id, handle, name);
     });
 
@@ -1044,7 +1045,7 @@ export class Rooms {
       const input = z.object({ room: z.string(), after: z.number().int().min(0) }).parse(body);
       const room = kept(input.room);
       if (!this.inRoom(room.id).some((member) => member.id === handle))
-        throw new Refused(403, "This home is not in the room.");
+        throw new Refused(403, "This Bot Server is not in the room.");
       return {
         room: room.id,
         name: room.name,
@@ -1149,7 +1150,7 @@ export class Rooms {
                   ? `${member.name} (agent)`
                   : member.name,
             );
-            return `- ${room.name} (${room.agentId}), kept by ${this.keeps(room) ? "this home" : room.keeper}: ${members.join(", ")}`;
+            return `- ${room.name} (${room.agentId}), kept by ${this.keeps(room) ? "this Bot Server" : room.keeper}: ${members.join(", ")}`;
           });
           return lines.join("\n") || "No rooms.";
         },
@@ -1157,7 +1158,7 @@ export class Rooms {
       defineTool({
         name: "room_invite",
         description:
-          "Invite a connected contact to a room this home keeps. Asks the person first; the contact then decides on their side. Ends your turn.",
+          "Invite a connected contact to a room this Bot Server keeps. Asks the person first; the contact then decides on their side. Ends your turn.",
         input: z.object({ room: z.string(), handle: z.string() }),
         label: () => "Asking to invite someone to a room",
         run: async (input) => {
@@ -1165,9 +1166,9 @@ export class Rooms {
           const contact = this.peers.contact(input.handle.trim());
           if (!room) return `There is no room ${input.room}.`;
           if (!this.keeps(room))
-            return `${room.keeper} keeps that room. Only that home invites to it.`;
+            return `${room.keeper} keeps that room. Only that Bot Server invites to it.`;
           if (!home.config.publicUrl)
-            return "Your home has no address others reach. Only a home with one (WIZARDS_BOT_URL) keeps a room for other people: join a room of theirs with an invite.";
+            return "Your Bot Server has no address others reach. Only a Bot Server with one (WIZARDS_BOT_URL) keeps a room for other people: join a room of theirs with an invite.";
           if (contact?.state !== "connected")
             return `${input.handle} is not a connected contact. Connect first with \`contact_connect\`.`;
           if (this.members(room.id).some((member) => member.id === contact.handle))
@@ -1177,7 +1178,7 @@ export class Rooms {
               kind: "approval",
               level: "needs_you",
               title: `Invite ${contact.name} to “${room.name}”?`,
-              body: `${contact.name} reads everything written in the room from then on, and what your agents in it say. Nothing else of your home is shared.`,
+              body: `${contact.name} reads everything written in the room from then on, and what your agents in it say. Nothing else of your Bot Server is shared.`,
               actions: [
                 { id: "invite", label: "Invite", style: "primary" },
                 { id: "keep", label: "Don't invite", style: "plain" },
@@ -1203,7 +1204,7 @@ export class Rooms {
           if (target?.origin !== "own")
             return `There is no agent of your own with the id ${input.agentId}.`;
           if (target.main)
-            return "The first agent of a home is yours alone. Make an agent for the task and add that one.";
+            return "The first agent of a Bot Server is yours alone. Make an agent for the task and add that one.";
           if (this.members(room.id).some((member) => member.id === `${this.me()}/${target.id}`))
             return `${target.name} is in the room already.`;
           const card = home.store.createCard(

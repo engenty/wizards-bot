@@ -159,14 +159,14 @@ export class Person {
     const next = { name: home.person(), handle: wanted ?? home.handle(), homes };
     if (this.says(next) === this.says(current)) return undefined;
     const why = !listed
-      ? "This home is not in your record yet."
+      ? "This Bot Server is not in your record yet."
       : next.name !== current.name
         ? "Your name changed."
         : next.handle !== current.handle
           ? wanted
             ? `Your handle becomes ${wanted}.`
             : "Your handle changed."
-          : "This home's address changed.";
+          : "This Bot Server's address changed.";
     const record: PersonRecord = {
       v: 1,
       id: current.id,
@@ -188,7 +188,7 @@ export class Person {
     const current = this.current();
     if (current) {
       if (current.key !== key)
-        throw new RecordRefused("This home has your record with another key.");
+        throw new RecordRefused("This Bot Server has your record with another key.");
       const proposed = this.proposed();
       if (!proposed) throw new RecordRefused("Your record is signed and says what is so.");
       return proposed.payload;
@@ -220,14 +220,14 @@ export class Person {
     if (current) {
       if (record.id !== current.id) throw new RecordRefused("That is another person's record.");
       if (record.seq <= current.seq)
-        throw new RecordRefused("The home has a newer version of your record.");
+        throw new RecordRefused("The Bot Server has a newer version of your record.");
     } else if (record.id !== personId(record.key)) {
       throw new RecordRefused("The record's id does not come from its key.");
     }
     if (!Identity.verify(current?.key ?? record.key, signed.payload, signed.sig))
       throw new RecordRefused("That version is not signed with your key.");
     if (!record.homes.some((known) => known.key === home.identity.publicKey))
-      throw new RecordRefused("That version does not name this home.");
+      throw new RecordRefused("That version does not name this Bot Server.");
     home.db.run(
       "insert into person_record (seq, payload, sig) values (?, ?, ?)",
       record.seq,
@@ -278,7 +278,7 @@ export class Person {
         title: current ? "Sign your record" : "Make your key",
         body: current
           ? `${this.proposed()?.why} A device that holds your key signs the new version.`
-          : "Your key makes you the same person to other people's homes, also when this home is moved, replaced or lost. It is made on the device you open this card on and stays there, never in your home. You get a recovery code to write down.",
+          : "Your key makes you the same person to other people's Bot Servers, also when this Bot Server is moved, replaced or lost. It is made on the device you open this card on and stays there, never on your Bot Server. You get a recovery code to write down.",
         url: PERSON_CARD_URL,
         actions: [],
         payload: { type: "person_sign" },
@@ -325,7 +325,7 @@ export class Person {
       defineTool({
         name: "person_key",
         description:
-          "The person's own key and record: what makes them the same person to other people's homes when a home is moved, replaced or lost. Shows a card on which a device makes the key, or signs the record when something in it changed; says how things stand when nothing is to do.",
+          "The person's own key and record: what makes them the same person to other people's Bot Servers when a Bot Server is moved, replaced or lost. Shows a card on which a device makes the key, or signs the record when something in it changed; says how things stand when nothing is to do.",
         input: z.object({}),
         label: () => "Looking at your key",
         run: async () => {
@@ -344,7 +344,7 @@ export class Person {
       defineTool({
         name: "handle_set",
         description:
-          "Give the person a handle on a domain of their own, e.g. `ada@example.com`, or another name at this home's address. The domain has to name this home for that name; when it does not yet, you get the file the person has to put there. The handle counts once the person's key signed it: contacts then follow it by themselves.",
+          "Give the person a handle on a domain of their own, e.g. `ada@example.com`, or another name at this Bot Server's address. The domain has to name this Bot Server for that name; when it does not yet, you get the file the person has to put there. The handle counts once the person's key signed it: contacts then follow it by themselves.",
         input: z.object({ handle: z.string() }),
         label: (input) => `Looking at ${String(input.handle ?? "")}`,
         run: async (input) => {
@@ -352,7 +352,7 @@ export class Person {
           const address = home.config.publicUrl;
           if (!isHandle(handle)) return "A handle looks like name@domain.";
           if (!address)
-            return "Your home has no public address yet. It needs one (WIZARDS_BOT_URL) before it has a handle.";
+            return "Your Bot Server has no public address yet. It needs one (WIZARDS_BOT_URL) before it has a handle.";
           if (handle === home.handle()) return "That is your handle already.";
           if (!this.current())
             return "The person has no key yet. A handle is signed with it, so that contacts can follow: make the key first with `person_key`.";
@@ -369,12 +369,12 @@ export class Person {
                   .then((body) => (body as { names?: Record<string, unknown> })?.names?.[name])
                   .catch(() => undefined);
           if (typeof names !== "string" || new URL(names).origin !== here) {
-            return `The domain does not name this home for "${name}" yet. The person has to put a file at ${file} with exactly this in it, then ask again:\n{"names":{"${name}":"${here}"}}`;
+            return `The domain does not name this Bot Server for "${name}" yet. The person has to put a file at ${file} with exactly this in it, then ask again:\n{"names":{"${name}":"${here}"}}`;
           }
           home.db.setMeta(NEXT_HANDLE, handle);
           const card = this.askToSign({ agentId: agent.id, conversationId, messageId: draft.id });
           if (card) draft.add({ type: "card", card });
-          return `The domain names this home. The card to sign the record with the handle ${handle} is in the chat; the handle counts once it is signed.`;
+          return `The domain names this Bot Server. The card to sign the record with the handle ${handle} is in the chat; the handle counts once it is signed.`;
         },
       }),
     ];

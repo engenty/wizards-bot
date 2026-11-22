@@ -11,12 +11,12 @@
         }
       }
     },
-    "Connect your phone to your home first. This watch follows." : {
+    "Connect your phone to your Bot Server first. This watch follows." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbinde zuerst dein iPhone mit deinem Zuhause. Diese Uhr folgt."
+            "value" : "Verbinde zuerst dein iPhone mit deinem Bot Server. Diese Uhr folgt."
           }
         }
       }
@@ -41,12 +41,12 @@
         }
       }
     },
-    "Open wizards.bot on your phone. It connects this watch to your home." : {
+    "Open wizards.bot on your phone. It connects this watch to your Bot Server." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Öffne wizards.bot auf deinem iPhone. Es verbindet diese Uhr mit deinem Zuhause."
+            "value" : "Öffne wizards.bot auf deinem iPhone. Es verbindet diese Uhr mit deinem Bot Server."
           }
         }
       }
@@ -91,22 +91,22 @@
         }
       }
     },
-    "Your home is out of reach." : {
+    "Your Bot Server is out of reach." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar."
+            "value" : "Dein Bot Server ist nicht erreichbar."
           }
         }
       }
     },
-    "Your home is out of reach. Try again in a moment." : {
+    "Your Bot Server is out of reach. Try again in a moment." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Versuch es gleich noch einmal."
+            "value" : "Dein Bot Server ist nicht erreichbar. Versuch es gleich noch einmal."
           }
         }
       }

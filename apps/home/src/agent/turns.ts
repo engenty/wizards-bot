@@ -234,7 +234,7 @@ class Turn {
     const beside = trigger.room ? agent.conversationId : trigger.conversationId;
     return systemPrompt({
       agent,
-      person: home.person(),
+      person: home.person() || "the person",
       agents: home.store.agents(),
       connections: home.connections.names(),
       documents: home.store.documents(beside).slice(0, 12),

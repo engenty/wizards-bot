@@ -114,7 +114,7 @@ final class Attachments {
     }
 
     static var tooLargeSentence: String {
-        String(localized: "It is larger than 15 MB. Your home takes files up to that size.")
+        String(localized: "It is larger than 15 MB. Your Bot Server takes files up to that size.")
     }
 
     private func upload(_ id: UUID, data: Data, name: String, mime: String, client: HomeClient) async {
@@ -164,7 +164,7 @@ final class Attachments {
 
     private static func sentence(for error: Error) -> String {
         switch error as? HomeError {
-        case .unreachable: String(localized: "Your home is out of reach. Try again in a moment.")
+        case .unreachable: String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         case let error?: error.message ?? String(localized: "That didn’t work. Try again.")
         case nil: String(localized: "That didn’t work. Try again.")
         }

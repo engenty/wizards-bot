@@ -33,22 +33,6 @@
         }
       }
     },
-    "You" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Du"
-          }
-        }
-      }
-    },
     "Your avatar" : {
       "localizations" : {
         "en" : {
@@ -213,12 +197,12 @@
         }
       }
     },
-    "Address of your home" : {
+    "Address of your Bot Server" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Adresse deines Zuhauses"
+            "value" : "Adresse deines Bot Servers"
           }
         }
       }
@@ -273,12 +257,12 @@
         }
       }
     },
-    "Choose a folder on your home’s computer. Once it is connected, your agents read its files." : {
+    "Choose a folder on your Bot Server’s computer. Once it is connected, your agents read its files." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wähle einen Ordner auf dem Computer deines Zuhauses. Sobald er verbunden ist, lesen deine Agenten seine Dateien."
+            "value" : "Wähle einen Ordner auf dem Computer deines Bot Servers. Sobald er verbunden ist, lesen deine Agenten seine Dateien."
           }
         }
       }
@@ -333,22 +317,22 @@
         }
       }
     },
-    "Connect to a home" : {
+    "Connect to a Bot Server" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mit einem Zuhause verbinden"
+            "value" : "Mit einem Bot Server verbinden"
           }
         }
       }
     },
-    "Connect to your home" : {
+    "Connect to your Bot Server" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mit deinem Zuhause verbinden"
+            "value" : "Mit deinem Bot Server verbinden"
           }
         }
       }
@@ -459,12 +443,12 @@
         }
       }
     },
-    "Home" : {
+    "Bot Server" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zuhause"
+            "value" : "Bot Server"
           }
         }
       }
@@ -549,22 +533,22 @@
         }
       }
     },
-    "No folder dialog opens on your home’s computer. Type the path." : {
+    "No folder dialog opens on your Bot Server’s computer. Type the path." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auf dem Computer deines Zuhauses öffnet sich kein Dialog für Ordner. Gib den Pfad ein."
+            "value" : "Auf dem Computer deines Bot Servers öffnet sich kein Dialog für Ordner. Gib den Pfad ein."
           }
         }
       }
     },
-    "No home answers at this address. Check the address and that this device is in the same network." : {
+    "No Bot Server answers at this address. Check the address and that this device is in the same network." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unter dieser Adresse antwortet kein Zuhause. Prüfe die Adresse und ob dieses Gerät im selben Netzwerk ist."
+            "value" : "Unter dieser Adresse antwortet kein Bot Server. Prüfe die Adresse und ob dieses Gerät im selben Netzwerk ist."
           }
         }
       }
@@ -849,12 +833,12 @@
         }
       }
     },
-    "Sign out of this home?" : {
+    "Sign out of this Bot Server?" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Von diesem Zuhause abmelden?"
+            "value" : "Von diesem Bot Server abmelden?"
           }
         }
       }
@@ -989,22 +973,22 @@
         }
       }
     },
-    "The files stay where they are. Your home reads them in place and copies nothing." : {
+    "The files stay where they are. Your Bot Server reads them in place and copies nothing." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Dateien bleiben, wo sie sind. Dein Zuhause liest sie an Ort und Stelle und kopiert nichts."
+            "value" : "Die Dateien bleiben, wo sie sind. Dein Bot Server liest sie an Ort und Stelle und kopiert nichts."
           }
         }
       }
     },
-    "The folder dialog is open on your home’s computer." : {
+    "The folder dialog is open on your Bot Server’s computer." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Ordner-Dialog ist auf dem Computer deines Zuhauses offen."
+            "value" : "Der Ordner-Dialog ist auf dem Computer deines Bot Servers offen."
           }
         }
       }
@@ -1029,12 +1013,12 @@
         }
       }
     },
-    "The home didn’t accept this code. A code is valid for 10 minutes and works once." : {
+    "The Bot Server didn’t accept this code. A code is valid for 10 minutes and works once." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Zuhause hat diesen Code nicht angenommen. Ein Code gilt 10 Minuten und funktioniert einmal."
+            "value" : "Der Bot Server hat diesen Code nicht angenommen. Ein Code gilt 10 Minuten und funktioniert einmal."
           }
         }
       }
@@ -1059,12 +1043,12 @@
         }
       }
     },
-    "The model on this device doesn’t answer this. Your home can, once it is back." : {
+    "The model on this device doesn’t answer this. Your Bot Server can, once it is back." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Das Modell auf diesem Gerät beantwortet das nicht. Dein Zuhause kann es, sobald es wieder da ist."
+            "value" : "Das Modell auf diesem Gerät beantwortet das nicht. Dein Bot Server kann es, sobald er wieder da ist."
           }
         }
       }
@@ -1109,12 +1093,12 @@
         }
       }
     },
-    "The Simulator has no model of its own. Pair it with your home." : {
+    "The Simulator has no model of its own. Pair it with your Bot Server." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Simulator hat kein eigenes Modell. Koppel ihn mit deinem Zuhause."
+            "value" : "Der Simulator hat kein eigenes Modell. Koppel ihn mit deinem Bot Server."
           }
         }
       }
@@ -1129,12 +1113,12 @@
         }
       }
     },
-    "This card needs your home." : {
+    "This card needs your Bot Server." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diese Karte braucht dein Zuhause."
+            "value" : "Diese Karte braucht deinen Bot Server."
           }
         }
       }
@@ -1189,12 +1173,12 @@
         }
       }
     },
-    "This device forgets the home. Your conversations stay in your home." : {
+    "This device forgets the Bot Server. Your conversations stay on your Bot Server." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieses Gerät vergisst das Zuhause. Deine Chats bleiben in deinem Zuhause."
+            "value" : "Dieses Gerät vergisst den Bot Server. Deine Chats bleiben auf deinem Bot Server."
           }
         }
       }
@@ -1209,22 +1193,22 @@
         }
       }
     },
-    "This document is no longer in your home." : {
+    "This document is no longer on your Bot Server." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieses Dokument ist nicht mehr in deinem Zuhause."
+            "value" : "Dieses Dokument ist nicht mehr auf deinem Bot Server."
           }
         }
       }
     },
-    "This home is newer than the app. Update the app, then connect again." : {
+    "This Bot Server is newer than the app. Update the app, then connect again." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dieses Zuhause ist neuer als die App. Aktualisiere die App und verbinde dich dann noch einmal."
+            "value" : "Dieser Bot Server ist neuer als die App. Aktualisiere die App und verbinde dich dann noch einmal."
           }
         }
       }
@@ -1391,22 +1375,22 @@
         }
       }
     },
-    "When your home is out of reach" : {
+    "When your Bot Server is out of reach" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wenn dein Zuhause nicht erreichbar ist"
+            "value" : "Wenn dein Bot Server nicht erreichbar ist"
           }
         }
       }
     },
-    "Without a home, the model on this device answers. It can’t reach your mail, calendar or files." : {
+    "Without a Bot Server, the model on this device answers. It can’t reach your mail, calendar or files." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ohne Zuhause antwortet das Modell auf diesem Gerät. Es kommt nicht an deine E-Mails, deinen Kalender oder deine Dateien."
+            "value" : "Ohne Bot Server antwortet das Modell auf diesem Gerät. Es kommt nicht an deine E-Mails, deinen Kalender oder deine Dateien."
           }
         }
       }
@@ -1451,12 +1435,12 @@
         }
       }
     },
-    "Your agent runs in your home, on your computer or a server. This device talks to it." : {
+    "Your agent runs on your Bot Server: on your computer or on a server. This device talks to it." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Agent läuft in deinem Zuhause, auf deinem Computer oder einem Server. Dieses Gerät spricht mit ihm."
+            "value" : "Dein Agent läuft auf deinem Bot Server: auf deinem Computer oder auf einem Server. Dieses Gerät spricht mit ihm."
           }
         }
       }
@@ -1481,82 +1465,82 @@
         }
       }
     },
-    "Your home has a newer version of this document." : {
+    "Your Bot Server has a newer version of this document." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause hat eine neuere Version dieses Dokuments."
+            "value" : "Dein Bot Server hat eine neuere Version dieses Dokuments."
           }
         }
       }
     },
-    "Your home is out of reach. The chat opens when it is back." : {
+    "Your Bot Server is out of reach. The chat opens when it is back." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Der Chat öffnet sich, sobald es wieder da ist."
+            "value" : "Dein Bot Server ist nicht erreichbar. Der Chat öffnet sich, sobald er wieder da ist."
           }
         }
       }
     },
-    "Your home is out of reach. The document opens when it is back." : {
+    "Your Bot Server is out of reach. The document opens when it is back." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Das Dokument öffnet sich, sobald es wieder da ist."
+            "value" : "Dein Bot Server ist nicht erreichbar. Das Dokument öffnet sich, sobald er wieder da ist."
           }
         }
       }
     },
-    "Your home is out of reach. This device answers for now." : {
+    "Your Bot Server is out of reach. This device answers for now." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Vorerst antwortet dieses Gerät."
+            "value" : "Dein Bot Server ist nicht erreichbar. Vorerst antwortet dieses Gerät."
           }
         }
       }
     },
-    "Your home is out of reach. Try again in a moment." : {
+    "Your Bot Server is out of reach. Try again in a moment." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Versuch es gleich noch einmal."
+            "value" : "Dein Bot Server ist nicht erreichbar. Versuch es gleich noch einmal."
           }
         }
       }
     },
-    "Your home is out of reach. Your messages wait until it is back." : {
+    "Your Bot Server is out of reach. Your messages wait until it is back." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Deine Nachrichten warten, bis es wieder da ist."
+            "value" : "Dein Bot Server ist nicht erreichbar. Deine Nachrichten warten, bis er wieder da ist."
           }
         }
       }
     },
-    "Your home is out of reach. Your text stays here. Save it again in a moment." : {
+    "Your Bot Server is out of reach. Your text stays here. Save it again in a moment." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Dein Text bleibt hier. Speichere ihn gleich noch einmal."
+            "value" : "Dein Bot Server ist nicht erreichbar. Dein Text bleibt hier. Speichere ihn gleich noch einmal."
           }
         }
       }
     },
-    "Your home signed this device out. Connect it again." : {
+    "Your Bot Server signed this device out. Connect it again." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause hat dieses Gerät abgemeldet. Verbinde es noch einmal."
+            "value" : "Dein Bot Server hat dieses Gerät abgemeldet. Verbinde es noch einmal."
           }
         }
       }
@@ -1747,12 +1731,12 @@
         }
       }
     },
-    "waits for your home" : {
+    "waits for your Bot Server" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "wartet auf dein Zuhause"
+            "value" : "wartet auf deinen Bot Server"
           }
         }
       }
@@ -1903,18 +1887,18 @@
         }
       }
     },
-    "It is larger than 15 MB. Your home takes files up to that size." : {
+    "It is larger than 15 MB. Your Bot Server takes files up to that size." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "It is larger than 15 MB. Your home takes files up to that size."
+            "value" : "It is larger than 15 MB. Your Bot Server takes files up to that size."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sie ist größer als 15 MB. Dein Zuhause nimmt Dateien bis zu dieser Größe."
+            "value" : "Sie ist größer als 15 MB. Dein Bot Server nimmt Dateien bis zu dieser Größe."
           }
         }
       }
@@ -1935,18 +1919,18 @@
         }
       }
     },
-    "Your home could not send this file. Try again later." : {
+    "Your Bot Server could not send this file. Try again later." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your home could not send this file. Try again later."
+            "value" : "Your Bot Server could not send this file. Try again later."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause konnte diese Datei nicht schicken. Versuch es später noch einmal."
+            "value" : "Dein Bot Server konnte diese Datei nicht schicken. Versuch es später noch einmal."
           }
         }
       }
@@ -2031,18 +2015,18 @@
         }
       }
     },
-    "Your home sent this page without closing it off, so it is not shown." : {
+    "Your Bot Server sent this page without closing it off, so it is not shown." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your home sent this page without closing it off, so it is not shown."
+            "value" : "Your Bot Server sent this page without closing it off, so it is not shown."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause hat diese Seite nicht abgeschottet geschickt. Sie wird deshalb nicht gezeigt."
+            "value" : "Dein Bot Server hat diese Seite nicht abgeschottet geschickt. Sie wird deshalb nicht gezeigt."
           }
         }
       }
@@ -2079,44 +2063,44 @@
         }
       }
     },
-    "This page is no longer in your home." : {
+    "This page is no longer on your Bot Server." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This page is no longer in your home."
+            "value" : "This page is no longer on your Bot Server."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diese Seite ist nicht mehr in deinem Zuhause."
+            "value" : "Diese Seite ist nicht mehr auf deinem Bot Server."
           }
         }
       }
     },
-    "Your home is out of reach. The page opens when it is back." : {
+    "Your Bot Server is out of reach. The page opens when it is back." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your home is out of reach. The page opens when it is back."
+            "value" : "Your Bot Server is out of reach. The page opens when it is back."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause ist nicht erreichbar. Die Seite öffnet sich, sobald es wieder da ist."
+            "value" : "Dein Bot Server ist nicht erreichbar. Die Seite öffnet sich, sobald er wieder da ist."
           }
         }
       }
     },
-    "%@ asked for it. A copy is kept in your home; the file stays on this phone too." : {
+    "%@ asked for it. A copy is kept on your Bot Server; the file stays on this phone too." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ hat danach gefragt. Eine Kopie bleibt in deinem Zuhause, die Datei bleibt auch auf diesem Telefon."
+            "value" : "%@ hat danach gefragt. Eine Kopie bleibt auf deinem Bot Server, die Datei bleibt auch auf diesem Telefon."
           }
         }
       }
@@ -2261,22 +2245,22 @@
         }
       }
     },
-    "Goes back when your home is in reach" : {
+    "Goes back when your Bot Server is in reach" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Geht zurück, sobald dein Zuhause erreichbar ist"
+            "value" : "Geht zurück, sobald dein Bot Server erreichbar ist"
           }
         }
       }
     },
-    "iCloud Drive, On My %@ or another place in Files. The files stay here: your agents ask this %@, and only the answer goes to your home." : {
+    "iCloud Drive, On My %@ or another place in Files. The files stay here: your agents ask this %@, and only the answer goes to your Bot Server." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iCloud Drive, Auf meinem %1$@ oder ein anderer Ort in Dateien. Die Dateien bleiben hier: Deine Agenten fragen dieses %2$@, und nur die Antwort geht an dein Zuhause."
+            "value" : "iCloud Drive, Auf meinem %1$@ oder ein anderer Ort in Dateien. Die Dateien bleiben hier: Deine Agenten fragen dieses %2$@, und nur die Antwort geht an deinen Bot Server."
           }
         }
       }
@@ -2371,12 +2355,12 @@
         }
       }
     },
-    "On your home’s computer" : {
+    "On your Bot Server’s computer" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Auf dem Computer deines Zuhauses"
+            "value" : "Auf dem Computer deines Bot Servers"
           }
         }
       }
@@ -2401,12 +2385,12 @@
         }
       }
     },
-    "Send “%@” to your home?" : {
+    "Send “%@” to your Bot Server?" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "„%@“ an dein Zuhause schicken?"
+            "value" : "„%@“ an deinen Bot Server schicken?"
           }
         }
       }
@@ -2421,12 +2405,12 @@
         }
       }
     },
-    "The files stay on this %@. When your agents need something in them, they ask this %@: its own model reads the files here and sends back only the answer. A file goes to your home only after you said yes here." : {
+    "The files stay on this %@. When your agents need something in them, they ask this %@: its own model reads the files here and sends back only the answer. A file goes to your Bot Server only after you said yes here." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Dateien bleiben auf diesem %1$@. Wenn deine Agenten etwas darin brauchen, fragen sie dieses %2$@: Sein eigenes Modell liest die Dateien hier und schickt nur die Antwort zurück. Eine Datei geht erst an dein Zuhause, wenn du hier Ja gesagt hast."
+            "value" : "Die Dateien bleiben auf diesem %1$@. Wenn deine Agenten etwas darin brauchen, fragen sie dieses %2$@: Sein eigenes Modell liest die Dateien hier und schickt nur die Antwort zurück. Eine Datei geht erst an deinen Bot Server, wenn du hier Ja gesagt hast."
           }
         }
       }
@@ -2501,12 +2485,12 @@
         }
       }
     },
-    "Your home reads the files on its computer, in place." : {
+    "Your Bot Server reads the files on its computer, in place." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause liest die Dateien auf seinem Computer, dort wo sie liegen."
+            "value" : "Dein Bot Server liest die Dateien auf seinem Computer, dort wo sie liegen."
           }
         }
       }
@@ -2561,12 +2545,12 @@
         }
       }
     },
-    "The service is used by the model on this %@ only. The token stays in this %@’s Keychain; your home learns only the name. A tool that changes something asks you here first." : {
+    "The service is used by the model on this %@ only. The token stays in this %@’s Keychain; your Bot Server learns only the name. A tool that changes something asks you here first." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Den Dienst nutzt nur das Modell auf diesem %1$@. Der Token bleibt im Schlüsselbund dieses %2$@; dein Zuhause erfährt nur den Namen. Ein Werkzeug, das etwas ändert, fragt dich hier vorher."
+            "value" : "Den Dienst nutzt nur das Modell auf diesem %1$@. Der Token bleibt im Schlüsselbund dieses %2$@; dein Bot Server erfährt nur den Namen. Ein Werkzeug, das etwas ändert, fragt dich hier vorher."
           }
         }
       }
@@ -2747,18 +2731,18 @@
         }
       }
     },
-    "What you write here goes to your home at %@. Your home answers with models of these companies, which then read what you write and what your agents send them:" : {
+    "What you write here goes to your Bot Server at %@. Your Bot Server answers with models of these companies, which then read what you write and what your agents send them:" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "What you write here goes to your home at %@. Your home answers with models of these companies, which then read what you write and what your agents send them:"
+            "value" : "What you write here goes to your Bot Server at %@. Your Bot Server answers with models of these companies, which then read what you write and what your agents send them:"
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Was du hier schreibst, geht an dein Zuhause unter %@. Dein Zuhause antwortet mit Modellen dieser Firmen, die dann lesen, was du schreibst und was deine Agenten ihnen schicken:"
+            "value" : "Was du hier schreibst, geht an deinen Bot Server unter %@. Dein Bot Server antwortet mit Modellen dieser Firmen, die dann lesen, was du schreibst und was deine Agenten ihnen schicken:"
           }
         }
       }
@@ -2891,34 +2875,34 @@
         }
       }
     },
-    "Your home uses only models on your own computers. Nothing goes to another company." : {
+    "Your Bot Server uses only models on your own computers. Nothing goes to another company." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your home uses only models on your own computers. Nothing goes to another company."
+            "value" : "Your Bot Server uses only models on your own computers. Nothing goes to another company."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause nutzt nur Modelle auf deinen eigenen Computern. Nichts geht an eine andere Firma."
+            "value" : "Dein Bot Server nutzt nur Modelle auf deinen eigenen Computern. Nichts geht an eine andere Firma."
           }
         }
       }
     },
-    "Your home uses %@. Open wizards.bot to allow it or not." : {
+    "Your Bot Server uses %@. Open wizards.bot to allow it or not." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your home uses %@. Open wizards.bot to allow it or not."
+            "value" : "Your Bot Server uses %@. Open wizards.bot to allow it or not."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Zuhause nutzt %@. Öffne wizards.bot, um es zu erlauben oder nicht."
+            "value" : "Dein Bot Server nutzt %@. Öffne wizards.bot, um es zu erlauben oder nicht."
           }
         }
       }
@@ -3161,6 +3145,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
+          }
+        }
+      }
+    },
+    "Your Bot Server" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Bot Server"
           }
         }
       }

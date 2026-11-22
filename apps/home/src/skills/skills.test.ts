@@ -120,7 +120,7 @@ describe("skills", () => {
     assert.ok(offered(second).includes("excel_make") && offered(second).includes("excel_edit"));
     assert.ok(!offered(second).includes("word_make"));
     const loaded = second?.messages.findLast((message) => message.role === "tool")?.content ?? "";
-    assert.match(loaded, /The home does not calculate/);
+    assert.match(loaded, /The Bot Server does not calculate/);
     assert.match(
       loaded,
       /Its tools are yours from your next step on: `excel_make`, `excel_edit`\./,

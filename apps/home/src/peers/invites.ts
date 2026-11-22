@@ -168,9 +168,9 @@ export class Invites {
       const refuse = (status: 400 | 401 | 403 | 404 | 409 | 410 | 429, message: string) =>
         c.json({ error: "refused", message }, status);
       const request = await this.peers.verified(c, true);
-      if (!request) return refuse(401, "The request is not signed by the home it names.");
+      if (!request) return refuse(401, "The request is not signed by the Bot Server it names.");
       if (request.contact?.state === "blocked")
-        return refuse(403, "This home does not take the request.");
+        return refuse(403, "This Bot Server does not take the request.");
       let code: string;
       try {
         code = z.object({ code: z.string().max(80) }).parse(JSON.parse(request.body)).code;
@@ -251,7 +251,7 @@ export class Invites {
     const { home } = this;
     const own = home.handle();
     if (!own)
-      return "Others do not know you yet: your home has no address, and you have no key. Make your key first, then open the invite again.";
+      return "Others do not know you yet: your Bot Server has no address, and you have no key. Make your key first, then open the invite again.";
     let url: URL;
     try {
       url = new URL(link.trim());
@@ -263,17 +263,17 @@ export class Invites {
     if (!code || (url.protocol !== "https:" && !(url.protocol === "http:" && local)))
       return "That is not an invite link.";
     if (local && home.config.publicUrl && !isLocal(own))
-      return "That link leads to a private address. This home does not call private addresses.";
+      return "That link leads to a private address. This Bot Server does not call private addresses.";
     const print = /(?:^|[#&])k=([0-9a-f]{16})(?:&|$)/i.exec(url.hash)?.[1]?.toLowerCase();
     const response = await fetch(`${url.origin}/peers/invite/${code}`, {
       signal: AbortSignal.timeout(10_000),
       redirect: "error",
     }).catch(() => undefined);
-    if (!response) return `The home at ${url.host} is out of reach.`;
+    if (!response) return `The Bot Server at ${url.host} is out of reach.`;
     if (response.status === 404) return "That link opens nothing. Check that it is whole.";
     if (!response.ok) return "That invite does not work any more.";
     const shown = Shown.safeParse(await response.json().catch(() => undefined));
-    if (!shown.success) return `The home at ${url.host} did not answer as a home does.`;
+    if (!shown.success) return `The Bot Server at ${url.host} did not answer as a Bot Server does.`;
     const invite = shown.data;
     const handle = invite.handle.toLowerCase();
     // The handle has to lead to the home the link is at, and that home to the same key.
@@ -281,20 +281,20 @@ export class Invites {
       ? await this.peers.lookup(handle).catch(() => undefined)
       : undefined;
     if (found?.url !== url.origin || found.publicKey !== invite.publicKey)
-      return `The home at ${url.host} is not where ${handle} leads. Do not use this link.`;
-    if (handle === own) return "That is an invite of your own home.";
+      return `The Bot Server at ${url.host} is not where ${handle} leads. Do not use this link.`;
+    if (handle === own) return "That is an invite of your own Bot Server.";
     if (print && print !== keyPrint(invite.publicKey))
-      return `The home at ${url.host} is not the one this link was made by: its key is another. Do not use this link, and tell the person who sent it.`;
+      return `The Bot Server at ${url.host} is not the one this link was made by: its key is another. Do not use this link, and tell the person who sent it.`;
     if (this.peers.contact(handle)?.state === "blocked")
       return `${invite.name} (${handle}) is blocked.`;
     const gets = {
       connect:
         "Once connected, you can share agents and rooms with each other. Nothing is shared by connecting.",
-      agent: `${invite.about ? `${invite.about}\n\n` : ""}${invite.title} stays in ${invite.name}'s home. What you write to it is kept there. ${invite.name}'s devices do not show it to them, but they run that home. It sees nothing of your home.`,
-      room: `Everyone in the room reads what you write there. ${invite.name}'s home keeps the room. Nothing else of your home is shared.`,
+      agent: `${invite.about ? `${invite.about}\n\n` : ""}${invite.title} stays on ${invite.name}'s Bot Server. What you write to it is kept there. ${invite.name}'s devices do not show it to them, but they run that Bot Server. It sees nothing of your Bot Server.`,
+      room: `Everyone in the room reads what you write there. ${invite.name}'s Bot Server keeps the room. Nothing else of your Bot Server is shared.`,
     }[invite.what];
     const checked = print
-      ? `Key ${spaced(keyPrint(invite.publicKey))}: it is the home the link was made by.`
+      ? `Key ${spaced(keyPrint(invite.publicKey))}: it is the Bot Server the link was made by.`
       : `Key ${spaced(keyPrint(invite.publicKey))}. The link names no key to check it against.`;
     return {
       kind: "contact",
@@ -360,7 +360,7 @@ export class Invites {
       defineTool({
         name: "invite_make",
         description:
-          "Make an invite: a link with a QR code that works once. `connect`: the person who uses it becomes a contact. `agent`: they talk to one of the person's own agents (give its id). `room`: they join a room this home keeps (give its id). For someone who is not a contact yet; a contact is invited to a room with `room_invite`. `memory`, for an agent: `all` only when the person says that whoever joins may hear what the agent remembers; otherwise it tells them nothing of it. Asks the person first. Ends your turn.",
+          "Make an invite: a link with a QR code that works once. `connect`: the person who uses it becomes a contact. `agent`: they talk to one of the person's own agents (give its id). `room`: they join a room this Bot Server keeps (give its id). For someone who is not a contact yet; a contact is invited to a room with `room_invite`. `memory`, for an agent: `all` only when the person says that whoever joins may hear what the agent remembers; otherwise it tells them nothing of it. Asks the person first. Ends your turn.",
         input: z.object({
           what: What,
           id: z.string().optional(),
@@ -370,12 +370,12 @@ export class Invites {
         label: () => "Asking to make an invite",
         run: async (input) => {
           if (!home.config.publicUrl || !home.handle())
-            return "Your home has no address others reach. Only a home with one (WIZARDS_BOT_URL) makes invites: ask the other person for one of theirs.";
+            return "Your Bot Server has no address others reach. Only a Bot Server with one (WIZARDS_BOT_URL) makes invites: ask the other person for one of theirs.";
           const target = this.target(input.what, input.id ?? null);
           if (!target) {
             return input.what === "agent"
               ? `There is no agent of your own with the id ${input.id}, or it is the first agent, which is yours alone.`
-              : `There is no room ${input.id} that this home keeps.`;
+              : `There is no room ${input.id} that this Bot Server keeps.`;
           }
           const open =
             home.db.get<{ n: number }>(
@@ -387,8 +387,8 @@ export class Invites {
           const gets = {
             connect:
               "Whoever uses it becomes a contact: you can share agents and rooms with each other. Nothing is shared by connecting.",
-            agent: `Whoever uses it talks to ${target.title} in a conversation of their own. ${heard(target.title, "them", input.memory)} ${target.title} stays in your home and has none of your tools there. They see nothing else of your home, and what they write is theirs: it is not shown to you.`,
-            room: `Whoever uses it reads everything written in the room from then on, and what your agents in it say. Nothing else of your home is shared.`,
+            agent: `Whoever uses it talks to ${target.title} in a conversation of their own. ${heard(target.title, "them", input.memory)} ${target.title} stays on your Bot Server and has none of your tools there. They see nothing else of your Bot Server, and what they write is theirs: it is not shown to you.`,
+            room: `Whoever uses it reads everything written in the room from then on, and what your agents in it say. Nothing else of your Bot Server is shared.`,
           }[input.what];
           const card = home.store.createCard(
             {
@@ -422,7 +422,7 @@ export class Invites {
       defineTool({
         name: "invite_list",
         description:
-          "List the invites this home made: what each is for and whether it still works.",
+          "List the invites this Bot Server made: what each is for and whether it still works.",
         input: z.object({}),
         label: () => "Looking at the invites",
         run: async () => {
