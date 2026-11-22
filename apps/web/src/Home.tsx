@@ -437,6 +437,8 @@ export function Home() {
       <SearchDialog
         open={dialog === "search"}
         onClose={() => setDialog(null)}
+        agents={agents.data ?? []}
+        asker={asker}
         onOpen={(hit: SearchHit) => {
           const found = (agents.data ?? []).find((a) => a.id === hit.agentId);
           if (found) pick(found);
