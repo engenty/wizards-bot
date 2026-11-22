@@ -929,6 +929,24 @@ PowerPoint file or a PDF as the text read from it, any other file by its name.
 An agent's message carries `file` parts too: a Word, Excel or PowerPoint file the agent made.
 A device draws it the same way, and the person saves it from `GET /v1/files/:id`.
 
+## Secrets
+
+`GET /v1/secrets` → `{ "secrets": SecretEntry[] }`: the keys, tokens and passwords the person
+gave the home, for the settings. Each names what uses it (`kind`: `gateway`, `account`,
+`connection`, `channel` or `outside`, and its `label`) and when it was set (`setAt`). A value
+never leaves the home, here or anywhere else; the home's own secrets are not listed. A secret is
+set, replaced and removed in the conversation, through a card's `secret` field and the main
+agent's tools.
+
+```json
+{
+  "name": "connection.con_….key",
+  "kind": "connection",
+  "label": "linear",
+  "setAt": "2026-11-22T20:00:00.000Z"
+}
+```
+
 ## Folders
 
 A folder of the home's computer can be connected, so that agents read its files, and change

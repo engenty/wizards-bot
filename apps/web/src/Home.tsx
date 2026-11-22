@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Agent, Event } from "@wizards-bot/protocol";
+import type { Agent, Event, Message } from "@wizards-bot/protocol";
 import {
   useCallback,
   useEffect,
@@ -17,10 +17,12 @@ import { ConsentDialog } from "./chat/ConsentDialog";
 import { DocumentPane } from "./chat/DocumentPane";
 import { FolderDialog } from "./chat/FolderDialog";
 import { ItemsDialog } from "./chat/ItemsDialog";
-import { SettingsDialog } from "./chat/SettingsDialog";
+import { type Asker, SettingsDialog } from "./chat/SettingsDialog";
 import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
 import { Engenty } from "./engenty/Engenty";
 import { api } from "./lib/api";
+import { withConsent } from "./lib/consent";
+import { applyEvent } from "./lib/events";
 import { t } from "./lib/i18n";
 import { keys } from "./lib/keys";
 import { CHAT_MIN, PANE_MIN, sidebar, sidebarFits, split } from "./lib/layout";
@@ -30,6 +32,7 @@ import { useAgents, useAvatar, useItems, useSetup } from "./lib/queries";
 import { setDeviceToken } from "./lib/session";
 import { useStored } from "./lib/stored";
 import { useEvents, useLink } from "./lib/stream";
+import { uuid } from "./lib/uuid";
 import { SetupView } from "./setup/SetupView";
 import { needsSetup } from "./setup/steps";
 import { cn } from "./ui";
@@ -276,6 +279,23 @@ export function Home() {
     setDrawer(false);
     setDialog("settings");
   };
+  // What the settings hand the main agent: it is said in its chat, and that chat is shown.
+  const mainAgent = agents.data?.find((a) => a.main);
+  const asker: Asker | undefined = mainAgent && {
+    name: mainAgent.name,
+    ask: async (text) => {
+      const { message } = await withConsent(
+        () =>
+          api.post<{ message: Message }>(`/v1/conversations/${mainAgent.conversationId}/messages`, {
+            text,
+            clientId: uuid(),
+          }),
+        (models) => client.setQueryData(keys.models(), models),
+      );
+      applyEvent(client, { type: "message.created", message });
+      pick(mainAgent);
+    },
+  };
   // Where the list fits, it opens beside the chat and stays; where not, over the chat.
   const openList = () => (sidebarFits(windowWidth, pane) ? setCollapsed(false) : setDrawer(true));
   const list = (rail: boolean, onToggle: () => void) => (
@@ -404,6 +424,7 @@ export function Home() {
           setFolderFrom(undefined);
           setDialog("folder");
         }}
+        asker={asker}
         onClose={close.settings}
       />
       <ItemsDialog open={dialog === "items"} items={items.data ?? []} onClose={close.items} />

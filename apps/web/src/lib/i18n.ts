@@ -223,6 +223,22 @@ export const en = {
   "settings.title": "Settings",
   "settings.look": "Appearance",
   "settings.privacy": "Privacy",
+  "settings.secrets": "Keys",
+  "secrets.intro":
+    "The keys, tokens and passwords you gave your Bot Server. Their values stay on it and are shown nowhere, not here either.",
+  "secrets.none": "No keys yet. When you connect a service with a key, it shows here.",
+  "secrets.kind.gateway": "Model gateway",
+  "secrets.kind.account": "wizards.bot account",
+  "secrets.kind.connection": "Connection",
+  "secrets.kind.channel": "Channel",
+  "secrets.kind.outside": "Outside agent",
+  "secrets.set": "Set on {date}",
+  "secrets.change": "Change with {agent}",
+  "secrets.changeAsk": "I’d like to replace or remove the key of the {kind} “{label}”.",
+  "secrets.how":
+    "A key is changed in the chat: {agent} asks for the new one in a card, or removes what uses it.",
+  "secrets.personKey":
+    "Your own key, the one that signs your record, stays on your devices and is not listed here.",
   "split.resize": "Width of the chat",
   "agents.shared": "from {from}",
   "agents.working": "writing",
@@ -707,6 +723,23 @@ export const de: Record<Key, Line> = {
   "settings.title": "Einstellungen",
   "settings.look": "Darstellung",
   "settings.privacy": "Datenschutz",
+  "settings.secrets": "Schlüssel",
+  "secrets.intro":
+    "Die Schlüssel, Tokens und Passwörter, die du deinem Bot Server gegeben hast. Die Werte bleiben auf ihm und werden nirgends gezeigt, auch hier nicht.",
+  "secrets.none":
+    "Noch keine Schlüssel. Wenn du einen Dienst mit einem Schlüssel verbindest, steht er hier.",
+  "secrets.kind.gateway": "Modell-Gateway",
+  "secrets.kind.account": "wizards.bot-Konto",
+  "secrets.kind.connection": "Verbindung",
+  "secrets.kind.channel": "Kanal",
+  "secrets.kind.outside": "Fremder Agent",
+  "secrets.set": "Gesetzt am {date}",
+  "secrets.change": "Mit {agent} ändern",
+  "secrets.changeAsk": "Ich möchte den Schlüssel für {kind} „{label}“ ersetzen oder entfernen.",
+  "secrets.how":
+    "Ein Schlüssel wird im Chat geändert: {agent} fragt in einer Karte nach dem neuen oder entfernt, was ihn nutzt.",
+  "secrets.personKey":
+    "Dein eigener Schlüssel, der deinen Eintrag unterschreibt, bleibt auf deinen Geräten und steht nicht hier.",
   "split.resize": "Breite des Chats",
   "agents.shared": "von {from}",
   "agents.working": "schreibt",

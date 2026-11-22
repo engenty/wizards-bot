@@ -149,6 +149,11 @@ export class Channels {
     return raw ? (JSON.parse(raw) as Record<string, string>) : undefined;
   }
 
+  /** The channel's name as people read it, e.g. "Slack". */
+  labelOf(id: string): string {
+    return this.adapters.get(id as ChannelId)?.label ?? id;
+  }
+
   owner(id: ChannelId): string | undefined {
     return this.home.db.get<Row>("select * from channel where id = ?", id)?.owner ?? undefined;
   }
