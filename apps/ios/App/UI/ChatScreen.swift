@@ -259,6 +259,8 @@ struct ChatView: View {
     var trailingInset: CGFloat = 0
     @State private var position = ScrollPosition(idType: String.self, edge: .bottom)
     @State private var width: CGFloat = 0
+    /// The height the chat shows messages in: it changes with the keyboard and the bar under the chat.
+    @State private var shown: CGFloat = 0
     /// True while the newest message is in view.
     @State private var atEnd = true
     /// Whether the chat was at its end when its width began to change; nil while the width rests.
@@ -311,11 +313,21 @@ struct ChatView: View {
             try? await Task.sleep(for: .milliseconds(350))
             position.scrollTo(edge: .bottom)
         }
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            geometry.contentOffset.y + geometry.containerSize.height
-                >= geometry.contentSize.height + geometry.contentInsets.bottom - 60
-        } action: { _, nowAtEnd in
-            atEnd = nowAtEnd
+        .onScrollGeometryChange(for: Reading.self) { geometry in
+            Reading(
+                atEnd: geometry.contentOffset.y + geometry.containerSize.height
+                    >= geometry.contentSize.height + geometry.contentInsets.bottom - 60,
+                shown: (geometry.containerSize.height - geometry.contentInsets.bottom).rounded()
+            )
+        } action: { old, new in
+            if old.shown != new.shown {
+                // The keyboard came or went, or the bar under the chat changed (talking starts or
+                // ends): the chat is put back where the person was before, as for a new width.
+                if wasAtEnd == nil { wasAtEnd = old.atEnd }
+                shown = new.shown
+            } else {
+                atEnd = new.atEnd
+            }
         }
         // The chat moves up and down only. A message that grows in place can make the chat line up
         // with that message's leading edge, a margin to the side; then it is put back.
@@ -332,7 +344,7 @@ struct ChatView: View {
             if wasAtEnd == nil { wasAtEnd = atEnd }
             width = newWidth
         }
-        .task(id: width) {
+        .task(id: ChatSize(width: width, shown: shown)) {
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
             let toEnd = wasAtEnd ?? true
@@ -579,4 +591,16 @@ private struct Waiting: View {
         .padding(40)
         .frame(maxWidth: 420)
     }
+}
+
+/// Where the person is in the chat, and how much of it shows.
+private struct Reading: Equatable {
+    var atEnd: Bool
+    var shown: CGFloat
+}
+
+/// The size the chat is laid out in.
+private struct ChatSize: Equatable {
+    var width: CGFloat
+    var shown: CGFloat
 }
