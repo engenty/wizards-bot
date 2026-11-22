@@ -8,8 +8,9 @@ export interface MenuItem {
 }
 
 /**
- * A small menu that opens above its button, as the composer's + does: a click beside it or
- * Escape closes it. `head` is shown above the items, e.g. who is signed in.
+ * A small menu at its button: above it when the button is in the lower half of the window, as the
+ * composer's + is, below it otherwise, as the person's card at the top of the list is. A click
+ * beside it or Escape closes it. `head` is shown above the items, e.g. who is signed in.
  */
 export function Menu({
   label,
@@ -27,7 +28,7 @@ export function Menu({
   /** What the button shows. */
   children: ReactNode;
 }) {
-  const [at, setAt] = useState<{ bottom: number; left: number } | null>(null);
+  const [at, setAt] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -58,7 +59,13 @@ export function Menu({
   }, [at]);
   const toggle = () => {
     const rect = opener.current?.getBoundingClientRect();
-    setAt(at || !rect ? null : { bottom: window.innerHeight - rect.top + 8, left: rect.left });
+    if (at || !rect) {
+      setAt(null);
+    } else if (rect.top + rect.height / 2 < window.innerHeight / 2) {
+      setAt({ top: rect.bottom + 8, left: rect.left });
+    } else {
+      setAt({ bottom: window.innerHeight - rect.top + 8, left: rect.left });
+    }
   };
   return (
     <>
@@ -79,7 +86,7 @@ export function Menu({
           ref={panel}
           role="menu"
           aria-label={label}
-          style={{ bottom: at.bottom, left: Math.max(8, at.left) }}
+          style={{ top: at.top, bottom: at.bottom, left: Math.max(8, at.left) }}
           className="enter-pop fixed z-50 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-card p-1 shadow-overlay ring-1 ring-border"
         >
           {head ? <div className="px-3 pt-2 pb-1.5">{head}</div> : null}
