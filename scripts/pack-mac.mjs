@@ -214,7 +214,10 @@ if (args.includes("--dmg")) {
   cpSync(app, join(folder, "wizards.app"), { recursive: true, verbatimSymlinks: true });
   run("ln", ["-s", "/Applications", join(folder, "Applications")]);
   rmSync(dmg, { force: true });
-  // LZMA: 63 MB where LZFSE (ULFO) made 163 MB; macOS opens it since 10.15.
+  // A plain image first, then LZMA: 63 MB, where LZFSE (ULFO) made 163 MB and LZMA straight
+  // from the folder 140 MB. macOS opens it since 10.15.
+  const plain = join(stage, "plain.dmg");
+  rmSync(plain, { force: true });
   run("hdiutil", [
     "create",
     "-volname",
@@ -222,10 +225,12 @@ if (args.includes("--dmg")) {
     "-srcfolder",
     folder,
     "-format",
-    "ULMO",
+    "UDRO",
     "-ov",
-    dmg,
+    plain,
   ]);
+  run("hdiutil", ["convert", plain, "-format", "ULMO", "-o", dmg]);
+  rmSync(plain, { force: true });
   if (identity !== "-")
     run("codesign", [
       "--force",
