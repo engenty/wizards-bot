@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The list of agents at the left of a wide screen, as a messenger shows its conversations, with
-/// the way to the settings at its foot.
+/// The list of agents at the left of a wide screen, as a messenger shows its conversations:
+/// whose Bot Server this is at its head, the gear for the settings at its foot.
 struct AgentsSidebar: View {
     @Environment(AppModel.self) private var model
 
@@ -12,31 +12,28 @@ struct AgentsSidebar: View {
                 if let agent = id.flatMap(model.agent), agent.id != model.currentAgent?.id { model.select(agent) }
             }
         )) {
-            ForEach(AgentList.ordered(model.agents)) { agent in
-                AgentListRow(agent: agent, badge: AgentBadge(for: agent, onScreen: agent.id == model.currentAgent?.id))
-                    .tag(agent.id)
+            Section {
+                ForEach(AgentList.ordered(model.agents)) { agent in
+                    AgentListRow(agent: agent, badge: AgentBadge(for: agent, onScreen: agent.id == model.currentAgent?.id))
+                        .tag(agent.id)
+                }
+            } header: {
+                Text("Wizards")
             }
         }
         .navigationTitle("Wizards")
+        .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            PersonMenu()
+                .padding(.horizontal, 8)
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            Button {
-                model.showsSettings = true
-            } label: {
-                HStack(spacing: 10) {
-                    Text(model.link?.name ?? String(localized: "This device"))
-                        .font(.body.weight(.medium))
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Image(systemName: "gearshape")
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .contentShape(.rect)
+            HStack {
+                SettingsButton()
+                Spacer(minLength: 0)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
-            .accessibilityValue(model.link?.name ?? "")
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
     }
 }

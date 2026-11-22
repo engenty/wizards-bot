@@ -3,6 +3,8 @@
 
 /** The list of agents, open. */
 export const SIDEBAR = 288;
+/** The list of agents as a column of figures. */
+const RAIL = 64;
 /** Below this width of the window there is no column for the agents: the list opens over the chat. */
 const PHONE = 640;
 /** From this width of the window the list of agents is open beside the chat alone. */
@@ -34,7 +36,11 @@ export function sidebar(window: number, pane: boolean, collapsed: boolean): Side
   if (window < PHONE) {
     return "none";
   }
-  return sidebarFits(window, pane) && !collapsed ? "open" : "rail";
+  if (sidebarFits(window, pane) && !collapsed) {
+    return "open";
+  }
+  // The column of figures gives way before a document has to lie over the chat.
+  return pane && window - RAIL < CHAT_MIN + PANE_MIN ? "none" : "rail";
 }
 
 /**

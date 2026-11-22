@@ -4,7 +4,7 @@ import type { Setup, SetupCheck } from "@wizards-bot/protocol";
  * The first start, step by step: the person's name, the models (which gate until one answers),
  * what the agents can do, and a phone and a folder. After it, the chat.
  */
-export type Step = "name" | "models" | "abilities" | "devices";
+export type Step = "name" | "models" | "devices";
 
 /**
  * Whether the app opens the setup instead of the chat: the person has not been through it, or
@@ -22,7 +22,7 @@ export function stepsOf(setup: Setup): Step[] {
   if (setup.done) {
     return ["models"];
   }
-  return [...(setup.name.confirmed ? [] : ["name" as const]), "models", "abilities", "devices"];
+  return [...(setup.name.confirmed ? [] : ["name" as const]), "models", "devices"];
 }
 
 /** Whether the person can go on from a step: the models only once one of them answered. */

@@ -14,11 +14,28 @@ import {
   probeGateway,
   probeOllama,
 } from "./probes.ts";
+import {
+  greeting,
+  type Lang,
+  langOf,
+  MAIN_ABOUT,
+  MAIN_ABOUT_BEFORE,
+  pairingLink,
+  same,
+  say,
+  type Words,
+  w,
+} from "./words.ts";
 
-/** A test call's outcome as the home keeps it, with its time. */
-interface Kept extends Probe {
+/** A test call's outcome as the home keeps it, with its time. Kept text from before is English. */
+interface Kept extends Omit<Probe, "said" | "todo"> {
+  said: Words | string;
+  todo?: Words | string;
   at: string;
 }
+
+/** A check as the home makes it: its sentences in both languages, shown in the person's. */
+type Check = Omit<SetupCheck, "said" | "todo"> & { said: Words | string; todo?: Words | string };
 
 const TESTS = "setup.tests";
 
@@ -88,13 +105,38 @@ export class Setup {
     return false;
   }
 
-  async change(input: { name?: string; done?: boolean }): Promise<SetupView> {
+  async change(input: { name?: string; done?: boolean; lang?: Lang }): Promise<SetupView> {
+    if (input.lang) {
+      this.home.db.setMeta("person.lang", input.lang);
+      // The main agent's first words about itself follow the language, until someone changed them.
+      const main = this.home.store.mainAgent();
+      if ([MAIN_ABOUT.en, MAIN_ABOUT.de, MAIN_ABOUT_BEFORE].includes(main.about)) {
+        this.home.store.updateAgent(main.id, { about: MAIN_ABOUT[input.lang] });
+      }
+    }
     if (input.name) {
       this.home.db.setMeta("person.name", input.name);
       this.home.db.setMeta("person.named", "1");
     }
-    if (input.done) this.home.db.setMeta("setup.done", new Date().toISOString());
+    if (input.done && !this.home.db.meta("setup.done")) {
+      this.home.db.setMeta("setup.done", new Date().toISOString());
+      this.greet();
+    }
     return this.changed();
+  }
+
+  /** The main agent says hello in a chat that has nothing in it yet. */
+  private greet(): void {
+    const { store, db } = this.home;
+    const agent = store.mainAgent();
+    if (store.messages(agent.conversationId, { limit: 1 }).messages.length) return;
+    store.addMessage({
+      conversationId: agent.conversationId,
+      role: "agent",
+      agentId: agent.id,
+      channel: "home",
+      parts: [{ type: "text", text: greeting(this.home.person(), agent.name, langOf(db)) }],
+    });
   }
 
   /**
@@ -132,18 +174,14 @@ export class Setup {
     });
   }
 
-  /** Puts a pairing card into the main agent's chat, as the agent's `device_pair` does. */
-  pairingCard() {
+  /**
+   * A pairing code for the setup's last step, shown there and nowhere else: the chat starts
+   * with the main agent's greeting, not with a card.
+   */
+  pairing(): { address: string; code: string; link: string } {
     const code = this.home.store.newPairingCode();
     const address = this.home.address();
-    return this.say({
-      kind: "pairing",
-      level: "update",
-      title: "Add a device",
-      body: `Scan this with the wizards.bot app, or enter the address \`${address}\` and the code **${code}**. The code works once, for 10 minutes.`,
-      qr: `wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`,
-      actions: [],
-    });
+    return { address, code, link: pairingLink(address, code) };
   }
 
   /** A card of the home itself in the main agent's chat. */
@@ -173,7 +211,7 @@ export class Setup {
     return JSON.parse(this.home.db.meta(TESTS) ?? "{}") as Record<string, Kept>;
   }
 
-  private keep(id: string, probe: Probe): void {
+  private keep(id: string, probe: Omit<Kept, "at">): void {
     const all = this.kept();
     all[id] = { ...probe, at: new Date().toISOString() };
     this.home.db.setMeta(TESTS, JSON.stringify(all));
@@ -218,7 +256,7 @@ export class Setup {
         try {
           this.keep(id, await probe());
         } catch (error) {
-          this.keep(id, { state: "problem", said: (error as Error).message });
+          this.keep(id, { state: "problem", said: same((error as Error).message) });
         }
         // The sources may have changed with what was found: Ollama started, a client signed in.
         await this.home.models.refresh(true);
@@ -245,7 +283,13 @@ export class Setup {
 
   async view(): Promise<SetupView> {
     await this.home.models.refresh();
-    const models = this.modelChecks();
+    const lang = langOf(this.home.db);
+    const shown = ({ said, todo, ...check }: Check): SetupCheck => ({
+      ...check,
+      said: say(said, lang),
+      ...(todo ? { todo: say(todo, lang) } : {}),
+    });
+    const models = this.modelChecks().map(shown);
     const working = models.some((check) => check.state === "ok" || check.state === "warning");
     return {
       done: this.done(),
@@ -257,22 +301,17 @@ export class Setup {
       hasModel: this.home.models.candidates().length > 0,
       hosted: isHosted(this.home.config),
       models,
-      home: [await this.address(), this.data(), this.folders(), this.push()],
-      capabilities: this.capabilities(models),
+      home: [await this.address(), this.data(), this.folders(), this.push()].map(shown),
+      capabilities: this.capabilities(models).map(shown),
     };
   }
 
-  private modelChecks(): SetupCheck[] {
+  private modelChecks(): Check[] {
     const { models } = this.home;
     const kept = this.kept();
-    const row = (
-      id: string,
-      label: string,
-      untested: string,
-      more: Partial<SetupCheck> = {},
-    ): SetupCheck => {
+    const row = (id: string, label: string, untested: Words, more: Partial<Check> = {}): Check => {
       const last = kept[id];
-      const base: SetupCheck = last
+      const base: Check = last
         ? {
             id,
             kind: "model",
@@ -288,7 +327,7 @@ export class Setup {
         : { id, kind: "model", label, source: id, state: "untested", said: untested };
       return { ...base, ...more, ...(this.running.has(id) ? { state: "testing" as const } : {}) };
     };
-    const checks: SetupCheck[] = [];
+    const checks: Check[] = [];
     for (const client of this.clients) {
       const name = NAMES[client.id];
       const here = installed(client.bin);
@@ -300,19 +339,43 @@ export class Setup {
           label: name,
           source: client.id,
           state: "absent",
-          said: `${name} is not installed on this computer.`,
+          said: w(
+            `${name} is not installed on this computer.`,
+            `${name} ist auf diesem Computer nicht installiert.`,
+          ),
           todo:
             client.id === "claude"
-              ? "Install Claude Code, then run claude and /login."
-              : "Install Codex, then sign in.",
+              ? w(
+                  "Install Claude Code, then run claude and /login.",
+                  "Installiere Claude Code, dann starte claude und /login.",
+                )
+              : w("Install Codex, then sign in.", "Installiere Codex, dann melde dich an."),
           command: client.id === "claude" ? "claude" : "codex login",
         });
         continue;
       }
-      checks.push(row(client.id, name, `${name} is installed. It has not been tested yet.`));
+      checks.push(
+        row(
+          client.id,
+          name,
+          w(
+            `${name} is installed. It has not been tested yet.`,
+            `${name} ist installiert, aber noch nicht getestet.`,
+          ),
+        ),
+      );
     }
     if (models.account()) {
-      checks.push(row(ACCOUNT.id, ACCOUNT.label, "Your wizards account has not been tested yet."));
+      checks.push(
+        row(
+          ACCOUNT.id,
+          ACCOUNT.label,
+          w(
+            "Your wizards account has not been tested yet.",
+            "Dein wizards-Konto ist noch nicht getestet.",
+          ),
+        ),
+      );
     }
     const ollama = models.localSources().find((source) => source.id === "ollama");
     const lastOllama = kept.ollama;
@@ -323,13 +386,19 @@ export class Setup {
         row(
           "ollama",
           "Ollama",
-          `Ollama runs with ${ollama?.models.length ?? 0} models. It has not been tested yet.`,
+          w(
+            `Ollama runs with ${ollama?.models.length ?? 0} models. It has not been tested yet.`,
+            `Ollama läuft mit ${ollama?.models.length ?? 0} Modellen, aber noch nicht getestet.`,
+          ),
           // Ollama stopped since its last test call: what was found then no longer holds.
           !ollama && lastOllama?.state === "ok"
             ? {
                 state: "absent",
-                said: `Ollama does not answer at ${this.home.config.ollamaUrl}.`,
-                todo: "Start Ollama.",
+                said: w(
+                  `Ollama does not answer at ${this.home.config.ollamaUrl}.`,
+                  `Ollama antwortet nicht unter ${this.home.config.ollamaUrl}.`,
+                ),
+                todo: w("Start Ollama.", "Starte Ollama."),
               }
             : {},
         ),
@@ -341,12 +410,27 @@ export class Setup {
         label: "Ollama",
         source: "ollama",
         state: "absent",
-        said: `Ollama does not answer at ${this.home.config.ollamaUrl}.`,
-        todo: "Start Ollama, or install it from ollama.com.",
+        said: w(
+          `Ollama does not answer at ${this.home.config.ollamaUrl}.`,
+          `Ollama antwortet nicht unter ${this.home.config.ollamaUrl}.`,
+        ),
+        todo: w(
+          "Start Ollama, or install it from ollama.com.",
+          "Starte Ollama, oder installiere es von ollama.com.",
+        ),
       });
     }
     for (const gateway of models.gateways()) {
-      checks.push(row(gateway.id, gateway.label, `${gateway.label} has not been tested yet.`));
+      checks.push(
+        row(
+          gateway.id,
+          gateway.label,
+          w(
+            `${gateway.label} has not been tested yet.`,
+            `${gateway.label} ist noch nicht getestet.`,
+          ),
+        ),
+      );
     }
     const remote = models.remote?.sources() ?? [];
     for (const source of remote) {
@@ -357,8 +441,14 @@ export class Setup {
         source: source.id,
         state: source.online ? "ok" : "absent",
         said: source.online
-          ? `${source.label} answers on ${source.where}, over the link.`
-          : `${source.where} is not linked right now.`,
+          ? w(
+              `${source.label} answers on ${source.where}, over the link.`,
+              `${source.label} antwortet auf ${source.where}, über die Verbindung.`,
+            )
+          : w(
+              `${source.where} is not linked right now.`,
+              `${source.where} ist gerade nicht verbunden.`,
+            ),
       });
     }
     if (hosted) checks.push(...this.hostedOptions(remote.length > 0));
@@ -369,16 +459,22 @@ export class Setup {
    * The two lines a hosted home offers besides the account: a key of the person's own, and
    * their computer's models over the link. Neither is needed; each goes once it is there.
    */
-  private hostedOptions(linked: boolean): SetupCheck[] {
-    const lines: SetupCheck[] = [];
+  private hostedOptions(linked: boolean): Check[] {
+    const lines: Check[] = [];
     if (!this.home.models.gateways().length) {
       lines.push({
         id: "own-key",
         kind: "model",
         label: "A key of your own",
         state: "absent",
-        said: "Your Bot Server uses your account's credits. A key of a gateway or a provider can answer too.",
-        todo: 'Add it here, or tell your agent "add OpenRouter".',
+        said: w(
+          "Your Bot Server uses your account's credits. A key of a gateway or a provider can answer too.",
+          "Dein Bot Server nutzt die Credits deines Kontos. Ein Schlüssel eines Gateways oder Anbieters kann auch antworten.",
+        ),
+        todo: w(
+          'Add it here, or tell your agent "add OpenRouter".',
+          "Gib ihn hier ein, oder sag deinem Wizard „OpenRouter hinzufügen“.",
+        ),
       });
     }
     if (!linked) {
@@ -387,8 +483,14 @@ export class Setup {
         kind: "model",
         label: "Your computer",
         state: "absent",
-        said: "Ollama, Claude or Codex on your computer can answer here while it is on.",
-        todo: "On your computer, link it with a code from Add a device.",
+        said: w(
+          "Ollama, Claude or Codex on your computer can answer here while it is on.",
+          "Ollama, Claude oder Codex auf deinem Computer können hier antworten, solange er läuft.",
+        ),
+        todo: w(
+          "On your computer, link it with a code from Add a device.",
+          "Verbinde ihn auf deinem Computer mit einem Code aus „Gerät hinzufügen“.",
+        ),
         command: `wizards bot setup --link ${this.home.address()} <code>`,
       });
     }
@@ -396,15 +498,21 @@ export class Setup {
   }
 
   /** Where a phone reaches the home, and whether something answers there. */
-  private async address(): Promise<SetupCheck> {
+  private async address(): Promise<Check> {
     const address = this.home.address();
     const base = { id: "address", kind: "address" as const, label: "Address" };
     if (!this.home.config.publicUrl && address.includes("//127.0.0.1:")) {
       return {
         ...base,
         state: "problem",
-        said: "This computer has no address on a network, so a phone cannot reach your Bot Server.",
-        todo: "Join a Wi-Fi or a network, then start the Bot Server again.",
+        said: w(
+          "This computer has no address on a network, so a phone cannot reach your Bot Server.",
+          "Dieser Computer hat keine Adresse in einem Netzwerk, daher erreicht ein Telefon deinen Bot Server nicht.",
+        ),
+        todo: w(
+          "Join a Wi-Fi or a network, then start the Bot Server again.",
+          "Verbinde dich mit einem WLAN oder Netzwerk, dann starte den Bot Server neu.",
+        ),
       };
     }
     const answers = await fetch(`${address}/v1/home`, { signal: AbortSignal.timeout(1500) })
@@ -414,8 +522,11 @@ export class Setup {
       return {
         ...base,
         state: "warning",
-        said: `Nothing answers at ${address}.`,
-        todo: "Start the Bot Server, and allow it in the computer's firewall if it asks.",
+        said: w(`Nothing answers at ${address}.`, `Unter ${address} antwortet nichts.`),
+        todo: w(
+          "Start the Bot Server, and allow it in the computer's firewall if it asks.",
+          "Starte den Bot Server, und erlaube ihn in der Firewall des Computers, wenn sie fragt.",
+        ),
         command: "wizards-bot start",
       };
     }
@@ -427,23 +538,40 @@ export class Setup {
       ...base,
       state: "ok",
       said: this.home.config.publicUrl
-        ? `Your Bot Server answers at ${address}, also away from this network.`
-        : `A phone on the same network reaches your Bot Server at ${address}.${phone ? ` ${phone.name} was last here on ${phone.seenAt.slice(0, 10)}.` : ""}`,
+        ? w(
+            `Your Bot Server answers at ${address}, also away from this network.`,
+            `Dein Bot Server antwortet unter ${address}, auch außerhalb dieses Netzwerks.`,
+          )
+        : w(
+            `A phone on the same network reaches your Bot Server at ${address}.${phone ? ` ${phone.name} was last here on ${phone.seenAt.slice(0, 10)}.` : ""}`,
+            `Ein Telefon im selben Netzwerk erreicht deinen Bot Server unter ${address}.${phone ? ` ${phone.name} war zuletzt am ${phone.seenAt.slice(0, 10)} hier.` : ""}`,
+          ),
       ...(this.home.config.publicUrl
         ? {}
-        : { todo: "Away from this network, your phone answers with its own model." }),
+        : {
+            todo: w(
+              "Away from this network, your phone answers with its own model.",
+              "Außerhalb dieses Netzwerks antwortet dein Telefon mit seinem eigenen Modell.",
+            ),
+          }),
     };
   }
 
-  private data(): SetupCheck {
+  private data(): Check {
     const dir = this.home.config.dataDir;
     const base = { id: "data", kind: "data" as const, label: "Data folder" };
     if (temporary(dir)) {
       return {
         ...base,
         state: "warning",
-        said: `Your Bot Server keeps its data in a temporary folder (${dir}). The computer may empty it.`,
-        todo: "Start the Bot Server with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.wizards-bot.",
+        said: w(
+          `Your Bot Server keeps its data in a temporary folder (${dir}). The computer may empty it.`,
+          `Dein Bot Server legt seine Daten in einem temporären Ordner ab (${dir}). Der Computer leert ihn vielleicht.`,
+        ),
+        todo: w(
+          "Start the Bot Server with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.wizards-bot.",
+          "Starte den Bot Server mit WIZARDS_BOT_DATA auf einem Ordner, der bleibt, etwa ~/.wizards-bot.",
+        ),
       };
     }
     try {
@@ -453,32 +581,55 @@ export class Setup {
         return {
           ...base,
           state: "warning",
-          said: `The disk of ${tilde(dir)} has less than 1 GB free.`,
-          todo: "Make room on the disk, or your Bot Server cannot keep new files.",
+          said: w(
+            `The disk of ${tilde(dir)} has less than 1 GB free.`,
+            `Auf dem Laufwerk von ${tilde(dir)} ist weniger als 1 GB frei.`,
+          ),
+          todo: w(
+            "Make room on the disk, or your Bot Server cannot keep new files.",
+            "Schaff Platz auf dem Laufwerk, sonst kann dein Bot Server keine neuen Dateien behalten.",
+          ),
         };
       }
     } catch {}
-    return { ...base, state: "ok", said: `Your Bot Server keeps its data in ${tilde(dir)}.` };
+    return {
+      ...base,
+      state: "ok",
+      said: w(
+        `Your Bot Server keeps its data in ${tilde(dir)}.`,
+        `Dein Bot Server legt seine Daten in ${tilde(dir)} ab.`,
+      ),
+    };
   }
 
-  private folders(): SetupCheck {
+  private folders(): Check {
     const folders = this.home.folders.list();
     const base = { id: "folders", kind: "folders" as const, label: "Connected folders" };
     if (!folders.length) {
       return {
         ...base,
         state: "absent",
-        said: "No folder is connected.",
-        todo: "Connect a folder when you want your agents to read its files.",
+        said: w("No folder is connected.", "Kein Ordner ist verbunden."),
+        todo: w(
+          "Connect a folder when you want your agents to read its files.",
+          "Verbinde einen Ordner, wenn deine Wizards seine Dateien lesen sollen.",
+        ),
       };
     }
     const gone = folders.filter((folder) => !existsSync(folder.path));
+    const goneNames = gone.map((folder) => `${folder.name} (${tilde(folder.path)})`).join(", ");
     if (gone.length) {
       return {
         ...base,
         state: "problem",
-        said: `${gone.map((folder) => `${folder.name} (${tilde(folder.path)})`).join(", ")} ${gone.length === 1 ? "is" : "are"} no longer there.`,
-        todo: "Connect it again where it is now, or disconnect it in the settings.",
+        said: w(
+          `${goneNames} ${gone.length === 1 ? "is" : "are"} no longer there.`,
+          `${goneNames} ${gone.length === 1 ? "ist" : "sind"} nicht mehr da.`,
+        ),
+        todo: w(
+          "Connect it again where it is now, or disconnect it in the settings.",
+          "Verbinde ihn dort neu, wo er jetzt ist, oder trenne ihn in den Einstellungen.",
+        ),
       };
     }
     return {
@@ -486,48 +637,65 @@ export class Setup {
       state: "ok",
       said:
         folders.length === 1
-          ? `${folders[0]?.name} is there.`
-          : `All ${folders.length} connected folders are there.`,
+          ? w(`${folders[0]?.name} is there.`, `${folders[0]?.name} ist da.`)
+          : w(
+              `All ${folders.length} connected folders are there.`,
+              `Alle ${folders.length} verbundenen Ordner sind da.`,
+            ),
     };
   }
 
-  private push(): SetupCheck {
+  private push(): Check {
     const base = { id: "push", kind: "push" as const, label: "Notifications" };
     return this.home.notifier.key()
       ? {
           ...base,
           state: "ok",
-          said: "Your phone is notified through Apple, also while the app is closed.",
+          said: w(
+            "Your phone is notified through Apple, also while the app is closed.",
+            "Dein Telefon wird über Apple benachrichtigt, auch wenn die App geschlossen ist.",
+          ),
         }
       : {
           ...base,
           state: "absent",
-          said: "Without an Apple key, your phone is notified only while the app is open.",
-          todo: "Give the Bot Server your Apple key.",
+          said: w(
+            "Without an Apple key, your phone is notified only while the app is open.",
+            "Ohne Apple-Schlüssel wird dein Telefon nur benachrichtigt, solange die App offen ist.",
+          ),
+          todo: w(
+            "Give the Bot Server your Apple key.",
+            "Gib dem Bot Server deinen Apple-Schlüssel.",
+          ),
           command: "wizards-bot push --key AuthKey.p8 --key-id <id> --team-id <id>",
         };
   }
 
-  private capabilities(models: SetupCheck[]): SetupCheck[] {
+  private capabilities(models: SetupCheck[]): Check[] {
     const answering = models.filter((check) => check.state === "ok" || check.state === "warning");
     const labels = (checks: SetupCheck[]) => checks.map((check) => check.label).join(", ");
     const untested = models.some(
       (check) => check.state === "untested" || check.state === "testing",
     );
-    const text: SetupCheck = answering.length
+    const text: Check = answering.length
       ? {
           id: "text",
           kind: "capability",
           label: "Text",
           state: "ok",
-          said: `Your agents write with ${labels(answering)}.`,
+          said: w(
+            `Your agents write with ${labels(answering)}.`,
+            `Deine Wizards schreiben mit ${labels(answering)}.`,
+          ),
         }
       : {
           id: "text",
           kind: "capability",
           label: "Text",
           state: untested ? "untested" : "problem",
-          said: untested ? "Not tested yet." : "No model answers yet.",
+          said: untested
+            ? w("Not tested yet.", "Noch nicht getestet.")
+            : w("No model answers yet.", "Noch antwortet kein Modell."),
         };
     const vision = this.home.models.forPictures();
     const seeing = answering.filter((check) =>
@@ -537,42 +705,65 @@ export class Setup {
           check.id === ACCOUNT.id ||
           this.home.models.gateways().some((g) => g.id === check.id),
     );
-    const pictures: SetupCheck = seeing.length
+    const pictures: Check = seeing.length
       ? {
           id: "pictures",
           kind: "capability",
           label: "Reading pictures",
           state: "ok",
-          said: `${labels(seeing)} ${seeing.length === 1 ? "reads" : "read"} pictures.${
-            vision.here.length ? "" : " A photo of you goes there only after you said yes."
-          }`,
+          said: w(
+            `${labels(seeing)} ${seeing.length === 1 ? "reads" : "read"} pictures.${
+              vision.here.length ? "" : " A photo of you goes there only after you said yes."
+            }`,
+            `${labels(seeing)} ${seeing.length === 1 ? "liest" : "lesen"} Bilder.${
+              vision.here.length
+                ? ""
+                : " Ein Foto von dir geht erst dorthin, wenn du Ja gesagt hast."
+            }`,
+          ),
         }
       : {
           id: "pictures",
           kind: "capability",
           label: "Reading pictures",
           state: "absent",
-          said: "No model that answers here reads pictures.",
-          todo: "Claude, Codex or an Ollama model with vision can, e.g. ollama pull qwen2.5vl:7b.",
+          said: w(
+            "No model that answers here reads pictures.",
+            "Kein Modell, das hier antwortet, liest Bilder.",
+          ),
+          todo: w(
+            "Claude, Codex or an Ollama model with vision can, e.g. ollama pull qwen2.5vl:7b.",
+            "Claude, Codex oder ein Ollama-Modell mit Bildern kann es, z. B. ollama pull qwen2.5vl:7b.",
+          ),
         };
     const phones = this.home.store
       .devices()
       .filter((device) => device.kind === "phone" && device.resources !== undefined);
-    const phone: SetupCheck = phones.length
+    const phoneNames = phones.map((device) => device.name).join(", ");
+    const phone: Check = phones.length
       ? {
           id: "phone",
           kind: "capability",
           label: "Your phone's model",
           state: "ok",
-          said: `${phones.map((device) => device.name).join(", ")} ${phones.length === 1 ? "has" : "have"} a model of its own: it answers while your Bot Server is out of reach.`,
+          said: w(
+            `${phoneNames} ${phones.length === 1 ? "has" : "have"} a model of its own: it answers while your Bot Server is out of reach.`,
+            `${phoneNames} ${phones.length === 1 ? "hat" : "haben"} ein eigenes Modell: Es antwortet, wenn dein Bot Server nicht erreichbar ist.`,
+          ),
         }
       : {
           id: "phone",
           kind: "capability",
           label: "Your phone's model",
           state: "absent",
-          said: "No phone has said it has a model of its own.",
-          todo: "An iPhone with Apple Intelligence does, once you add it.",
+          said: w(
+            "No phone has said it has a model of its own.",
+            "Kein Telefon hat gesagt, dass es ein eigenes Modell hat.",
+          ),
+          todo: w(
+            "An iPhone with Apple Intelligence does, once you add it.",
+            "Ein iPhone mit Apple Intelligence hat eines, sobald du es hinzufügst.",
+          ),
         };
     return [text, pictures, phone];
   }

@@ -7,7 +7,7 @@ import { serve } from "@hono/node-server";
 import type { Event, PairResponse, Setup, SetupCheck } from "@wizards-bot/protocol";
 import qrcode from "qrcode-terminal";
 import { exportData, importData, MIN_PASSPHRASE } from "./backup.ts";
-import { loadConfig, VERSION } from "./config.ts";
+import { isHosted, loadConfig, VERSION } from "./config.ts";
 import { Home } from "./home.ts";
 import { Secrets } from "./identity.ts";
 import { LinkedComputer } from "./link/computer.ts";
@@ -77,8 +77,17 @@ async function start(): Promise<void> {
       ? `Model: ${current}`
       : "No model yet. Start Ollama, or sign in to Claude or Codex on this computer.",
   );
-  if (!home.store.devices().length)
-    console.log("No device yet. Run `wizards-bot pair` to add your phone.");
+  if (!home.store.devices().length) {
+    // A hosted Bot Server's person comes with the setup code from the Manage-App; a code in its
+    // log would let in whoever reads the log.
+    if (isHosted(config)) {
+      console.log("No device yet. Its person opens the setup with the link from wizards.bot.");
+    } else {
+      const code = home.store.newPairingCode();
+      console.log(`No device yet. Open the setup: ${home.address()}/#code=${code}`);
+      console.log("The link works once, for 10 minutes. A new one: wizards-bot pair");
+    }
+  }
   const stop = () => {
     server.close();
     home.close();

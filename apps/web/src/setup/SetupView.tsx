@@ -5,11 +5,12 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { CardView } from "../chat/CardView";
 import { FolderDialog } from "../chat/FolderDialog";
 import { api } from "../lib/api";
-import { andList, t } from "../lib/i18n";
+import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { useFolders, useItems } from "../lib/queries";
 import { Button, cn, Input, Select } from "../ui";
-import { CheckList, Command, labelOf, TestAgain, useTest } from "./Checks";
+import { QrCode } from "../ui/Qr";
+import { CheckList, Command, TestAgain, useTest } from "./Checks";
 import { Frame } from "./Frame";
 import { canGoOn, type Step, stepsOf, testing, testOnOpen } from "./steps";
 
@@ -91,12 +92,25 @@ function GatewayKey({ onProblem }: { onProblem: (text: string) => void }) {
   );
 }
 
-/** The pairing card of the setup: a QR for the wizards.bot app, an address and a code. */
+/** A code to add the phone, shown here only: a QR for the wizards.bot app, the address, the code. */
 function AddPhone({ onProblem }: { onProblem: (text: string) => void }) {
-  const [card, setCard] = useState<Card | null>(null);
+  const [pairing, setPairing] = useState<{ address: string; code: string; link: string } | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
-  if (card) {
-    return <CardView card={card} />;
+  if (pairing) {
+    return (
+      <div className="flex flex-wrap items-center gap-5">
+        <QrCode text={pairing.link} label={t("setup.phone.qr")} />
+        <dl className="min-w-0 text-[0.875rem]">
+          <dt className="text-[0.75rem] text-ink-3">{t("setup.phone.address")}</dt>
+          <dd className="break-all font-mono">{pairing.address}</dd>
+          <dt className="mt-2 text-[0.75rem] text-ink-3">{t("setup.phone.code")}</dt>
+          <dd className="font-mono font-medium text-[1.0625rem] tracking-widest">{pairing.code}</dd>
+          <dd className="mt-2 text-[0.75rem] text-ink-3">{t("setup.phone.once")}</dd>
+        </dl>
+      </div>
+    );
   }
   return (
     <Button
@@ -105,13 +119,12 @@ function AddPhone({ onProblem }: { onProblem: (text: string) => void }) {
       busy={busy}
       onClick={() => {
         setBusy(true);
-        api.post<{ card: Card }>("/v1/setup/pairing", {}).then(
-          (made) => setCard(made.card),
-          (err: Error) => {
+        api
+          .post<{ address: string; code: string; link: string }>("/v1/setup/pairing", {})
+          .then(setPairing, (err: Error) => {
             onProblem(err.message);
             setBusy(false);
-          },
-        );
+          });
       }}
     >
       <Smartphone className="size-4" />
@@ -173,48 +186,13 @@ function LinkCommand({ command }: { command: string }) {
   );
 }
 
-/**
- * What the agents can do, one line for each thing that works, in the language shown. Text is
- * always there, as it gates the chat; pictures and the phone's own model only once they work.
- */
-function abilities(setup: Setup): SetupCheck[] {
-  const answering = setup.models.filter(
-    (check) => check.state === "ok" || check.state === "warning",
-  );
-  const of = (id: string) => setup.capabilities.find((check) => check.id === id);
-  const names = answering.map((check) =>
-    check.id === "wizards" ? t("setup.account.in") : labelOf(check),
-  );
-  const rows: SetupCheck[] = [
-    {
-      id: "text",
-      kind: "capability",
-      label: t("setup.ability.text"),
-      state: answering.length ? "ok" : (of("text")?.state ?? "untested"),
-      said: answering.length
-        ? t("setup.ability.text.ok", { models: andList(names) })
-        : t("setup.ability.text.none"),
-    },
+/** What the wizards can do besides writing, once it works: one quiet line each. */
+function alsoCan(setup: Setup): string[] {
+  const works = (id: string) => setup.capabilities.find((check) => check.id === id)?.state === "ok";
+  return [
+    ...(works("pictures") ? [t("setup.ability.pictures")] : []),
+    ...(works("phone") ? [t("setup.ability.phone")] : []),
   ];
-  if (of("pictures")?.state === "ok") {
-    rows.push({
-      id: "pictures",
-      kind: "capability",
-      label: t("setup.ability.pictures"),
-      state: "ok",
-      said: t("setup.ability.pictures.ok"),
-    });
-  }
-  if (of("phone")?.state === "ok") {
-    rows.push({
-      id: "phone",
-      kind: "capability",
-      label: t("setup.ability.phone"),
-      state: "ok",
-      said: t("setup.ability.phone.ok"),
-    });
-  }
-  return rows;
 }
 
 /**
@@ -233,9 +211,13 @@ export function SetupView({ setup }: { setup: Setup }) {
   const [problem, setProblem] = useState<string | null>(null);
   const test = useTest(setProblem);
   const step = steps[at] ?? "models";
-  // The models that answer or could, here; the rest is under "More options".
-  const models = setup.models.filter((check) => !OPTIONS.includes(check.id) && !notHere(check));
-  const elsewhere = setup.models.filter((check) => !OPTIONS.includes(check.id) && notHere(check));
+  // The models that answer, or could while none does, here; the rest is under "More options",
+  // as a quiet hint: once one model answers, one that does not is no error.
+  const sources = setup.models.filter((check) => !OPTIONS.includes(check.id));
+  const ready = (check: SetupCheck) =>
+    setup.working ? ["ok", "warning", "testing"].includes(check.state) : !notHere(check);
+  const models = sources.filter(ready);
+  const elsewhere = sources.filter((check) => !ready(check));
   const link = setup.models.find((check) => check.id === "link");
   const last = at === steps.length - 1;
 
@@ -320,11 +302,16 @@ export function SetupView({ setup }: { setup: Setup }) {
                   hint={setup.hosted ? undefined : t("setup.models.hint")}
                 >
                   <CheckList checks={models} onTest={(source) => void test(source)} />
+                  {alsoCan(setup).map((line) => (
+                    <p key={line} className="mt-1 text-[0.8125rem] text-ink-3">
+                      {line}
+                    </p>
+                  ))}
                   {setup.hosted ? null : <TestAgain setup={setup} onTest={() => void test()} />}
                 </Part>
                 <More open={models.length === 0}>
                   {elsewhere.length ? (
-                    <CheckList checks={elsewhere} onTest={(source) => void test(source)} />
+                    <CheckList quiet checks={elsewhere} onTest={(source) => void test(source)} />
                   ) : null}
                   <Option title={t("setup.ownKey.title")} hint={t("setup.ownKey.hint")}>
                     <GatewayKey onProblem={setProblem} />
@@ -341,12 +328,6 @@ export function SetupView({ setup }: { setup: Setup }) {
                   </p>
                 )}
               </>
-            ) : null}
-
-            {step === "abilities" ? (
-              <Part title={t("setup.abilities.title")}>
-                <CheckList checks={abilities(setup)} />
-              </Part>
             ) : null}
 
             {step === "devices" ? (

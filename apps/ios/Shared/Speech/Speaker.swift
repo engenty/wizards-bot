@@ -2,12 +2,35 @@ import AVFoundation
 import NaturalLanguage
 import Observation
 
+/// Somewhere else to play the voice: the microphone's own audio engine, whose echo cancellation
+/// then knows the voice and takes it out of what the microphone hears.
+nonisolated protocol SpeechRoute: AnyObject, Sendable {
+    func play(_ buffer: AVAudioPCMBuffer)
+    var isPlaying: Bool { get }
+    /// Called, on any thread, when the last buffer played.
+    var onDrained: @Sendable () -> Void { get set }
+    func stop()
+}
+
 /// Reads sentences aloud, one after the other, with the best voice installed for their language.
 @MainActor @Observable
 final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
     private(set) var isSpeaking = false
-    /// The sentences said or being said in the current run, to tell the voice's own echo from the person.
+    /// The sentences of the current reply said or being said, to tell the voice's own echo from the person.
     private(set) var recent: [String] = []
+    /// When the voice last went quiet.
+    private(set) var quietSince = Date.distantPast
+
+    /// Where the voice plays while the microphone listens. Nil: the synthesizer plays it itself.
+    @ObservationIgnored var route: SpeechRoute? {
+        didSet {
+            stop()
+            route?.onDrained = { [weak self] in Task { @MainActor in self?.drained() } }
+        }
+    }
+    @ObservationIgnored private var unwritten: [AVSpeechUtterance] = []
+    @ObservationIgnored private var writing = false
+    @ObservationIgnored private var generation = 0
 
     @ObservationIgnored private let synthesizer = AVSpeechSynthesizer()
     @ObservationIgnored private var queued = 0
@@ -28,17 +51,56 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
         utterance.voice = voice(for: text)
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
         utterance.postUtteranceDelay = 0.05
-        queued += 1
         isSpeaking = true
-        recent = Array((recent + [text]).suffix(4))
-        synthesizer.speak(utterance)
+        recent = Array((recent + [text]).suffix(40))
+        if route != nil {
+            unwritten.append(utterance)
+            writeNext()
+        } else {
+            queued += 1
+            synthesizer.speak(utterance)
+        }
     }
 
     /// Stops at once and drops what was waiting.
     func stop() {
         guard isSpeaking else { return }
+        generation += 1
         synthesizer.stopSpeaking(at: .immediate)
+        route?.stop()
+        unwritten = []
+        writing = false
         queued = 0
+        settle()
+    }
+
+    /// Turns the next sentence into sound and hands it to the route, one sentence at a time.
+    private func writeNext() {
+        guard !writing, let route else { return }
+        guard !unwritten.isEmpty else {
+            if !route.isPlaying { drained() }
+            return
+        }
+        writing = true
+        let utterance = unwritten.removeFirst()
+        let mine = generation
+        synthesizer.write(utterance) { [weak self, route] buffer in
+            guard let sound = buffer as? AVAudioPCMBuffer else { return }
+            if sound.frameLength == 0 {
+                Task { @MainActor in
+                    guard let self, self.generation == mine else { return }
+                    self.writing = false
+                    self.writeNext()
+                }
+            } else {
+                route.play(sound)
+            }
+        }
+    }
+
+    /// The route played everything it had: quiet once nothing is left to write.
+    private func drained() {
+        guard route != nil, isSpeaking, !writing, unwritten.isEmpty, route?.isPlaying == false else { return }
         settle()
     }
 
@@ -56,6 +118,7 @@ final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
 
     private func settle() {
         isSpeaking = false
+        quietSince = .now
         let waiting = waiters
         waiters = []
         for waiter in waiting { waiter.resume() }
