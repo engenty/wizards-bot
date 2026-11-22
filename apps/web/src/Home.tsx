@@ -26,7 +26,16 @@ import { withConsent } from "./lib/consent";
 import { applyEvent } from "./lib/events";
 import { t } from "./lib/i18n";
 import { keys } from "./lib/keys";
-import { CHAT_MIN, PANE_MIN, sidebar, sidebarFits, split } from "./lib/layout";
+import {
+  CHAT_MIN,
+  PANE_MIN,
+  SIDEBAR,
+  SIDEBAR_MAX,
+  SIDEBAR_MIN,
+  sidebar,
+  sidebarFits,
+  split,
+} from "./lib/layout";
 import { useLingering } from "./lib/motion";
 import { noticesOf, notify } from "./lib/notify";
 import { useAgents, useAvatar, useItems, useSetup } from "./lib/queries";
@@ -85,13 +94,19 @@ function useWidth(ref: React.RefObject<HTMLElement | null>, key: unknown): numbe
  */
 function Divider({
   chat,
+  least = CHAT_MIN,
   most,
+  label = t("split.resize"),
   onChange,
   onReset,
 }: {
+  /** The width of the column at the line's left. */
   chat: number;
-  /** The widest the chat can get. */
+  /** The narrowest it can get. */
+  least?: number;
+  /** The widest it can get. */
   most: number;
+  label?: string;
   onChange: (chat: number) => void;
   onReset: () => void;
 }) {
@@ -104,8 +119,8 @@ function Divider({
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label={t("split.resize")}
-      aria-valuemin={CHAT_MIN}
+      aria-label={label}
+      aria-valuemin={least}
       aria-valuemax={most}
       aria-valuenow={chat}
       tabIndex={0}
@@ -128,7 +143,7 @@ function Divider({
         const to = {
           ArrowLeft: chat - 16,
           ArrowRight: chat + 16,
-          Home: CHAT_MIN,
+          Home: least,
           End: most,
         }[e.key];
         if (to !== undefined) {
@@ -180,6 +195,9 @@ export function Home() {
   // The list of agents: open where the window has room and the person did not close it.
   const windowWidth = useSyncExternalStore(onResize, () => window.innerWidth);
   const [collapsed, setCollapsed] = useStored("wizards.agents.closed", false);
+  // The open list's width, as the person dragged it; the app's own until then.
+  const [listChosen, setListChosen] = useStored<number | null>("wizards.agents.width", null);
+  const listWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, listChosen ?? SIDEBAR));
   const [drawer, setDrawer] = useState(false);
   const pane = Boolean(documentId || artifactId || about);
   const side = sidebar(windowWidth, pane, collapsed);
@@ -334,21 +352,35 @@ export function Home() {
   const paneProps = { over: !beside, leaving: standing.leaving };
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       <div
         className={cn(
           "side-slot h-full shrink-0 overflow-hidden bg-paper",
           side === "none" ? "w-0" : "border-border-soft border-r",
-          side === "open" && "w-72",
           side === "rail" && "w-16",
         )}
+        style={side === "open" ? { width: listWidth } : undefined}
       >
         {side === "open" ? (
-          <div className="h-full w-72">{list(false)}</div>
+          <div className="h-full" style={{ width: listWidth }}>
+            {list(false)}
+          </div>
         ) : side === "rail" ? (
           list(true)
         ) : null}
       </div>
+      {side === "open" ? (
+        <Divider
+          chat={listWidth}
+          least={SIDEBAR_MIN}
+          most={SIDEBAR_MAX}
+          label={t("agents.resize")}
+          onChange={(width) =>
+            setListChosen(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(width))))
+          }
+          onReset={() => setListChosen(null)}
+        />
+      ) : null}
       <SidebarDrawer open={drawer} onClose={() => setDrawer(false)}>
         {side === "open" ? null : list(false)}
       </SidebarDrawer>
