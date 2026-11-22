@@ -57,14 +57,6 @@ nonisolated enum Address {
         code.uppercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
     }
 
-    /// The page that pairs this app with a code: the web app takes the code after the `#`.
-    static func pairingPage(_ home: URL, code: String) -> URL {
-        var parts = URLComponents(url: home, resolvingAgainstBaseURL: false)!
-        parts.path = "/"
-        parts.fragment = "code=\(tidy(code))"
-        return parts.url!
-    }
-
     /// How an address is shown: its host, and the port when it is not the scheme's own.
     static func label(_ home: URL) -> String {
         guard let host = home.host else { return home.absoluteString }

@@ -14,8 +14,8 @@ final class AppModel {
         case connect
         /// The Bot Server it knows does not answer.
         case away(URL, Health.Problem)
-        /// The web app of `home`; `code` pairs this app with it first.
-        case chat(URL, code: String?)
+        /// The web app of `home`; `token` is the device token of a pairing that just happened.
+        case chat(URL, token: String?)
     }
 
     var screen: Screen = .looking
@@ -44,8 +44,14 @@ final class AppModel {
     /// Where the app starts: the Bot Server it knows, or the first screen.
     func begin() async {
         await local.look()
-        // The person may have installed claude or codex since: the Bot Server learns where.
-        if local.isOurs, await local.writeShellPath() { local.restart() }
+        if local.isOurs {
+            // After an update the LaunchAgent still runs the old Node and home: start it anew.
+            // The person may also have installed claude or codex since: the Bot Server learns where.
+            let version = local.bundledVersion
+            let updated = version != UserDefaults.standard.string(forKey: "homeVersion")
+            UserDefaults.standard.set(version, forKey: "homeVersion")
+            if await local.writeShellPath() || updated { local.restart() }
+        }
         guard let home else {
             screen = .first
             return
@@ -69,7 +75,7 @@ final class AppModel {
     func openHere() async {
         let address = LocalHome.address
         if let home, isLocal(home), case .home = await Health.check(address, seconds: 2) {
-            screen = .chat(address, code: nil)
+            screen = .chat(address, token: nil)
             return
         }
         guard let code = await local.pairingCode() else {
@@ -77,7 +83,10 @@ final class AppModel {
             screen = .connect
             return
         }
-        await reach(address, code: code)
+        if let problem = await reach(address, code: code) {
+            local.problem = problem
+            screen = .first
+        }
     }
 
     /// "Use it": the Bot Server that was on this Mac before the app.
@@ -94,19 +103,33 @@ final class AppModel {
         await openHere()
     }
 
-    /// Asks `home` and opens its web app, paired with `code` when one is given.
-    func reach(_ home: URL, code: String?) async {
+    /// Asks `home`, pairs with `code` when one is given, and opens its web app. Returns what
+    /// went wrong with the code, or nil.
+    @discardableResult
+    func reach(_ home: URL, code: String?) async -> String? {
         switch await Health.check(home) {
         case .home:
+            var token: String?
+            if let code {
+                switch await Pair.pair(home, code: code, name: Self.deviceName) {
+                case let .paired(paired): token = paired
+                case .refused: return String(localized: "This code is not valid any more. Ask your Bot Server for a new one.")
+                case let .problem(text): return String(localized: "The Bot Server did not pair this Mac: \(text)")
+                }
+            }
             self.home = home
             linked = nil
-            screen = .chat(home, code: code)
+            screen = .chat(home, token: token)
         case .notHome:
             screen = .away(home, .other(String(localized: "This address answers, but not as a Bot Server.")))
         case let .unreachable(problem):
             screen = .away(home, problem)
         }
+        return nil
     }
+
+    /// The name the Bot Server lists this Mac under.
+    static var deviceName: String { Host.current().localizedName ?? "Mac" }
 
     /// Connects to an address typed in the connect form. Returns what went wrong, or nil.
     func connect(address: String, code: String) async -> String? {
@@ -118,10 +141,7 @@ final class AppModel {
         }
         switch await Health.check(url) {
         case .home:
-            home = url
-            linked = nil
-            screen = .chat(url, code: code)
-            return nil
+            return await reach(url, code: code)
         case .notHome:
             return String(localized: "This address answers, but not as a Bot Server.")
         case let .unreachable(problem):
@@ -135,6 +155,19 @@ final class AppModel {
         linked = (home, code)
         screen = .connect
         NSApp.activate()
+    }
+
+    /// The app's Bot Server instead of the one of `wizards bot install`, on the same data.
+    func takeOver() async {
+        guard await local.takeOver() else { return }
+        UserDefaults.standard.set(local.bundledVersion, forKey: "homeVersion")
+        await openHere()
+    }
+
+    /// Removes the app's Bot Server from this Mac, and forgets it when the app was paired with it.
+    func removeHere(trashData: Bool) async {
+        await local.remove(trashData: trashData)
+        if let home, isLocal(home) { forget() }
     }
 
     /// Forgets the Bot Server and shows the first screen; the Bot Server keeps the device until it

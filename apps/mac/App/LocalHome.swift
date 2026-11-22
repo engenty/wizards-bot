@@ -123,6 +123,48 @@ final class LocalHome {
         try? await service.unregister()
     }
 
+    /// The app takes over the Bot Server of `wizards bot install`, on the person's word: that
+    /// LaunchAgent stops and its plist is set aside (`….plist.off`), the app's own starts on the
+    /// same data. Refused when the app's Bot Server is older than the one that last wrote it.
+    func takeOver() async -> Bool {
+        problem = nil
+        let last = (try? String(contentsOf: LocalPaths.data.appending(path: "version"), encoding: .utf8))?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let last, let mine = bundledVersion, Version.older(mine, than: last) {
+            problem = String(localized: "Your data was last used by Bot Server \(last), and the app carries \(mine). Update the app first.")
+            return false
+        }
+        busy = true
+        step = String(localized: "Stopping the Bot Server of wizards bot install…")
+        Self.launchctl(["bootout", "gui/\(getuid())/\(LocalPaths.installLabel)"])
+        let plist = LocalPaths.installPlist
+        if FileManager.default.fileExists(atPath: plist.path) {
+            let aside = plist.appendingPathExtension("off")
+            try? FileManager.default.removeItem(at: aside)
+            try? FileManager.default.moveItem(at: plist, to: aside)
+        }
+        for _ in 0 ..< 20 {
+            if case .unreachable = await Health.check(Self.address, seconds: 1) { break }
+            try? await Task.sleep(for: .milliseconds(500))
+        }
+        busy = false
+        found = nil
+        return await start()
+    }
+
+    /// Removes the app's Bot Server from this Mac: macOS forgets the LaunchAgent, and the data
+    /// goes to the Trash only when the person chose that.
+    func remove(trashData: Bool) async {
+        busy = true
+        defer { busy = false }
+        try? await service.unregister()
+        try? FileManager.default.removeItem(at: LocalPaths.data.appending(path: "path"))
+        if trashData, FileManager.default.fileExists(atPath: LocalPaths.data.path) {
+            _ = try? await NSWorkspace.shared.recycle([LocalPaths.data])
+        }
+        await look()
+    }
+
     /// Starts the app's Bot Server anew, after an update of the app.
     func restart() {
         guard service.status == .enabled else { return }

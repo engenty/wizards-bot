@@ -26,19 +26,23 @@ final class WebHost: NSObject {
         #endif
     }
 
-    /// Shows `home`'s web app; `code` pairs it first (the web app reads it after the `#`).
-    func show(_ home: URL, code: String?, local: Bool) {
+    /// The token handed to the web app last, so the same pairing is not loaded twice.
+    private var handed: String?
+
+    /// Shows `home`'s web app; `token` is the device token of a pairing the app just made, which
+    /// the web app finds where it keeps its own.
+    func show(_ home: URL, token: String?, local: Bool) {
+        if self.home == home, view.url != nil, token == nil || token == handed { return }
         let user = view.configuration.userContentController
         user.removeAllUserScripts()
         user.addUserScript(WKUserScript(source: Bridge.script(local: local), injectionTime: .atDocumentStart, forMainFrameOnly: true))
-        bridge.local = local
-        if let code {
-            self.home = home
-            view.load(URLRequest(url: Address.pairingPage(home, code: code)))
-        } else if self.home != home || view.url == nil {
-            self.home = home
-            view.load(URLRequest(url: home))
+        if let token {
+            user.addUserScript(WKUserScript(source: Pair.tokenScript(token), injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            handed = token
         }
+        bridge.local = local
+        self.home = home
+        view.load(URLRequest(url: home))
     }
 
     /// Forgets the page and what the web app kept for its address (the device token with it).

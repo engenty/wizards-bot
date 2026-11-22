@@ -14,10 +14,10 @@ struct RootView: View {
                 ConnectView()
             case let .away(home, problem):
                 AwayView(home: home, problem: problem)
-            case let .chat(home, code):
+            case let .chat(home, token):
                 WebView(host: model.web)
-                    .onAppear { model.web.show(home, code: code, local: model.isLocal(home)) }
-                    .onChange(of: model.screen) { model.web.show(home, code: code, local: model.isLocal(home)) }
+                    .onAppear { model.web.show(home, token: token, local: model.isLocal(home)) }
+                    .onChange(of: model.screen) { model.web.show(home, token: token, local: model.isLocal(home)) }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -66,6 +66,7 @@ struct FirstView: View {
                     .textSelection(.enabled)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .padding(40)
         .disabled(model.local.busy)
         .overlay(alignment: .bottom) {

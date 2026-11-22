@@ -19,13 +19,11 @@ struct FoundView: View {
                     Text("The app uses it as it is and starts no second one.")
                         .foregroundStyle(.secondary)
                     Button("Use it") { Task { await model.useFound() } }
-                        .keyboardShortcut(.defaultAction)
                 case .installed:
                     Text("A Bot Server is installed on this Mac, but it does not run.").font(.headline)
                     Text("It came with wizards bot install. The app starts it and uses it.")
                         .foregroundStyle(.secondary)
                     Button("Start it") { Task { await model.useFound() } }
-                        .keyboardShortcut(.defaultAction)
                 case let .portTaken(program):
                     Text("Port 4747 is taken by \(program).").font(.headline)
                     Text("A Bot Server listens on 4747. Quit that program to start one here, or connect to a Bot Server elsewhere.")
@@ -84,6 +82,9 @@ struct MenuBarMenu: View {
 /// Entries of the app's menu.
 struct MenuCommands: View {
     var body: some View {
+        if Updates.shared.available {
+            Button("Check for Updates…") { Updates.shared.check() }
+        }
         Button("Connect to Another Bot Server…") { AppModel.shared.forget() }
         Button("Settings…") { NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) }
             .keyboardShortcut(",")
@@ -93,6 +94,8 @@ struct MenuCommands: View {
 /// The app's settings: its Bot Server on this Mac. Everything else is set up in the conversation.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @State private var removing = false
+    @State private var takingOver = false
 
     var body: some View {
         Form {
@@ -100,18 +103,58 @@ struct SettingsView: View {
                 if model.local.isOurs {
                     LabeledContent("Version", value: model.local.bundledVersion ?? "–")
                     LabeledContent("Data", value: LocalPaths.data.path)
-                    Button("Show the log") {
-                        NSWorkspace.shared.open(LocalPaths.data.appending(path: "logs/home.log"))
+                    HStack {
+                        Button("Show the log") {
+                            NSWorkspace.shared.open(LocalPaths.data.appending(path: "logs/home.log"))
+                        }
+                        Spacer()
+                        Button("Remove from this Mac…", role: .destructive) { removing = true }
+                    }
+                } else if model.local.found == .installed || model.local.found.isInstall {
+                    Text("Your Bot Server came with wizards bot install, and wizards bot update updates it. The app can run it instead, on the same data, and update it with itself.")
+                        .foregroundStyle(.secondary)
+                    if model.local.canStart {
+                        Button("Update the Bot Server with the app…") { takingOver = true }
                     }
                 } else {
                     Text("The app runs no Bot Server on this Mac.")
                         .foregroundStyle(.secondary)
                 }
+                if let problem = model.local.problem {
+                    Text(problem).foregroundStyle(.red)
+                }
+            }
+            if Updates.shared.available {
+                Section("Updates") {
+                    Button("Check for Updates…") { Updates.shared.check() }
+                }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
+        .frame(width: 480)
+        .disabled(model.local.busy)
         .task { await model.local.look() }
+        .confirmationDialog("Remove the Bot Server from this Mac?", isPresented: $removing) {
+            Button("Remove, keep the data") { Task { await model.removeHere(trashData: false) } }
+            Button("Remove, move the data to the Trash", role: .destructive) {
+                Task { await model.removeHere(trashData: true) }
+            }
+        } message: {
+            Text("It stops and no longer starts with your Mac. Your agents, conversations and paired phones are in ~/.wizards-bot; kept there, a Bot Server started later finds them again.")
+        }
+        .confirmationDialog("Let the app run your Bot Server?", isPresented: $takingOver) {
+            Button("Let the app run it") { Task { await model.takeOver() } }
+        } message: {
+            Text("The Bot Server of wizards bot install stops, and the app's starts on the same data. Its LaunchAgent is set aside, not deleted.")
+        }
+    }
+}
+
+private extension LocalHome.Found? {
+    /// A Bot Server of `wizards bot install` that runs.
+    var isInstall: Bool {
+        if case let .runs(_, byInstall) = self { return byInstall }
+        return false
     }
 }
 

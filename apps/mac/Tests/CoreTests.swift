@@ -42,11 +42,6 @@ import Testing
         #expect(Address.pairingLink(URL(string: "https://pair?home=x&code=y")!) == nil)
     }
 
-    @Test func pairingPage() {
-        let page = Address.pairingPage(URL(string: "https://ada.wizards.bot")!, code: "k7qm-2rxd")
-        #expect(page.absoluteString == "https://ada.wizards.bot/#code=K7QM2RXD")
-    }
-
     @Test func label() {
         #expect(Address.label(URL(string: "http://macmini.local:4747")!) == "macmini.local:4747")
         #expect(Address.label(URL(string: "https://ada.wizards.bot")!) == "ada.wizards.bot")
@@ -100,5 +95,29 @@ import Testing
         let output = "Welcome!\n__WIZARDS_PATH__/opt/homebrew/bin:/usr/bin:relative:/usr/bin:/Users/a/.local/bin__WIZARDS_PATH__\n"
         #expect(ShellPath.read(output) == "/opt/homebrew/bin:/usr/bin:/Users/a/.local/bin")
         #expect(ShellPath.read("no marks") == nil)
+    }
+}
+
+@Suite struct PairTests {
+    @Test func aToken() {
+        #expect(Pair.read(status: 200, body: Data(#"{"token":"abc","device":{}}"#.utf8)) == .paired(token: "abc"))
+    }
+
+    @Test func aCodeThatIsNotValid() {
+        #expect(Pair.read(status: 401, body: Data(#"{"error":"unauthorized"}"#.utf8)) == .refused)
+        #expect(Pair.read(status: 500, body: Data(#"{"message":"The Bot Server could not do this."}"#.utf8)) == .problem("The Bot Server could not do this."))
+    }
+
+    @Test func theRequest() throws {
+        let request = Pair.request(URL(string: "http://localhost:4747")!, code: "K7QM-2RXD", name: "Ada's Mac")
+        #expect(request.url?.absoluteString == "http://localhost:4747/v1/pair")
+        let body = try #require(request.httpBody.flatMap { try JSONSerialization.jsonObject(with: $0) as? [String: String] })
+        #expect(body == ["code": "K7QM-2RXD", "name": "Ada's Mac", "kind": "browser"])
+    }
+
+    @Test func theTokenOnce() {
+        let script = Pair.tokenScript("abc\"def")
+        #expect(script.contains(#"localStorage.setItem("wizards.token", "abc\"def")"#))
+        #expect(script.contains("sessionStorage"))
     }
 }

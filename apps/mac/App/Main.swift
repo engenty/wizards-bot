@@ -49,6 +49,7 @@ struct WizardsMacApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Notifier.shared.attach()
+        _ = Updates.shared
         Task { await AppModel.shared.begin() }
     }
 

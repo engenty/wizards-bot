@@ -1,0 +1,799 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "A Bot Server already runs on this Mac.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Mac läuft schon ein Bot Server."
+          }
+        }
+      }
+    },
+    "A Bot Server is installed on this Mac, but it does not run.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Mac ist ein Bot Server installiert, aber er läuft nicht."
+          }
+        }
+      }
+    },
+    "A Bot Server listens on 4747. Quit that program to start one here, or connect to a Bot Server elsewhere.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein Bot Server hört auf 4747. Beende dieses Programm, um hier einen zu starten, oder verbinde dich mit einem Bot Server woanders."
+          }
+        }
+      }
+    },
+    "Address": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse"
+          }
+        }
+      }
+    },
+    "Back": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück"
+          }
+        }
+      }
+    },
+    "Bot Server on this Mac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bot Server auf diesem Mac"
+          }
+        }
+      }
+    },
+    "Bot Server runs on this Mac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bot Server läuft auf diesem Mac"
+          }
+        }
+      }
+    },
+    "Bot Server waits for your approval": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bot Server wartet auf deine Erlaubnis"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abbrechen"
+          }
+        }
+      }
+    },
+    "Check for Updates…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nach Updates suchen …"
+          }
+        }
+      }
+    },
+    "Choose": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auswählen"
+          }
+        }
+      }
+    },
+    "Code": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Code"
+          }
+        }
+      }
+    },
+    "Connect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinden"
+          }
+        }
+      }
+    },
+    "Connect a phone": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telefon verbinden"
+          }
+        }
+      }
+    },
+    "Connect a phone…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Telefon verbinden …"
+          }
+        }
+      }
+    },
+    "Connect to Another Bot Server…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit anderem Bot Server verbinden …"
+          }
+        }
+      }
+    },
+    "Connect to a Bot Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit einem Bot Server verbinden"
+          }
+        }
+      }
+    },
+    "Connect to another Bot Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit anderem Bot Server verbinden"
+          }
+        }
+      }
+    },
+    "Connected to %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbunden mit %@"
+          }
+        }
+      }
+    },
+    "Data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daten"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        }
+      }
+    },
+    "It came with wizards bot install. The app starts it and uses it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er kam mit wizards bot install. Die App startet ihn und verwendet ihn."
+          }
+        }
+      }
+    },
+    "It stops and no longer starts with your Mac. Your agents, conversations and paired phones are in ~/.wizards-bot; kept there, a Bot Server started later finds them again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er hält an und startet nicht mehr mit deinem Mac. Deine Wizards, Gespräche und verbundenen Telefone liegen in ~/.wizards-bot; bleiben sie dort, findet ein später gestarteter Bot Server sie wieder."
+          }
+        }
+      }
+    },
+    "Let the app run it": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von der App betreiben lassen"
+          }
+        }
+      }
+    },
+    "Let the app run your Bot Server?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soll die App deinen Bot Server betreiben?"
+          }
+        }
+      }
+    },
+    "Looking where your programs are…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sucht, wo deine Programme liegen …"
+          }
+        }
+      }
+    },
+    "Not connected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht verbunden"
+          }
+        }
+      }
+    },
+    "Nothing answers at this address. Is the Bot Server running?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unter dieser Adresse antwortet nichts. Läuft der Bot Server?"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "One that runs on another computer, or yours at wizards.bot.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einer auf einem anderen Computer, oder deiner auf wizards.bot."
+          }
+        }
+      }
+    },
+    "Open wizards.bot": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wizards.bot öffnen"
+          }
+        }
+      }
+    },
+    "Port 4747 is taken by %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port 4747 ist von %@ belegt."
+          }
+        }
+      }
+    },
+    "Port 4747 is taken by %@. The app starts no Bot Server beside it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port 4747 ist von %@ belegt. Die App startet keinen Bot Server daneben."
+          }
+        }
+      }
+    },
+    "Quit wizards.bot": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "wizards.bot beenden"
+          }
+        }
+      }
+    },
+    "Remove from this Mac…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von diesem Mac entfernen …"
+          }
+        }
+      }
+    },
+    "Remove the Bot Server from this Mac?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bot Server von diesem Mac entfernen?"
+          }
+        }
+      }
+    },
+    "Remove, keep the data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen, Daten behalten"
+          }
+        }
+      }
+    },
+    "Remove, move the data to the Trash": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen, Daten in den Papierkorb"
+          }
+        }
+      }
+    },
+    "Scan it with the camera of your iPhone, or type the address and the code into the app.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanne ihn mit der Kamera deines iPhones, oder tippe Adresse und Code in die App."
+          }
+        }
+      }
+    },
+    "Settings…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einstellungen …"
+          }
+        }
+      }
+    },
+    "Show the log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protokoll zeigen"
+          }
+        }
+      }
+    },
+    "Start Bot Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bot Server starten"
+          }
+        }
+      }
+    },
+    "Start it": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starten"
+          }
+        }
+      }
+    },
+    "Start on this Mac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Mac starten"
+          }
+        }
+      }
+    },
+    "Starting your Bot Server…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Bot Server startet …"
+          }
+        }
+      }
+    },
+    "Stop Bot Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bot Server anhalten"
+          }
+        }
+      }
+    },
+    "Stopping the Bot Server of wizards bot install…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server von wizards bot install hält an …"
+          }
+        }
+      }
+    },
+    "That Bot Server did not start. wizards bot status in a terminal says why.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Bot Server ist nicht gestartet. wizards bot status im Terminal sagt, warum."
+          }
+        }
+      }
+    },
+    "That is not an address. It looks like ada.wizards.bot or macmini.local.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das ist keine Adresse. Sie sieht aus wie ada.wizards.bot oder macmini.local."
+          }
+        }
+      }
+    },
+    "The Bot Server did not answer within 10 seconds.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server hat in 10 Sekunden nicht geantwortet."
+          }
+        }
+      }
+    },
+    "The Bot Server did not pair this Mac: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server hat diesen Mac nicht verbunden: %@"
+          }
+        }
+      }
+    },
+    "The Bot Server did not start. What it said is in ~/.wizards-bot/logs/home.log.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server ist nicht gestartet. Was er gesagt hat, steht in ~/.wizards-bot/logs/home.log."
+          }
+        }
+      }
+    },
+    "The Bot Server made no code. Is it running?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server hat keinen Code erstellt. Läuft er?"
+          }
+        }
+      }
+    },
+    "The Bot Server of wizards bot install stops, and the app's starts on the same data. Its LaunchAgent is set aside, not deleted.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server von wizards bot install hält an, und der der App startet mit denselben Daten. Sein LaunchAgent wird beiseitegelegt, nicht gelöscht."
+          }
+        }
+      }
+    },
+    "The address's certificate is not valid, so the app does not trust it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Zertifikat der Adresse ist nicht gültig, deshalb vertraut die App ihr nicht."
+          }
+        }
+      }
+    },
+    "The app runs no Bot Server on this Mac.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App betreibt auf diesem Mac keinen Bot Server."
+          }
+        }
+      }
+    },
+    "The app runs your Bot Server on this Mac and keeps it running. You need no terminal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App betreibt deinen Bot Server auf diesem Mac und hält ihn am Laufen. Du brauchst kein Terminal."
+          }
+        }
+      }
+    },
+    "The app uses it as it is and starts no second one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die App verwendet ihn, wie er ist, und startet keinen zweiten."
+          }
+        }
+      }
+    },
+    "The code is missing. Your Bot Server shows it with its QR.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Code fehlt. Dein Bot Server zeigt ihn mit seinem QR."
+          }
+        }
+      }
+    },
+    "The code works once, for 10 minutes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Code gilt einmal, 10 Minuten lang."
+          }
+        }
+      }
+    },
+    "There is no such address. Check how it is written.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Adresse gibt es nicht. Prüfe, wie sie geschrieben ist."
+          }
+        }
+      }
+    },
+    "This Mac is not connected to the internet.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Mac ist nicht mit dem Internet verbunden."
+          }
+        }
+      }
+    },
+    "This address answers, but not as a Bot Server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Adresse antwortet, aber nicht als Bot Server."
+          }
+        }
+      }
+    },
+    "This build of the app carries no Bot Server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Version der App bringt keinen Bot Server mit."
+          }
+        }
+      }
+    },
+    "This code is not valid any more. Ask your Bot Server for a new one.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Code gilt nicht mehr. Frag deinen Bot Server nach einem neuen."
+          }
+        }
+      }
+    },
+    "Try again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut versuchen"
+          }
+        }
+      }
+    },
+    "Update the Bot Server with the app…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bot Server mit der App aktualisieren …"
+          }
+        }
+      }
+    },
+    "Updates": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updates"
+          }
+        }
+      }
+    },
+    "Use it": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwenden"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        }
+      }
+    },
+    "Which folder should your agents use?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welchen Ordner sollen deine Wizards verwenden?"
+          }
+        }
+      }
+    },
+    "Your Bot Server at %@ does not answer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Bot Server unter %@ antwortet nicht."
+          }
+        }
+      }
+    },
+    "Your Bot Server came with wizards bot install, and wizards bot update updates it. The app can run it instead, on the same data, and update it with itself.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Bot Server kam mit wizards bot install, und wizards bot update aktualisiert ihn. Die App kann ihn stattdessen betreiben, mit denselben Daten, und mit sich selbst aktualisieren."
+          }
+        }
+      }
+    },
+    "Your Bot Server shows its address and a code with its QR: in its setup, or with wizards-bot pair in a terminal.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Bot Server zeigt seine Adresse und einen Code mit seinem QR: in seiner Einrichtung, oder mit wizards-bot pair im Terminal."
+          }
+        }
+      }
+    },
+    "Your data was last used by Bot Server %@, and the app carries %@. Update the app first.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Daten hat zuletzt Bot Server %1$@ verwendet, und die App bringt %2$@ mit. Aktualisiere zuerst die App."
+          }
+        }
+      }
+    },
+    "Your own agents, on your own Bot Server.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine eigenen Wizards, auf deinem eigenen Bot Server."
+          }
+        }
+      }
+    },
+    "another program": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "einem anderen Programm"
+          }
+        }
+      }
+    },
+    "macOS asks you to allow the Bot Server: turn on wizards in Login Items, then start it again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS fragt nach deiner Erlaubnis für den Bot Server: Schalte wizards unter Anmeldeobjekte ein und starte ihn dann erneut."
+          }
+        }
+      }
+    },
+    "macOS did not start the Bot Server: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat den Bot Server nicht gestartet: %@"
+          }
+        }
+      }
+    },
+    "wizards.bot": {
+      "shouldTranslate": false
+    }
+  },
+  "version": "1.0"
+}
