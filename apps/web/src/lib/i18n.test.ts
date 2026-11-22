@@ -24,12 +24,8 @@ const RULES: Record<"en" | "de", [string, RegExp][]> = {
     ["exclamation mark", /!/],
     ["please", /\bplease\b/i],
     ["glossary: log in → sign in", /\blog ?in\b/i],
-    // "bot" only as a word of its own: the product's name has it too, wizards.bot and the
-    // command wizards-bot. "Bot Server" is the copy word for the home (AGENTS.md).
-    [
-      "words: server, bot, assistant, widget, inbox",
-      /\b(server|assistant|widget|inbox)\b|(?<!wizards[.-])\bbot\b/i,
-    ],
+    // "Bot" is the copy word for an agent in the list and a new one, "Bot Server" for the home.
+    ["words: server, assistant, widget, inbox", /\b(server|assistant|widget|inbox)\b/i],
   ],
   de: [
     ["Geviertstrich: – verwenden", /—/],
@@ -43,7 +39,7 @@ const RULES: Record<"en" | "de", [string, RegExp][]> = {
     ["Ausrufezeichen", /!/],
     ["bitte", /\bbitte\b/i],
     ["Glossar: schreibgeschützt / synchronisiert", /schreibgeschützt|synchronisiert/i],
-    ["Wörter: Server, Bot, Assistent, Widget", /\b(Server|Bot|Assistent|Widget)\b/],
+    ["Wörter: Server, Assistent, Widget", /\b(Server|Assistent|Widget)\b/],
   ],
 };
 

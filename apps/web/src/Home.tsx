@@ -17,6 +17,7 @@ import { ConsentDialog } from "./chat/ConsentDialog";
 import { DocumentPane } from "./chat/DocumentPane";
 import { FolderDialog } from "./chat/FolderDialog";
 import { ItemsDialog } from "./chat/ItemsDialog";
+import { NewBotDialog } from "./chat/NewBotDialog";
 import { SearchDialog } from "./chat/SearchDialog";
 import { type Asker, SettingsDialog } from "./chat/SettingsDialog";
 import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
@@ -50,7 +51,7 @@ import { cn } from "./ui";
 const AGENT_KEY = "wizards.agent";
 
 /** The dialog that is open over the chat. */
-type Open = "settings" | "items" | "folder" | "avatar" | "search";
+type Open = "settings" | "items" | "folder" | "avatar" | "search" | "new";
 
 /** The agent whose chat was open last, kept per browser. */
 function lastAgent(): string | null {
@@ -366,6 +367,10 @@ export function Home() {
         setDrawer(false);
         setDialog("search");
       }}
+      onNew={() => {
+        setDrawer(false);
+        setDialog("new");
+      }}
       onSettings={settings}
       onAvatar={() => {
         setDrawer(false);
@@ -385,9 +390,14 @@ export function Home() {
           "side-slot h-full shrink-0 overflow-hidden bg-paper",
           side === "none" ? "w-0" : "border-border-soft border-r",
           side === "rail" && "w-16",
-          resizingList && "transition-none",
         )}
-        style={side === "open" ? { width: listWidth } : undefined}
+        // While the edge is dragged the list follows the pointer at once: the slot's easing
+        // (app.css, outside Tailwind's layers) is switched off right on the element.
+        style={
+          side === "open"
+            ? { width: listWidth, ...(resizingList ? { transition: "none" } : {}) }
+            : undefined
+        }
       >
         {side === "open" ? (
           <div className="h-full" style={{ width: listWidth }}>
@@ -495,6 +505,7 @@ export function Home() {
           </div>
         ) : null}
       </div>
+      <NewBotDialog open={dialog === "new"} onClose={() => setDialog(null)} asker={asker} />
       <SearchDialog
         open={dialog === "search"}
         onClose={() => setDialog(null)}
