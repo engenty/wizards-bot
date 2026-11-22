@@ -182,6 +182,14 @@ Rules for a device that draws messages:
 - An `artifact` part is a row that opens the artifact the same way.
 - An answered card stays in the chat with its title and the chosen action.
 
+## Search
+
+`GET /v1/search?q=<words>` → `{ "hits": SearchHit[] }`: Wizards by name and about, the text of
+messages in the person's own conversations, documents and artifacts by title and content, each
+hit with its `kind`, its `id`, the Wizard it belongs to (`agentId`), a `title`, a `snippet` and
+`at`. Fewer than two letters find nothing. A conversation someone else has with an agent (a
+guest's, a caller's, a room's turn) is never searched.
+
 ## Cards and what needs you
 
 A card is the inline UI of the chat. The device draws it from its data: `title`, `body`,

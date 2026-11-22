@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Agent, Event, Message } from "@wizards-bot/protocol";
+import type { Agent, Event, Message, SearchHit } from "@wizards-bot/protocol";
 import {
   useCallback,
   useEffect,
@@ -17,6 +17,7 @@ import { ConsentDialog } from "./chat/ConsentDialog";
 import { DocumentPane } from "./chat/DocumentPane";
 import { FolderDialog } from "./chat/FolderDialog";
 import { ItemsDialog } from "./chat/ItemsDialog";
+import { SearchDialog } from "./chat/SearchDialog";
 import { type Asker, SettingsDialog } from "./chat/SettingsDialog";
 import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
 import { Engenty } from "./engenty/Engenty";
@@ -40,7 +41,7 @@ import { cn } from "./ui";
 const AGENT_KEY = "wizards.agent";
 
 /** The dialog that is open over the chat. */
-type Open = "settings" | "items" | "folder" | "avatar";
+type Open = "settings" | "items" | "folder" | "avatar" | "search";
 
 /** The agent whose chat was open last, kept per browser. */
 function lastAgent(): string | null {
@@ -182,6 +183,17 @@ export function Home() {
   const [drawer, setDrawer] = useState(false);
   const pane = Boolean(documentId || artifactId || about);
   const side = sidebar(windowWidth, pane, collapsed);
+  // ⌘K (Ctrl+K) opens the search, wherever the focus is.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !(e.shiftKey || e.altKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setDialog((open) => (open === "search" ? null : "search"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     if (side === "open") {
       setDrawer(false);
@@ -298,14 +310,17 @@ export function Home() {
   };
   // Where the list fits, it opens beside the chat and stays; where not, over the chat.
   const openList = () => (sidebarFits(windowWidth, pane) ? setCollapsed(false) : setDrawer(true));
-  const list = (rail: boolean, onToggle: () => void) => (
+  const list = (rail: boolean) => (
     <Sidebar
       agents={agents.data ?? []}
       current={agent}
       avatar={avatar.data ?? null}
       rail={rail}
       onPick={pick}
-      onToggle={onToggle}
+      onSearch={() => {
+        setDrawer(false);
+        setDialog("search");
+      }}
       onSettings={settings}
       onAvatar={() => {
         setDrawer(false);
@@ -329,13 +344,13 @@ export function Home() {
         )}
       >
         {side === "open" ? (
-          <div className="h-full w-72">{list(false, () => setCollapsed(true))}</div>
+          <div className="h-full w-72">{list(false)}</div>
         ) : side === "rail" ? (
-          list(true, openList)
+          list(true)
         ) : null}
       </div>
       <SidebarDrawer open={drawer} onClose={() => setDrawer(false)}>
-        {side === "open" ? null : list(false, () => setDrawer(false))}
+        {side === "open" ? null : list(false)}
       </SidebarDrawer>
       <div ref={main} className="relative flex h-full min-w-0 flex-1">
         <div className="h-full min-w-0 flex-1">
@@ -345,6 +360,7 @@ export function Home() {
             link={link}
             onAgents={side === "none" ? () => setDrawer(true) : undefined}
             onList={side === "rail" ? openList : undefined}
+            onHideList={side === "open" ? () => setCollapsed(true) : undefined}
             onAgent={() => {
               setDocumentId(null);
               setArtifactId(null);
@@ -418,6 +434,18 @@ export function Home() {
           </div>
         ) : null}
       </div>
+      <SearchDialog
+        open={dialog === "search"}
+        onClose={() => setDialog(null)}
+        agents={agents.data ?? []}
+        asker={asker}
+        onOpen={(hit: SearchHit) => {
+          const found = (agents.data ?? []).find((a) => a.id === hit.agentId);
+          if (found) pick(found);
+          if (hit.kind === "document") setDocumentId(hit.id);
+          if (hit.kind === "artifact") setArtifactId(hit.id);
+        }}
+      />
       <SettingsDialog
         open={dialog === "settings"}
         onFolder={() => {
