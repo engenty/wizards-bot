@@ -303,6 +303,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   app.get("/v1/agents", (c) => c.json({ agents: store.agents().map(publicAgent) }));
 
+  app.get("/v1/search", (c) => c.json({ hits: store.search(c.req.query("q") ?? "") }));
+
   app.get("/v1/agents/:id", (c) => {
     const agent = store.agent(c.req.param("id"));
     if (!agent) return c.json({ error: "not_found" }, 404);

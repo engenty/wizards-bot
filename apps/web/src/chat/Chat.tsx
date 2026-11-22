@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { Agent, Card, FileRef, Message } from "@wizards-bot/protocol";
-import { ChevronLeft, FolderPlus, House, PanelLeft, Paperclip } from "lucide-react";
+import { ChevronLeft, FolderPlus, House, PanelLeft, PanelLeftClose, Paperclip } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { withConsent } from "../lib/consent";
@@ -40,6 +40,7 @@ export function Chat({
   link,
   onAgents,
   onList,
+  onHideList,
   onAgent,
   unread,
   onItems,
@@ -55,6 +56,8 @@ export function Chat({
   onAgents?: () => void;
   /** Opens the list of agents from its narrow column of figures. */
   onList?: () => void;
+  /** Narrows the open list of agents to its column of figures. */
+  onHideList?: () => void;
   /** Opens what there is to know about the agent. */
   onAgent: () => void;
   /** Whether another agent wrote something the person has not read. */
@@ -142,14 +145,18 @@ export function Chat({
           {t("chat.drop")}
         </div>
       ) : null}
-      {onList ? (
-        // At the chat's left edge, beside the column of figures, where the list opens.
+      {onList || onHideList ? (
+        // At the chat's left edge, beside the list: it opens and narrows the list from here.
         <IconButton
-          label={t("agents.show")}
-          onClick={onList}
+          label={t(onList ? "agents.show" : "agents.hide")}
+          onClick={onList ?? onHideList}
           className="absolute top-2.5 left-2 z-10"
         >
-          <PanelLeft className="size-[1.125rem]" />
+          {onList ? (
+            <PanelLeft className="size-[1.125rem]" />
+          ) : (
+            <PanelLeftClose className="size-[1.125rem]" />
+          )}
         </IconButton>
       ) : null}
       {/* Three parts, as in the iOS app: the way back at the left, the Wizard in the middle,

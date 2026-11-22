@@ -194,7 +194,7 @@ export function Dialog({
   title?: ReactNode;
   children: ReactNode;
   /** `"full"`: nearly the whole window, for a file to look at. `"settings"`: room for two columns. */
-  wide?: "full" | "settings";
+  wide?: "full" | "settings" | "palette";
   /**
    * The children are the panel: the dialog itself draws no card, clips nothing and fills the
    * screen of a phone.
@@ -259,7 +259,9 @@ export function Dialog({
           ? "sm:max-w-7xl"
           : wide === "settings"
             ? "sm:h-[min(36rem,calc(100dvh-32px))] sm:max-w-3xl sm:overflow-hidden"
-            : "sm:max-w-md",
+            : wide === "palette"
+              ? "sm:max-w-2xl"
+              : "sm:max-w-md",
       )}
     >
       {shown && bare ? (

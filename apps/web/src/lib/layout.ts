@@ -3,6 +3,9 @@
 
 /** The list of agents, open. */
 export const SIDEBAR = 288;
+/** The narrowest and the widest the person can make the open list. */
+export const SIDEBAR_MIN = 224;
+export const SIDEBAR_MAX = 420;
 /** The list of agents as a column of figures. */
 const RAIL = 64;
 /** Below this width of the window there is no column for the agents: the list opens over the chat. */

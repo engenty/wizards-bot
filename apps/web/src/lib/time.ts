@@ -1,19 +1,49 @@
+/** The words of `when`, very short, in the two languages the app speaks. */
+const AGO = {
+  en: {
+    now: "now",
+    minutes: (n: number) => `${n} min ago`,
+    hours: (n: number) => `${n} h ago`,
+    yesterday: "yesterday",
+    days: (n: number) => `${n} d ago`,
+  },
+  de: {
+    now: "jetzt",
+    minutes: (n: number) => `vor ${n} min`,
+    hours: (n: number) => `vor ${n} h`,
+    yesterday: "gestern",
+    days: (n: number) => `vor ${n} T`,
+  },
+};
+
 /**
- * When a conversation last changed, as short as a list wants it: the time today, the weekday
- * within a week, the date before that. "" for a time that cannot be read.
+ * When a conversation last changed, as short as a list wants it: "jetzt", "vor 3 min",
+ * "vor 2 h", "gestern", "vor 3 T" within a week, the date before that. "" for a time that
+ * cannot be read.
  */
 export function when(iso: string, now: Date, lang: string): string {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) {
     return "";
   }
+  const words = lang.startsWith("de") ? AGO.de : AGO.en;
+  const minutes = Math.floor((now.getTime() - at.getTime()) / 60_000);
+  if (minutes < 1) {
+    return words.now;
+  }
+  if (minutes < 60) {
+    return words.minutes(minutes);
+  }
   const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((day(now) - day(at)) / 86_400_000);
   if (days <= 0) {
-    return at.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+    return words.hours(Math.floor(minutes / 60));
+  }
+  if (days === 1) {
+    return words.yesterday;
   }
   if (days < 7) {
-    return at.toLocaleDateString(lang, { weekday: "short" });
+    return words.days(days);
   }
   return at.toLocaleDateString(lang, {
     day: "numeric",

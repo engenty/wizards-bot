@@ -1,7 +1,7 @@
 import { DEFAULT_AVATAR } from "@wizards-bot/avatar";
 import type { Agent, Avatar } from "@wizards-bot/protocol";
-import { LogOut, PanelLeftClose, Settings, Smile } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { LogOut, Search, Settings, Smile } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { lang, t } from "../lib/i18n";
 import { useHome } from "../lib/queries";
 import { when } from "../lib/time";
@@ -69,7 +69,8 @@ function Count({ n, label, needs }: { n: number; label: string; needs: boolean }
 /** An agent in the open list: figure, name and time, and one line of what was said last. */
 function Row({ agent, current, onPick }: { agent: Agent; current: boolean; onPick: () => void }) {
   const waiting = waitingAt(agent, current);
-  const time = agent.preview ? when(agent.updatedAt, new Date(), lang) : "";
+  const now = useMinute();
+  const time = agent.preview ? when(agent.updatedAt, now, lang) : "";
   return (
     <li>
       <button
@@ -161,7 +162,7 @@ export function Sidebar({
   avatar,
   rail,
   onPick,
-  onToggle,
+  onSearch,
   onSettings,
   onAvatar,
   onSignOut,
@@ -172,8 +173,8 @@ export function Sidebar({
   avatar: Avatar | null;
   rail?: boolean;
   onPick: (agent: Agent) => void;
-  /** Opens the list from the narrow column, closes it from the open list. */
-  onToggle: () => void;
+  /** Opens the search (⌘K). */
+  onSearch: () => void;
   onSettings: () => void;
   onAvatar: () => void;
   onSignOut: () => void;
@@ -227,6 +228,9 @@ export function Sidebar({
         >
           {you}
         </Menu>
+        <IconButton label={`${t("search.label")} (⌘K)`} onClick={onSearch}>
+          <Search className="size-[1.125rem]" />
+        </IconButton>
         <ul className="mt-1 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
           {listed.map((agent) => (
             <Figure
@@ -249,16 +253,16 @@ export function Sidebar({
       <div className="flex items-center gap-1 pr-2 pb-1 pl-2">
         <Menu
           {...userMenu}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-accent/60"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1 text-left transition hover:bg-accent/60"
         >
-          <span className="flex w-10 shrink-0 justify-center">{you}</span>
+          <span className="flex shrink-0 justify-center">{you}</span>
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate font-medium text-[0.9375rem]">{home.data?.name}</span>
             <span className="truncate text-[0.8125rem] text-ink-3">{where}</span>
           </span>
         </Menu>
-        <IconButton label={t("agents.hide")} onClick={onToggle}>
-          <PanelLeftClose className="size-[1.125rem]" />
+        <IconButton label={`${t("search.label")} (⌘K)`} onClick={onSearch}>
+          <Search className="size-[1.125rem]" />
         </IconButton>
       </div>
       <h2 className="px-4 pt-2 pb-1 font-medium text-[0.75rem] text-ink-3 uppercase tracking-wide">
@@ -314,4 +318,14 @@ export function SidebarDrawer({
       {children}
     </dialog>
   );
+}
+
+/** The time, renewed every minute, so "vor 3 min" counts on. */
+function useMinute(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
 }

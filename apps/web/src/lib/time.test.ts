@@ -3,15 +3,20 @@ import { elapsed, when } from "./time";
 
 describe("when a conversation last changed", () => {
   const now = new Date(2026, 10, 21, 15, 0);
-  const at = (...date: [number, number, number, number, number]) => new Date(...date).toISOString();
+  const at = (...date: [number, number, number, number, number, number?]) =>
+    new Date(date[0], date[1], date[2], date[3], date[4], date[5] ?? 0).toISOString();
 
-  it("is the time today", () => {
-    expect(when(at(2026, 10, 21, 9, 5), now, "en-GB")).toBe("09:05");
+  it("is how long ago, very short, within a day", () => {
+    expect(when(at(2026, 10, 21, 14, 59, 30), now, "de")).toBe("jetzt");
+    expect(when(at(2026, 10, 21, 14, 57), now, "de")).toBe("vor 3 min");
+    expect(when(at(2026, 10, 21, 14, 57), now, "en-GB")).toBe("3 min ago");
+    expect(when(at(2026, 10, 21, 12, 30), now, "de")).toBe("vor 2 h");
   });
 
-  it("is the weekday within a week", () => {
-    expect(when(at(2026, 10, 20, 23, 50), now, "en-GB")).toBe("Fri");
-    expect(when(at(2026, 10, 15, 8, 0), now, "de")).toBe("So");
+  it("is yesterday, then days, within a week", () => {
+    expect(when(at(2026, 10, 20, 23, 50), now, "de")).toBe("gestern");
+    expect(when(at(2026, 10, 18, 8, 0), now, "de")).toBe("vor 3 T");
+    expect(when(at(2026, 10, 18, 8, 0), now, "en-GB")).toBe("3 d ago");
   });
 
   it("is the date before that, with the year when it is another one", () => {
