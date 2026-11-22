@@ -1,7 +1,7 @@
 // From engenty wizards: the theme switch (apps/web/src/studio/ThemeSwitch.tsx) and the language
 // switch and legal links of its account pages (engenty-wizards-manage, apps/web/src/brand.tsx and
 // pages/legal.tsx).
-import { Check, Moon, Palette, Sun } from "lucide-react";
+import { Check, ChevronDown, Moon, Palette, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PrivacyDialog } from "../chat/ConsentDialog";
 import { Engenty } from "../engenty/Engenty";
@@ -71,8 +71,8 @@ export function GroundPick({ onPick }: { onPick?: () => void }) {
 }
 
 /**
- * Light · branded · dark: a thumb slides to the pick. The branded button, pressed again, opens the
- * colours of the branded theme.
+ * Light · branded · dark: a thumb slides to the pick. The branded button opens a small menu of
+ * its colours, and picks the branded theme as well.
  */
 export function ThemeSwitch() {
   const shown = useThemeMode();
@@ -109,13 +109,16 @@ export function ThemeSwitch() {
             type="button"
             aria-label={t(label)}
             aria-pressed={mode === shown}
+            aria-haspopup={mode === "branded" ? "true" : undefined}
             aria-expanded={mode === "branded" ? colours : undefined}
-            title={mode === "branded" && shown === "branded" ? t("theme.groundOpen") : t(label)}
+            title={mode === "branded" ? t("theme.groundOpen") : t(label)}
             onClick={() => {
-              if (mode === "branded" && shown === "branded") {
+              if (mode === "branded") {
+                if (shown !== "branded") setTheme(mode);
                 setColours((open) => !open);
                 return;
               }
+              setColours(false);
               setTheme(mode);
             }}
             className={cn(
@@ -123,12 +126,19 @@ export function ThemeSwitch() {
               mode === shown ? "text-ink" : "text-ink-3 hover:text-ink-2",
             )}
           >
-            <Icon className="size-3.5" />
+            {mode === "branded" ? (
+              <span className="flex items-center gap-px">
+                <Icon className="size-3.5" />
+                <ChevronDown className="size-2.5" strokeWidth={2.5} />
+              </span>
+            ) : (
+              <Icon className="size-3.5" />
+            )}
           </button>
         ))}
       </fieldset>
       {colours ? (
-        <div className="absolute top-full right-0 z-50 mt-2 w-max rounded-xl bg-card p-2.5 shadow-overlay ring-1 ring-border-soft">
+        <div className="absolute top-full left-1/2 z-50 mt-2 w-max -translate-x-1/2 rounded-xl bg-card p-2 shadow-overlay ring-1 ring-border-soft">
           <GroundPick onPick={() => setColours(false)} />
         </div>
       ) : null}
