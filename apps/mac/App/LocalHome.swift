@@ -19,7 +19,7 @@ final class LocalHome {
     static let address = URL(string: "http://localhost:\(Address.port)")!
 
     private(set) var found: Found?
-    /// Data of an earlier Bot Server is in `~/.wizards-bot`: starting here uses it.
+    /// Data of an earlier Bot Server is in the data folder: starting here uses it.
     private(set) var hasData = false
     var busy = false
     var step = ""
@@ -38,7 +38,7 @@ final class LocalHome {
     var bundledVersion: String? { LocalPaths.version(in: .main) }
 
     /// Looks at the Mac: the app's own Bot Server, one of `wizards bot install`, one by hand,
-    /// another program on 4747, data in `~/.wizards-bot`.
+    /// another program on 4747, data in the data folder.
     func look() async {
         hasData = FileManager.default.fileExists(atPath: LocalPaths.data.appending(path: "home.db").path)
         let byInstall = FileManager.default.fileExists(atPath: LocalPaths.installPlist.path)
@@ -91,11 +91,11 @@ final class LocalHome {
             }
             try? await Task.sleep(for: .milliseconds(500))
         }
-        problem = String(localized: "The Bot Server did not start. What it said is in ~/.wizards-bot/logs/home.log.")
+        problem = String(localized: "The Bot Server did not start. What it said is in \(LocalPaths.dataShown)/logs/home.log.")
         return false
     }
 
-    /// Writes the folders of the person's login shell into `~/.wizards-bot/path`, where the
+    /// Writes the folders of the person's login shell into the data folder's `path`, where the
     /// Bot Server looks for `claude`, `codex` and `ollama`: launchd gives it only the system's.
     /// Returns whether they changed.
     @discardableResult

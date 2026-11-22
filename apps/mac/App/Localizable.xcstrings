@@ -221,12 +221,12 @@
         }
       }
     },
-    "It stops and no longer starts with your Mac. Your agents, conversations and paired phones are in ~/.wizards-bot; kept there, a Bot Server started later finds them again.": {
+    "It stops and no longer starts with your Mac. Your agents, conversations and paired phones are in %@; kept there, a Bot Server started later finds them again.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Er hält an und startet nicht mehr mit deinem Mac. Deine Wizards, Gespräche und verbundenen Telefone liegen in ~/.wizards-bot; bleiben sie dort, findet ein später gestarteter Bot Server sie wieder."
+            "value": "Er hält an und startet nicht mehr mit deinem Mac. Deine Wizards, Gespräche und verbundenen Telefone liegen in %@; bleiben sie dort, findet ein später gestarteter Bot Server sie wieder."
           }
         }
       }
@@ -511,12 +511,12 @@
         }
       }
     },
-    "The Bot Server did not start. What it said is in ~/.wizards-bot/logs/home.log.": {
+    "The Bot Server did not start. What it said is in %@/logs/home.log.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Bot Server ist nicht gestartet. Was er gesagt hat, steht in ~/.wizards-bot/logs/home.log."
+            "value": "Der Bot Server ist nicht gestartet. Was er gesagt hat, steht in %@/logs/home.log."
           }
         }
       }

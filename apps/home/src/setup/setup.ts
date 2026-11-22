@@ -635,8 +635,8 @@ export class Setup {
           `Dein Bot Server legt seine Daten in einem temporären Ordner ab (${dir}). Der Computer leert ihn vielleicht.`,
         ),
         todo: w(
-          "Start the Bot Server with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.wizards-bot.",
-          "Starte den Bot Server mit WIZARDS_BOT_DATA auf einem Ordner, der bleibt, etwa ~/.wizards-bot.",
+          "Start the Bot Server with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.engenty/wizards-bot.",
+          "Starte den Bot Server mit WIZARDS_BOT_DATA auf einem Ordner, der bleibt, etwa ~/.engenty/wizards-bot.",
         ),
       };
     }

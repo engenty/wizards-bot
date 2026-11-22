@@ -5,12 +5,13 @@ window shows the Bot Server's web app (`apps/web`) in a web view; the app around
 it does and why is in `docs/mac-app.md`.
 
 - **Connect to a Bot Server**: its address and the code it shows, or a `wizardsbot://pair` link.
-  The web app pairs itself with the code; the device is called after the Mac.
+  The app pairs with the code itself and hands the token to the web app; the device is called
+  after the Mac.
 - **Start on this Mac**: the app registers the LaunchAgent `bot.wizards.home`
   (`LaunchAgents/bot.wizards.home.plist`) with `SMAppService`. launchd starts the app's own
   program with `--home` (`App/HomeLauncher.swift`), which sends its output to
-  `~/.wizards-bot/logs/home.log` and becomes the Node in `Contents/Resources/node` running the
-  home in `Contents/Resources/bot`. The Bot Server keeps running when the app quits.
+  `~/.engenty/wizards-bot/logs/home.log` and becomes the Node in `Contents/Resources/node`
+  running the home in `Contents/Resources/bot`. The Bot Server keeps running when the app quits.
 - A Bot Server that already answers on port 4747 (one of `wizards bot install`, or one started by
   hand) is used as it is; the app starts no second one.
 - The web app knows it runs in the app (`apps/web/src/lib/mac.ts`) and hands it notifications,

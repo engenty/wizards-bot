@@ -53,8 +53,10 @@ flowchart LR
    of the app that is installed. Built that way because a plist in a bundle is fixed: it cannot
    name the bundle's place on the disk for `cli.ts`, nor `~` for the log. The program finds both
    next to itself (`HomeLauncher.swift`), sends what the home prints to
-   `~/.wizards-bot/logs/home.log`, and becomes Node with `execv`, so launchd keeps the home
-   itself. Data stays in `~/.wizards-bot`, port 4747, as with every other install.
+   `~/.engenty/wizards-bot/logs/home.log`, and becomes Node with `execv`, so launchd keeps the
+   home itself. Data stays in `~/.engenty/wizards-bot`, port 4747, as with every other install.
+   Bot Servers before 0.2 kept it in `~/.wizards-bot`; the home moves it over on its first start
+   (docs/install.md). Later all of it moves to `~/.wizards/`, with the move of the domain.
 2. **macOS approves it.** On registering, macOS shows "Background item added". If the person
    turned background items off for us before, `SMAppService.status` is `.requiresApproval`; the
    app says so in one sentence and opens System Settings → General → Login Items
@@ -96,7 +98,7 @@ plist's arguments are fixed, so the launcher has to read the mode from the data 
 `wizards bot install` puts the home in `~/.engenty/wizards/bot/<version>` with its own
 LaunchAgent `com.engenty.wizards.bot` (`~/Library/LaunchAgents/com.engenty.wizards.bot.plist`)
 and `~/.engenty/wizards/bot/bot.json`. A home started by hand in a terminal has neither. Both use
-`~/.wizards-bot` and port 4747.
+the data folder (`~/.engenty/wizards-bot`, or `~/.wizards-bot` before 0.2) and port 4747.
 
 Before the first screen, the app looks:
 
@@ -104,7 +106,7 @@ Before the first screen, the app looks:
 | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A Bot Server answers on `127.0.0.1:4747`                    | "Auf diesem Mac läuft schon ein Bot Server." "Verwenden" pairs with it and opens the chat. It starts no home of its own. The code comes from that home's own command (`~/.engenty/wizards/bin/wizards-bot pair`), never from the app's: the app's home may be newer and would change the data under the running one. Without that command the connect form opens with the address filled in. |
 | `com.engenty.wizards.bot` is installed, but nothing answers | The same sentence, with "Starten" (`launchctl kickstart gui/<uid>/com.engenty.wizards.bot`).                                                                                                                                                                                                                                                                                                 |
-| Only `~/.wizards-bot` with data, no home, no LaunchAgent    | "Auf diesem Mac starten" uses that data: the agents, the conversations and the paired phones are all there.                                                                                                                                                                                                                                                                                  |
+| Only a data folder with data, no home, no LaunchAgent       | "Auf diesem Mac starten" uses that data: the agents, the conversations and the paired phones are all there.                                                                                                                                                                                                                                                                                  |
 | Something else answers on 4747                              | The app says the port is taken and by which program (`lsof -iTCP:4747 -sTCP:LISTEN`), and starts nothing.                                                                                                                                                                                                                                                                                    |
 
 There is never a second home on 4747 and never a second home on the same data folder: one data
@@ -306,7 +308,7 @@ Terminal" (`npx wizards bot install`), and how to remove it. The button points a
 ### Not in the Mac App Store
 
 - An app in the Mac App Store must be sandboxed (guideline 2.4.5(i)). Sandboxed, the home's
-  data would be in the app's container, not `~/.wizards-bot`; it could not start the person's
+  data would be in the app's container, not `~/.engenty/wizards-bot`; it could not start the person's
   `claude` and `codex` with their sign-ins in `~/.claude` and `~/.codex`; every connected folder
   would need the person to pick it in a dialog first.
 - The home updates its own code with the app outside the store, and agents write and run
@@ -326,7 +328,7 @@ the home already has. The app adds what only an app on the Mac can do.
 | Pull a model (new)                         | When Ollama runs without a model that fits, or only with models without tools, the setup offers one by memory, with its size, and pulls it on a click through Ollama's `POST /api/pull`, with its progress in the setup (`POST /v1/setup/pull`, docs/protocol.md): the largest of `qwen3:14b`, `8b`, `4b` and `1.7b` that fits 55 % of the memory, so `qwen3:8b` from 16 GB and `qwen3:14b` from 17 GB. The names live in the home (`SUGGESTED`, `models/ollama.ts`). |
 | `model` gateway, wizards account           | As today. A hosted home's gateway is not on this path.                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `address`                                  | `http://<name>.local:4747` for the phone at home; the firewall question when it is on.                                                                                                                                                                                                                                                                                                                                                                                |
-| `data`                                     | `~/.wizards-bot`, never a temporary folder (the check exists).                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `data`                                     | `~/.engenty/wizards-bot`, never a temporary folder (the check exists).                                                                                                                                                                                                                                                                                                                                                                                                |
 | `folders`                                  | The folder dialog through the bridge; macOS asks for Documents, Desktop or iCloud Drive in the app's name.                                                                                                                                                                                                                                                                                                                                                            |
 | `push`                                     | As today: the phone is told by the home only with an Apple key (`wizards-bot push`).                                                                                                                                                                                                                                                                                                                                                                                  |
 | `capability`                               | As today.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -395,8 +397,8 @@ The LaunchAgent, checked the same day with the Bot Server of `wizards bot instal
   `bot.wizards.home` with `SMAppService` and the Bot Server answered on 4747 within seconds, on
   the same data. macOS asked nothing: the item was "enabled, allowed" in its background items,
   under `bot.wizards.mac`. launchd's process is the bundled Node itself (the launcher's
-  `execv`), its log in `~/.wizards-bot/logs/home.log`.
-- The app wrote the login shell's `PATH` into `~/.wizards-bot/path`, and the Bot Server found
+  `execv`), its log in `~/.wizards-bot/logs/home.log` (the data folder then).
+- The app wrote the login shell's `PATH` into the data folder's `path`, and the Bot Server found
   Claude Code with it (`claude:default`), which a LaunchAgent's own `PATH` does not reach.
 - The app paired itself with the code of its own `pair --json` and showed the person's chat.
 - The app quit: the Bot Server kept answering. The app started with an older version noted: it
@@ -416,8 +418,8 @@ need the Developer ID secrets, a published update, or a person at the Mac to ans
 - The Mac's models for a hosted home ("Die Modelle dieses Macs anbieten", a linked computer).
 - An export before removing the Bot Server; the app moves the data to the Trash instead.
 - The `wizards` command's side (engenty wizards' repository): `wizards bot install`, `update` and
-  `status` do not know the app's LaunchAgent `bot.wizards.home` yet, and `docs/hosted.md`'s
-  Contract has no point for the app.
+  `status` do not know the app's LaunchAgent `bot.wizards.home` yet, and its `bot.json` still
+  names `~/.wizards-bot` as `"data"` (docs/hosted.md, Contract 9).
 - The page `wizards.bot/mac`.
 - The secrets of the job `mac` (it says which), and the Sparkle key pair: without
   `SPARKLE_PUBLIC_KEY` the app does not look for updates.

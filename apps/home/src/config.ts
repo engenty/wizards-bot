@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { delimiter, isAbsolute, join } from "node:path";
+import { delimiter, dirname, isAbsolute, join } from "node:path";
 
 /**
  * The home's version: the one of the root package.json, which `pnpm release` sets. The
@@ -47,8 +47,47 @@ export const isHosted = (config: Pick<Config, "manageUrl">): boolean => Boolean(
 /** A pairing code as it is compared: letters and digits only, in capitals. */
 export const tidyCode = (code: string): string => code.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
+/** Where a home keeps its data on a computer when `WIZARDS_BOT_DATA` names no folder. */
+export const dataFolder = (home = homedir()): string => join(home, ".engenty", "wizards-bot");
+
+/** Where homes kept it before: `~/.wizards-bot`. A home moves it over on its start. */
+export const oldDataFolder = (home = homedir()): string => join(home, ".wizards-bot");
+
+/**
+ * The data folder when `WIZARDS_BOT_DATA` names none: `~/.engenty/wizards-bot`, or the
+ * `~/.wizards-bot` of an earlier home as long as it has not been moved (`moveData`).
+ */
+export function defaultDataDir(home = homedir()): string {
+  const now = dataFolder(home);
+  const before = oldDataFolder(home);
+  return !existsSync(now) && existsSync(before) ? before : now;
+}
+
+/**
+ * Moves the data of an earlier home from `~/.wizards-bot` to `~/.engenty/wizards-bot`, once,
+ * when the new folder is not there yet: one rename on the same disk, so nothing is copied and
+ * nothing is half there. Says what it did, or that the old folder is still there beside the new
+ * one; nothing when there was nothing to move. A folder that does not move stays in use where it
+ * is.
+ */
+export function moveData(home = homedir()): string | undefined {
+  const now = dataFolder(home);
+  const before = oldDataFolder(home);
+  if (!existsSync(before)) return undefined;
+  if (existsSync(now)) {
+    return `The Bot Server uses ${now}. ${before} of an earlier Bot Server is still there; delete it when you no longer need it.`;
+  }
+  try {
+    mkdirSync(dirname(now), { recursive: true, mode: 0o700 });
+    renameSync(before, now);
+    return `The Bot Server's data moved from ${before} to ${now}.`;
+  } catch (error) {
+    return `The Bot Server's data stays in ${before}: it could not move to ${now} (${(error as Error).message}).`;
+  }
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const dataDir = env.WIZARDS_BOT_DATA ?? join(homedir(), ".wizards-bot");
+  const dataDir = env.WIZARDS_BOT_DATA ?? defaultDataDir();
   mkdirSync(dataDir, { recursive: true, mode: 0o700 });
   return {
     dataDir,

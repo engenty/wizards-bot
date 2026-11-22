@@ -100,7 +100,7 @@ struct SettingsView: View {
             Section("Bot Server on this Mac") {
                 if model.local.isOurs {
                     LabeledContent("Version", value: model.local.bundledVersion ?? "–")
-                    LabeledContent("Data", value: LocalPaths.data.path)
+                    LabeledContent("Data", value: LocalPaths.dataShown)
                     HStack {
                         Button("Show the log") {
                             NSWorkspace.shared.open(LocalPaths.data.appending(path: "logs/home.log"))
@@ -138,7 +138,7 @@ struct SettingsView: View {
                 Task { await model.removeHere(trashData: true) }
             }
         } message: {
-            Text("It stops and no longer starts with your Mac. Your agents, conversations and paired phones are in ~/.wizards-bot; kept there, a Bot Server started later finds them again.")
+            Text("It stops and no longer starts with your Mac. Your agents, conversations and paired phones are in \(LocalPaths.dataShown); kept there, a Bot Server started later finds them again.")
         }
         .confirmationDialog("Let the app run your Bot Server?", isPresented: $takingOver) {
             Button("Let the app run it") { Task { await model.takeOver() } }

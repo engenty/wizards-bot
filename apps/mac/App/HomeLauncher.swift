@@ -49,9 +49,23 @@ nonisolated enum LocalPaths {
     /// The Bot Server of `wizards bot install`.
     static let installLabel = "com.engenty.wizards.bot"
 
+    /// The Bot Server's data folder, as the home finds it (`config.ts`, `defaultDataDir`):
+    /// `WIZARDS_BOT_DATA`, else `~/.engenty/wizards-bot`, or the `~/.wizards-bot` of an earlier
+    /// Bot Server until the home moves it on its next start.
     static var data: URL {
         if let dir = ProcessInfo.processInfo.environment["WIZARDS_BOT_DATA"] { return URL(filePath: dir) }
-        return FileManager.default.homeDirectoryForCurrentUser.appending(path: ".wizards-bot")
+        let user = FileManager.default.homeDirectoryForCurrentUser
+        let now = user.appending(path: ".engenty/wizards-bot")
+        let before = user.appending(path: ".wizards-bot")
+        let exists = { (url: URL) in FileManager.default.fileExists(atPath: url.path) }
+        return !exists(now) && exists(before) ? before : now
+    }
+
+    /// The data folder as a person reads it: `~/.engenty/wizards-bot`.
+    static var dataShown: String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let path = data.path
+        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
     }
 
     static var installPlist: URL {

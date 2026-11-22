@@ -7,7 +7,7 @@ import { serve } from "@hono/node-server";
 import type { Event, PairResponse, Setup, SetupCheck } from "@wizards-bot/protocol";
 import qrcode from "qrcode-terminal";
 import { exportData, importData, MIN_PASSPHRASE } from "./backup.ts";
-import { claimData, extendPath, isHosted, loadConfig, VERSION } from "./config.ts";
+import { claimData, extendPath, isHosted, loadConfig, moveData, VERSION } from "./config.ts";
 import { Home } from "./home.ts";
 import { Secrets } from "./identity.ts";
 import { LinkedComputer } from "./link/computer.ts";
@@ -38,7 +38,8 @@ const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
                                 The passphrase is asked, or read from --passphrase-file <file>
                                 or WIZARDS_BOT_PASSPHRASE.
 
-  WIZARDS_BOT_DATA   where the Bot Server keeps its data (default ~/.wizards-bot)
+  WIZARDS_BOT_DATA   where the Bot Server keeps its data (default ~/.engenty/wizards-bot; an
+                     earlier ~/.wizards-bot moves there when the Bot Server starts)
   WIZARDS_BOT_PORT   the port it listens on (default 4747)
   WIZARDS_BOT_URL    its public address, when it has one (https://…)
   WIZARDS_BOT_SUBSCRIPTIONS   the signed-in apps it may use (default claude,codex)
@@ -47,6 +48,8 @@ const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
 `;
 
 const [command = "help", ...rest] = process.argv.slice(2);
+// A home that starts moves the data of an earlier one to the new default folder first.
+const moved = command === "start" && !process.env.WIZARDS_BOT_DATA ? moveData() : undefined;
 const config = loadConfig();
 extendPath(config.dataDir);
 
@@ -58,6 +61,7 @@ function option(name: string): string | undefined {
 const openHome = (): Home => new Home(config);
 
 async function start(): Promise<void> {
+  if (moved) console.log(moved);
   claimData(config.dataDir);
   const home = openHome();
   const app = createServer(home);
