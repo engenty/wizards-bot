@@ -1,6 +1,7 @@
 import { EngentyKind } from "@wizards-bot/protocol";
 import { z } from "zod";
 import { GATEWAY_PRESETS } from "../models/models.ts";
+import { langOf, pairingCard } from "../setup/words.ts";
 import { defineTool, type Tool } from "./tool.ts";
 import type { TurnContext } from "./turns.ts";
 
@@ -125,9 +126,7 @@ export function buildTools(context: TurnContext): Tool[] {
           {
             kind: "pairing",
             level: "update",
-            title: "Add a device",
-            body: `Scan this with the wizards.bot app, or enter the address \`${address}\` and the code **${code}**. The code works once, for 10 minutes.`,
-            qr: `wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`,
+            ...pairingCard(address, code, langOf(home.db)),
             actions: [],
           },
           where,

@@ -815,6 +815,8 @@ export type Setup = z.infer<typeof Setup>;
 export const ChangeSetup = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   done: z.boolean().optional(),
+  /** The language the person reads; what the Bot Server writes for them is in it. */
+  lang: z.enum(["en", "de"]).optional(),
 });
 export type ChangeSetup = z.infer<typeof ChangeSetup>;
 

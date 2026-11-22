@@ -160,11 +160,9 @@ export const en = {
   "setup.gateway.choose": "Which gateway",
   "setup.gateway.add": "Add a key",
   "setup.gateway.saved": "The key is saved. Your Bot Server tests the gateway now.",
-  "setup.abilities.title": "What your wizards can do",
   "setup.devices.hint": "Both are optional. You can add them later in the chat.",
   "setup.phone.title": "Add your phone",
   "setup.phone.hint": "Scan the code with the wizards.bot app on your iPhone.",
-  "setup.phone.show": "Show the code",
   "setup.folder.title": "Connect a folder",
   "setup.folder.hint": "Your wizards read the files in it. The files stay where they are.",
   "setup.folder.add": "Connect a folder",
@@ -173,6 +171,13 @@ export const en = {
   "setup.finish": "Open the chat",
   "setup.copy": "Copy",
   "setup.copied": "Copied",
+  "setup.ability.pictures": "Your wizards also read the pictures you send.",
+  "setup.ability.phone": "Your phone answers by itself while your Bot Server is out of reach.",
+  "setup.phone.show": "Show the code",
+  "setup.phone.address": "Address",
+  "setup.phone.code": "Code",
+  "setup.phone.once": "The code works once, for 10 minutes.",
+  "setup.phone.qr": "QR code to add your phone",
   "setup.account.label": "Your wizards account",
   "setup.account.in": "your wizards account",
   "setup.account.ok": "Answers, on your credits.",
@@ -186,13 +191,6 @@ export const en = {
   "setup.computer.show": "Show how",
   "setup.computer.how":
     "Run this on your computer, with a pairing code from the chat (“add a device”):",
-  "setup.ability.text": "Text",
-  "setup.ability.text.ok": "Your wizards write with {models}.",
-  "setup.ability.text.none": "No model answers yet.",
-  "setup.ability.pictures": "Pictures",
-  "setup.ability.pictures.ok": "Your wizards read the pictures you send.",
-  "setup.ability.phone": "Your phone’s model",
-  "setup.ability.phone.ok": "Your phone answers by itself while your Bot Server is out of reach.",
   "setup.devices.hintOne": "Optional. You can add it later in the chat.",
   "theme.label": "Theme",
   "theme.light": "Light theme",
@@ -205,7 +203,7 @@ export const en = {
   "status.title": "Status",
   "status.models": "Models",
   "status.home": "Bot Server",
-  "status.abilities": "What your agents can do",
+  "status.abilities": "What your wizards can do",
   "status.tested": "Tested {time}",
   "status.state.ok": "works",
   "status.state.warning": "look at this",
@@ -631,11 +629,9 @@ export const de: Record<Key, Line> = {
   "setup.gateway.choose": "Welches Gateway",
   "setup.gateway.add": "Schlüssel hinzufügen",
   "setup.gateway.saved": "Der Schlüssel ist gespeichert. Dein Bot Server testet das Gateway jetzt.",
-  "setup.abilities.title": "Was deine Wizards können",
   "setup.devices.hint": "Beides ist freiwillig. Du kannst es später im Chat hinzufügen.",
   "setup.phone.title": "Dein Telefon hinzufügen",
   "setup.phone.hint": "Scanne den Code mit der wizards.bot-App auf deinem iPhone.",
-  "setup.phone.show": "Code zeigen",
   "setup.folder.title": "Einen Ordner verbinden",
   "setup.folder.hint": "Deine Wizards lesen die Dateien darin. Die Dateien bleiben, wo sie sind.",
   "setup.folder.add": "Ordner verbinden",
@@ -644,6 +640,14 @@ export const de: Record<Key, Line> = {
   "setup.finish": "Zum Chat",
   "setup.copy": "Kopieren",
   "setup.copied": "Kopiert",
+  "setup.ability.pictures": "Deine Wizards lesen auch die Bilder, die du schickst.",
+  "setup.ability.phone":
+    "Dein Telefon antwortet selbst, wenn dein Bot Server nicht erreichbar ist.",
+  "setup.phone.show": "Code zeigen",
+  "setup.phone.address": "Adresse",
+  "setup.phone.code": "Code",
+  "setup.phone.once": "Der Code gilt einmal, 10 Minuten lang.",
+  "setup.phone.qr": "QR-Code, um dein Telefon hinzuzufügen",
   "setup.account.label": "Dein wizards-Konto",
   "setup.account.in": "deinem wizards-Konto",
   "setup.account.ok": "Antwortet, mit deinen Credits.",
@@ -659,14 +663,6 @@ export const de: Record<Key, Line> = {
   "setup.computer.show": "Zeigen, wie",
   "setup.computer.how":
     "Führe das auf deinem Computer aus, mit einem Kopplungscode aus dem Chat („Gerät hinzufügen“):",
-  "setup.ability.text": "Text",
-  "setup.ability.text.ok": "Deine Wizards schreiben mit {models}.",
-  "setup.ability.text.none": "Noch antwortet kein Modell.",
-  "setup.ability.pictures": "Bilder",
-  "setup.ability.pictures.ok": "Deine Wizards lesen die Bilder, die du schickst.",
-  "setup.ability.phone": "Das Modell deines Telefons",
-  "setup.ability.phone.ok":
-    "Dein Telefon antwortet selbst, wenn dein Bot Server nicht erreichbar ist.",
   "setup.devices.hintOne": "Freiwillig. Du kannst es später im Chat hinzufügen.",
   "theme.label": "Design",
   "theme.light": "Helles Design",
@@ -679,7 +675,7 @@ export const de: Record<Key, Line> = {
   "status.title": "Status",
   "status.models": "Modelle",
   "status.home": "Bot Server",
-  "status.abilities": "Was deine Agenten können",
+  "status.abilities": "Was deine Wizards können",
   "status.tested": "Getestet {time}",
   "status.state.ok": "läuft",
   "status.state.warning": "ansehen",
@@ -1047,11 +1043,6 @@ export function textOf(key: Key, lang: Lang, vars?: Record<string, string | numb
 /** Names as one phrase of choices in the language this browser reads: “Claude or Codex”. */
 export function orList(names: string[]): string {
   return new Intl.ListFormat(lang, { type: "disjunction" }).format(names);
-}
-
-/** Names as one phrase in the language shown: “Claude and Codex”. */
-export function andList(names: string[]): string {
-  return new Intl.ListFormat(lang, { type: "conjunction" }).format(names);
 }
 
 /** A line in the language this browser reads. */

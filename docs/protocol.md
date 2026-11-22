@@ -1186,13 +1186,16 @@ Test calls cost tokens. The home makes them only when asked: `POST /v1/setup/tes
 done, with the new `Setup`. A call that runs already is not made twice. The web app asks once
 when the models step opens and nothing was tested, and again on "Test again".
 
-`PATCH /v1/setup` with `ChangeSetup` sets the person's name or ends the first start
-(`{ "done": true }`) → `Setup`.
+`PATCH /v1/setup` with `ChangeSetup` sets the person's name, ends the first start
+(`{ "done": true }`) or says the language the person reads (`{ "lang": "de" }`) → `Setup`. What
+the Bot Server writes for the person itself (the checks' `said` and `todo`, a pairing card, the
+greeting after the first start) is in that language, English until a device said one.
 
 `POST /v1/setup/gateway` with `SetupGateway` puts the key card of a gateway into the main
 agent's chat, with a field for the model, and answers `{ card }`. It works while no model
-answers; answering the card sets the gateway up and tests it. `POST /v1/setup/pairing` puts a
-pairing card there and answers `{ card }`.
+answers; answering the card sets the gateway up and tests it. `POST /v1/setup/pairing` makes a
+pairing code for the setup's own page and answers `{ address, code, link }` (`link` is what the
+QR holds); nothing goes into the chat.
 
 The event `setup.updated` carries the `Setup` when a test call starts and when it ends, and
 after a change.

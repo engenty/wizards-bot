@@ -8,7 +8,7 @@ import type { LanguageModel } from "ai";
 import { generateText } from "ai";
 import type { Account, Gateway } from "../models/models.ts";
 import { ACCOUNT, accountModel, clientEnv } from "../models/models.ts";
-import { ollamaModels } from "../models/ollama.ts";
+import { MEMORY_SHARE, ollamaModels } from "../models/ollama.ts";
 import type { Client } from "../models/subscription.ts";
 import {
   explainAccount,
@@ -18,6 +18,7 @@ import {
   explainOllama,
   type Finding,
 } from "./explain.ts";
+import { w } from "./words.ts";
 
 // One test call per model source: a tiny prompt, a timeout, and what came of it. Each call
 // costs a few tokens, so the home makes them when the person asks and at the first start,
@@ -145,22 +146,45 @@ export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Pro
   const name = client.id === "claude" ? "Claude Code" : "Codex";
   const install =
     client.id === "claude"
-      ? { todo: "Install Claude Code, then run claude and /login.", command: "claude" }
-      : { todo: "Install Codex, then sign in.", command: "codex login" };
+      ? {
+          todo: w(
+            "Install Claude Code, then run claude and /login.",
+            "Installiere Claude Code, dann starte claude und /login.",
+          ),
+          command: "claude",
+        }
+      : {
+          todo: w("Install Codex, then sign in.", "Installiere Codex, dann melde dich an."),
+          command: "codex login",
+        };
+  const notInstalled = w(
+    `${name} is not installed on this computer.`,
+    `${name} ist auf diesem Computer nicht installiert.`,
+  );
   if (!installed(client.bin)) {
-    return { state: "absent", said: `${name} is not installed on this computer.`, ...install };
+    return { state: "absent", said: notInstalled, ...install };
   }
   const codex = client.id === "codex" ? codexSetting() : undefined;
   const run = await runOnce(client, timeout);
-  if ("answer" in run) return { state: "ok", said: `${name} answers on your subscription.` };
+  if ("answer" in run)
+    return {
+      state: "ok",
+      said: w(`${name} answers on your subscription.`, `${name} antwortet über dein Abo.`),
+    };
   if (run.missing) {
-    return { state: "absent", said: `${name} is not installed on this computer.`, ...install };
+    return { state: "absent", said: notInstalled, ...install };
   }
   if (run.timedOut) {
     return {
       state: "problem",
-      said: `${name} did not answer within ${Math.round(timeout / 1000)} seconds.`,
-      todo: `Run ${client.bin} once in a terminal to see what it asks for.`,
+      said: w(
+        `${name} did not answer within ${Math.round(timeout / 1000)} seconds.`,
+        `${name} hat nicht innerhalb von ${Math.round(timeout / 1000)} Sekunden geantwortet.`,
+      ),
+      todo: w(
+        `Run ${client.bin} once in a terminal to see what it asks for.`,
+        `Starte ${client.bin} einmal in einem Terminal, um zu sehen, was es braucht.`,
+      ),
       command: client.bin,
     };
   }
@@ -176,13 +200,12 @@ export function onThisComputer(url: string): boolean {
   return URL.canParse(url) && ["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname);
 }
 
-/**
- * A model larger than this share of the computer's memory leaves too little for the rest: the
- * computer swaps, and an answer takes minutes. The same share the home uses to pick a model.
- */
-const ROOM = 0.5;
-
 const gb = (bytes: number) => `${Math.round(bytes / 1e9)} GB`;
+
+const PULL = w(
+  "Pull a model with tools, e.g. ollama pull qwen3:8b.",
+  "Lade ein Modell mit Werkzeugen, z. B. ollama pull qwen3:8b.",
+);
 
 /** A test call to the model the home would ask first on this computer's Ollama. */
 export async function probeOllama(
@@ -197,8 +220,11 @@ export async function probeOllama(
   if (!running) {
     return {
       state: "absent",
-      said: `Ollama does not answer at ${baseUrl}.`,
-      todo: "Start Ollama, or install it from ollama.com.",
+      said: w(`Ollama does not answer at ${baseUrl}.`, `Ollama antwortet nicht unter ${baseUrl}.`),
+      todo: w(
+        "Start Ollama, or install it from ollama.com.",
+        "Starte Ollama, oder installiere es von ollama.com.",
+      ),
       command: "ollama serve",
     };
   }
@@ -208,17 +234,26 @@ export async function probeOllama(
   if (!first) {
     return {
       state: "problem",
-      said: "Ollama runs, but it has no model to talk with.",
-      todo: "Pull a model with tools, e.g. ollama pull qwen3:8b.",
+      said: w(
+        "Ollama runs, but it has no model to talk with.",
+        "Ollama läuft, hat aber kein Modell zum Sprechen.",
+      ),
+      todo: PULL,
       command: "ollama pull qwen3:8b",
     };
   }
-  if (local && first.size > memory * ROOM) {
+  if (local && first.size > memory * MEMORY_SHARE) {
     return {
       state: "problem",
       model: first.id,
-      said: `${first.id} needs ${gb(first.size)}, too much for this computer's ${gb(memory)} of memory.`,
-      todo: "Pull a smaller model with tools, e.g. ollama pull qwen3:8b.",
+      said: w(
+        `${first.id} needs ${gb(first.size)}. On this computer the Bot Server takes a model of up to ${gb(memory * MEMORY_SHARE)}, a little over half of its ${gb(memory)} of memory, so the computer stays quick.`,
+        `${first.id} braucht ${gb(first.size)}. Auf diesem Computer nimmt der Bot Server ein Modell bis ${gb(memory * MEMORY_SHARE)}, gut die Hälfte seiner ${gb(memory)} Arbeitsspeicher, damit der Computer flüssig bleibt.`,
+      ),
+      todo: w(
+        "Pull a smaller model with tools, e.g. ollama pull qwen3:8b.",
+        "Lade ein kleineres Modell mit Werkzeugen, z. B. ollama pull qwen3:8b.",
+      ),
       command: "ollama pull qwen3:8b",
     };
   }
@@ -250,8 +285,14 @@ export async function probeOllama(
       model: first.id,
       ...(timedOut
         ? {
-            said: `${first.id} did not answer within ${Math.round(timeout / 1000)} seconds.`,
-            todo: "The computer may be short of memory. Try a smaller model.",
+            said: w(
+              `${first.id} did not answer within ${Math.round(timeout / 1000)} seconds.`,
+              `${first.id} hat nicht innerhalb von ${Math.round(timeout / 1000)} Sekunden geantwortet.`,
+            ),
+            todo: w(
+              "The computer may be short of memory. Try a smaller model.",
+              "Dem Computer fehlt vielleicht Arbeitsspeicher. Versuch ein kleineres Modell.",
+            ),
           }
         : explainOllama((error as Error).message, first.id)),
     };
@@ -260,9 +301,15 @@ export async function probeOllama(
     state: first.tools ? "ok" : "warning",
     model: first.id,
     said: first.tools
-      ? `${first.id} answers on ${local ? "this computer" : baseUrl}.`
-      : `${first.id} answers, but takes no tools: an agent with it can talk, not act.`,
-    ...(first.tools ? {} : { todo: "Pull a model with tools, e.g. ollama pull qwen3:8b." }),
+      ? w(
+          `${first.id} answers on ${local ? "this computer" : baseUrl}.`,
+          `${first.id} antwortet ${local ? "auf diesem Computer" : `unter ${baseUrl}`}.`,
+        )
+      : w(
+          `${first.id} answers, but takes no tools: an agent with it can talk, not act.`,
+          `${first.id} antwortet, nimmt aber keine Werkzeuge: Ein Wizard damit kann reden, nicht handeln.`,
+        ),
+    ...(first.tools ? {} : { todo: PULL }),
   };
 }
 
@@ -277,15 +324,21 @@ export async function probeGateway(
   if (!key) {
     return {
       state: "problem",
-      said: `${gateway.label} has no key.`,
-      todo: `Tell your agent "add ${gateway.label}", or add the key in the setup.`,
+      said: w(`${gateway.label} has no key.`, `${gateway.label} hat keinen Schlüssel.`),
+      todo: w(
+        `Tell your agent "add ${gateway.label}", or add the key in the setup.`,
+        `Sag deinem Wizard „${gateway.label} hinzufügen“, oder gib den Schlüssel in der Einrichtung ein.`,
+      ),
     };
   }
   if (!model) {
     return {
       state: "problem",
-      said: `${gateway.label} has no model.`,
-      todo: `Tell your agent "add ${gateway.label}" with a model.`,
+      said: w(`${gateway.label} has no model.`, `${gateway.label} hat kein Modell.`),
+      todo: w(
+        `Tell your agent "add ${gateway.label}" with a model.`,
+        `Sag deinem Wizard „${gateway.label} hinzufügen“ mit einem Modell.`,
+      ),
     };
   }
   return probeModel(
@@ -312,8 +365,14 @@ export async function probeAccount(
   if (!key) {
     return {
       state: "problem",
-      said: "Your Bot Server has no key for your wizards account.",
-      todo: "Ask for help at wizards.bot: the Bot Server could not fetch its key.",
+      said: w(
+        "Your Bot Server has no key for your wizards account.",
+        "Dein Bot Server hat keinen Schlüssel für dein wizards-Konto.",
+      ),
+      todo: w(
+        "Ask for help at wizards.bot: the Bot Server could not fetch its key.",
+        "Frag bei wizards.bot nach Hilfe: Der Bot Server konnte seinen Schlüssel nicht holen.",
+      ),
     };
   }
   return probeModel(
@@ -341,15 +400,22 @@ async function probeModel(
       maxRetries: 0,
       abortSignal: AbortSignal.timeout(timeout),
     });
-    return { state: "ok", model, said: `${label} answers with ${model}.` };
+    return {
+      state: "ok",
+      model,
+      said: w(`${label} answers with ${model}.`, `${label} antwortet mit ${model}.`),
+    };
   } catch (error) {
     const failure = error as Error & { statusCode?: number; responseBody?: string };
     if (failure.name === "TimeoutError" || failure.name === "AbortError") {
       return {
         state: "problem",
         model,
-        said: `${label} did not answer within ${Math.round(timeout / 1000)} seconds.`,
-        todo: "Test again later.",
+        said: w(
+          `${label} did not answer within ${Math.round(timeout / 1000)} seconds.`,
+          `${label} hat nicht innerhalb von ${Math.round(timeout / 1000)} Sekunden geantwortet.`,
+        ),
+        todo: w("Test again later.", "Teste später noch einmal."),
       };
     }
     return {

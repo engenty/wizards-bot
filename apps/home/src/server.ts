@@ -752,7 +752,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     return c.json({ card: home.setup.gatewayCard(provider) });
   });
 
-  app.post("/v1/setup/pairing", (c) => c.json({ card: home.setup.pairingCard() }));
+  app.post("/v1/setup/pairing", (c) => c.json(home.setup.pairing()));
 
   // ── Events ────────────────────────────────────────────────────────────────
 

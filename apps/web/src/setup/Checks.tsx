@@ -73,18 +73,27 @@ function saidOf(check: SetupCheck): { said: string; detail?: string } {
 }
 
 /** One check: what was found and, while it is not fine, what to do. */
-function CheckRow({ check, onTest }: { check: SetupCheck; onTest?: (source: string) => void }) {
+function CheckRow({
+  check,
+  onTest,
+  quiet,
+}: {
+  check: SetupCheck;
+  onTest?: (source: string) => void;
+  quiet?: boolean;
+}) {
   const fine = check.state === "ok";
   const { said, detail } = saidOf(check);
   return (
     <li className="flex gap-3 py-3">
       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
-        {ICONS[check.state]}
+        {quiet ? ICONS.absent : ICONS[check.state]}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <p className="min-w-0 flex-1 font-medium text-[0.9375rem]">{labelOf(check)}</p>
           <span
+            hidden={quiet}
             className={cn(
               "shrink-0 text-[0.75rem]",
               check.state === "ok" && "text-moss",
@@ -117,17 +126,20 @@ function CheckRow({ check, onTest }: { check: SetupCheck; onTest?: (source: stri
   );
 }
 
+/** `quiet`: a hint, not a state; one model answers already. */
 export function CheckList({
   checks,
   onTest,
+  quiet,
 }: {
   checks: SetupCheck[];
   onTest?: (source: string) => void;
+  quiet?: boolean;
 }) {
   return (
     <ul className="divide-y divide-border-soft">
       {checks.map((check) => (
-        <CheckRow key={check.id} check={check} onTest={onTest} />
+        <CheckRow key={check.id} check={check} onTest={onTest} quiet={quiet} />
       ))}
     </ul>
   );
