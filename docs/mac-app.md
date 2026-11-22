@@ -1,6 +1,8 @@
 # The Mac app
 
-A plan, written 2026-11-22. Nothing here is built.
+A plan, written 2026-11-22, and what was built of it in `apps/mac` (milestones 1 to 5). Where
+the build went another way than the plan, this text says so and why. What is not built yet is in
+[Not built yet](#not-built-yet).
 
 Today a Bot Server comes to a Mac through a terminal: `npx wizards bot install` (engenty
 wizards' launcher) or by hand ([install.md](install.md)). The Mac app is the way without one:
@@ -46,9 +48,13 @@ flowchart LR
 1. **The app starts its Bot Server.** The app carries its own Node and the home (see
    [What the app carries](#what-the-app-carries)). It registers the home as a LaunchAgent of the
    person with `SMAppService.agent(plistName:)`: the plist lies in the app bundle
-   (`Contents/Library/LaunchAgents/bot.wizards.home.plist`) and names the bundled Node with
-   `BundleProgram`, so the agent always runs the Node and the home of the app that is installed.
-   Data stays in `~/.wizards-bot`, port 4747, as with every other install.
+   (`Contents/Library/LaunchAgents/bot.wizards.home.plist`) and names the app's own program
+   with `BundleProgram` and the argument `--home`, so the agent always runs the Node and the home
+   of the app that is installed. Built that way because a plist in a bundle is fixed: it cannot
+   name the bundle's place on the disk for `cli.ts`, nor `~` for the log. The program finds both
+   next to itself (`HomeLauncher.swift`), sends what the home prints to
+   `~/.wizards-bot/logs/home.log`, and becomes Node with `execv`, so launchd keeps the home
+   itself. Data stays in `~/.wizards-bot`, port 4747, as with every other install.
 2. **macOS approves it.** On registering, macOS shows "Background item added". If the person
    turned background items off for us before, `SMAppService.status` is `.requiresApproval`; the
    app says so in one sentence and opens System Settings → General → Login Items
@@ -61,8 +67,10 @@ flowchart LR
 
 The home keeps running when the window closes and when the app quits: it is a LaunchAgent, not
 a child of the app. That is unlike Nod, whose tasks run only while its window is open. A home's
-tasks, channels and phone need it to run. The app's menu has "Bot Server anhalten" and "Bot
-Server starten"; a small item in the menu bar shows whether it runs and opens the window.
+tasks, channels and phone need it to run. The menu bar item shows whether it runs, opens the
+window, shows the QR for a phone, and has "Bot Server anhalten" and "Bot Server starten". Stopping
+is `SMAppService.unregister()`: with `KeepAlive` launchd would start a home it was only told to
+stop, so a stopped Bot Server is one macOS forgets until it is started again.
 
 ### Mit einem Bot Server verbinden
 
@@ -80,7 +88,8 @@ A Mac that connects to a hosted home can still offer its own models to it: the h
 the gateway only, and this Mac may have Ollama or a signed-in subscription. The same window
 offers one more line, "Die Modelle dieses Macs anbieten". On a yes the app registers its agent
 with `wizards-bot link <address> <code>` instead of `start` (a linked computer, as `wizards bot
-setup --link` does today). It is the same LaunchAgent, with another argument.
+setup --link` does today). It is the same LaunchAgent, with another argument. Not built yet: the
+plist's arguments are fixed, so the launcher has to read the mode from the data folder first.
 
 ### A Bot Server is already on this Mac
 
@@ -91,12 +100,12 @@ and `~/.engenty/wizards/bot/bot.json`. A home started by hand in a terminal has 
 
 Before the first screen, the app looks:
 
-| What it finds                                               | What it does                                                                                                    |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| A Bot Server answers on `127.0.0.1:4747`                    | "Auf diesem Mac läuft schon ein Bot Server." It pairs with it and opens the chat. It starts no home of its own. |
-| `com.engenty.wizards.bot` is installed, but nothing answers | The same sentence, with "Starten" (`launchctl kickstart gui/<uid>/com.engenty.wizards.bot`).                    |
-| Only `~/.wizards-bot` with data, no home, no LaunchAgent    | "Auf diesem Mac starten" uses that data: the agents, the conversations and the paired phones are all there.     |
-| Something else answers on 4747                              | The app says the port is taken and by which program (`lsof -iTCP:4747 -sTCP:LISTEN`), and starts nothing.       |
+| What it finds                                               | What it does                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A Bot Server answers on `127.0.0.1:4747`                    | "Auf diesem Mac läuft schon ein Bot Server." "Verwenden" pairs with it and opens the chat. It starts no home of its own. The code comes from that home's own command (`~/.engenty/wizards/bin/wizards-bot pair`), never from the app's: the app's home may be newer and would change the data under the running one. Without that command the connect form opens with the address filled in. |
+| `com.engenty.wizards.bot` is installed, but nothing answers | The same sentence, with "Starten" (`launchctl kickstart gui/<uid>/com.engenty.wizards.bot`).                                                                                                                                                                                                                                                                                                 |
+| Only `~/.wizards-bot` with data, no home, no LaunchAgent    | "Auf diesem Mac starten" uses that data: the agents, the conversations and the paired phones are all there.                                                                                                                                                                                                                                                                                  |
+| Something else answers on 4747                              | The app says the port is taken and by which program (`lsof -iTCP:4747 -sTCP:LISTEN`), and starts nothing.                                                                                                                                                                                                                                                                                    |
 
 There is never a second home on 4747 and never a second home on the same data folder: one data
 folder has one home key and one `home.db`.
@@ -105,8 +114,9 @@ A home of `wizards bot install` keeps running as it is; its updates stay with `w
 update`. The app offers, in its settings and never on its own, "Den Bot Server mit der App
 aktualisieren". On a yes:
 
-1. It stops and removes `com.engenty.wizards.bot` (`launchctl bootout`, the plist goes; the
-   same as `wizards bot uninstall`, which keeps `~/.wizards-bot`).
+1. It stops `com.engenty.wizards.bot` (`launchctl bootout`) and sets its plist aside as
+   `com.engenty.wizards.bot.plist.off`, so the person can go back; `wizards bot uninstall`
+   deletes it.
 2. It registers its own agent on the same data folder.
 3. It refuses when its home is older than the one that last wrote the data (see
    [What the home needs](#what-the-home-needs)): a newer `wizards bot install` stays.
@@ -123,10 +133,14 @@ The app is a device of the home, like the browser and the phone.
   the bundled Node: it opens the same data folder and makes a pairing code that works once, for
   10 minutes, as `wizards-bot pair` does today. Nobody types a code.
 - **Another home.** The code the person typed.
-- In both cases the window loads `<address>/#code=<code>`, and the web app pairs itself
-  (`apps/web/src/Pairing.tsx`). The device token stays in the web view's storage for that
-  address, as in a browser. Moving it to the Keychain through the bridge is possible later; a
-  browser on the same Mac keeps it no safer today.
+- In both cases the app pairs itself: `POST /v1/pair` with the code, named after the Mac
+  (`Host.current().localizedName`), as a `browser`. A code that is used or ran out is said on the
+  connect form. The token goes to the web app once, where it keeps its own (`wizards.token` in
+  the web view's storage for that address), and the window loads the address. The plan had the
+  web app pair itself from `<address>/#code=<code>`; built that way, the page loaded twice when
+  the window appeared, the second load found the code used, and the person saw "Dieser Code gilt
+  nicht mehr" without knowing why. Moving the token to the Keychain through the bridge is
+  possible later; a browser on the same Mac keeps it no safer today.
 
 ## Where the chat comes from
 
@@ -187,17 +201,20 @@ wizards.app/Contents/
 - **The home.** `wizards-bot-<version>.tgz` of the same release ([install.md](install.md)),
   unpacked, `npm install --omit=dev` with `--cpu=arm64 --os=darwin` so libSQL's native module
   is the Mac's (`@libsql/darwin-arm64`, 7.5 MB). 365 MB on disk (measured on the install of
-  0.1.1), 41 MB compressed with xz. Of that, `@mastra` is 166 MB; `three`, `prettier` and
-  `@esbuild` are 44 MB that the home may not need at run time. Pruning them (and source maps,
-  tests, `.d.ts`) is one step of the build, checked by starting the pruned home in CI.
+  0.1.1), 41 MB compressed with xz. Of that, `@mastra` is 166 MB. `pnpm pack:mac` prunes
+  source maps, type files, Markdown and the tests of packages (177 MB) and leaves 188 MB. Not
+  `examples`: three.js keeps the addons there that artifacts import (`three/addons/…`). Then it
+  starts the pruned home from the signed bundle once.
 - **Native modules.** `@libsql/darwin-*/index.node`, and `fsevents.node` where a dependency
   pulls it in. Each is signed with our certificate in the build; none is loaded from outside the
   bundle.
-- **The home writes nothing into the bundle.** A write would break its signature. The agent's
-  plist sets `NODE_COMPILE_CACHE` and `TMPDIR` into the data folder; CI checks that the bundle
-  is unchanged after a start.
-- **Size.** About 500 MB installed, a DMG of about 100 MB (estimated from the compressed sizes
-  above; measured in the first milestone). Nod's DMG is smaller, its runtime pack much larger.
+- **The home writes nothing into the bundle.** A write would break its signature. The launcher
+  starts the home in the data folder and without `NODE_COMPILE_CACHE` or `NODE_OPTIONS`; every
+  path the home writes to is under its data folder. `pnpm pack:mac` starts the home from the
+  signed bundle and checks the signature after.
+- **Size.** Measured on 0.1.1 with Node 24.22.3: the app is 312 MB installed (the home 188 MB,
+  Node 116 MB, Sparkle 3 MB), the DMG 63 MB (LZMA, `ULMO`; LZFSE made 163 MB). Nod's DMG is
+  smaller, its runtime pack much larger.
 
 ### Architectures
 
@@ -226,10 +243,11 @@ The home is inside the app, so the app and its home have one version and update 
 
 ### Uninstall
 
-- "Bot Server von diesem Mac entfernen…" in the app's menu: it stops the home, removes the agent
-  (`SMAppService.unregister()`), and asks about the data. The data stays unless the person
-  chooses otherwise; before deleting it the app offers an export (`wizards-bot export`,
-  encrypted with a passphrase). Then the app can go to the Trash.
+- "Von diesem Mac entfernen…" in the app's settings: it stops the home, removes the agent
+  (`SMAppService.unregister()`), and asks about the data: "Entfernen, Daten behalten" or
+  "Entfernen, Daten in den Papierkorb". The data goes to the Trash, not away, so the person can
+  still take it back. An export before it (`wizards-bot export`) is not offered in the app yet:
+  it asks for a passphrase in a terminal. Then the app can go to the Trash.
 - An app dragged to the Trash without that: the agent cannot start without its bundle. Whether
   macOS also takes it off the login items by itself is checked in the second milestone; if not,
   the download page says to use the menu first.
@@ -248,7 +266,9 @@ The home is inside the app, so the app and its home have one version and update 
   Node's own build carries more (`disable-library-validation`, `allow-dyld-environment-variables`,
   `get-task-allow`); we drop them: every native module is signed by our team, so library
   validation can stay on, and `get-task-allow` is refused by notarization.
-- **Entitlements of the shell:** none beyond the hardened runtime. No App Sandbox.
+- **Entitlements of the shell:** `com.apple.security.device.camera` and
+  `com.apple.security.device.audio-input`, no App Sandbox. The plan said none; under the hardened
+  runtime the web view's camera (the composer's picture) and microphone (talking) need them.
 - **What the home runs.** `claude` and `codex` are the person's own programs, found on their
   `PATH` and started with `spawn`; a hardened runtime does not limit the programs it starts,
   they run with their own signatures. Ollama is an HTTP call to `127.0.0.1:11434`; outside the
@@ -299,17 +319,17 @@ Terminal" (`npx wizards bot install`), and how to remove it. The button points a
 For Nod this is a VM, a database and containers. For us it is the home's start and the setup
 the home already has. The app adds what only an app on the Mac can do.
 
-| Setup check (`apps/home/src/setup`)        | On the Mac app                                                                                                                                                                                                                                                                                            |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `model` Claude Code, Codex (`probeClient`) | Found on the person's `PATH` (`installed()` runs `which`) and tested with a short call. The agent's `PATH` is the problem: a plist in a bundle cannot name the person's own. The app reads it once from the login shell (`$SHELL -lic 'echo $PATH'`) and hands it to the home.                            |
-| `model` Ollama (`probeOllama`)             | Running, a model with tools, and the model fits: up to 55 % of the Mac's memory (`MEMORY_SHARE`). Not running: "Ollama öffnen" when it is installed, the link to ollama.com when not. We never bundle Ollama.                                                                                             |
-| Pull a model (new)                         | When Ollama runs without a model that fits, the setup offers one by memory, with its size, and pulls it on a yes through Ollama's `POST /api/pull`, with its progress in the setup: `qwen3:8b` from 16 GB, a smaller one below, a larger one from 32 GB. The names live in the home, with `MEMORY_SHARE`. |
-| `model` gateway, wizards account           | As today. A hosted home's gateway is not on this path.                                                                                                                                                                                                                                                    |
-| `address`                                  | `http://<name>.local:4747` for the phone at home; the firewall question when it is on.                                                                                                                                                                                                                    |
-| `data`                                     | `~/.wizards-bot`, never a temporary folder (the check exists).                                                                                                                                                                                                                                            |
-| `folders`                                  | The folder dialog through the bridge; macOS asks for Documents, Desktop or iCloud Drive in the app's name.                                                                                                                                                                                                |
-| `push`                                     | As today: the phone is told by the home only with an Apple key (`wizards-bot push`).                                                                                                                                                                                                                      |
-| `capability`                               | As today.                                                                                                                                                                                                                                                                                                 |
+| Setup check (`apps/home/src/setup`)        | On the Mac app                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model` Claude Code, Codex (`probeClient`) | Found on the person's `PATH` (`installed()` runs `which`) and tested with a short call. The agent's `PATH` is the problem: a plist in a bundle cannot name the person's own. The app reads it once from the login shell (`$SHELL -lic 'echo $PATH'`) and hands it to the home.                                                                                                                                                                                        |
+| `model` Ollama (`probeOllama`)             | Running, a model with tools, and the model fits: up to 55 % of the Mac's memory (`MEMORY_SHARE`). Not running: "Ollama öffnen" when it is installed, the link to ollama.com when not. We never bundle Ollama.                                                                                                                                                                                                                                                         |
+| Pull a model (new)                         | When Ollama runs without a model that fits, or only with models without tools, the setup offers one by memory, with its size, and pulls it on a click through Ollama's `POST /api/pull`, with its progress in the setup (`POST /v1/setup/pull`, docs/protocol.md): the largest of `qwen3:14b`, `8b`, `4b` and `1.7b` that fits 55 % of the memory, so `qwen3:8b` from 16 GB and `qwen3:14b` from 17 GB. The names live in the home (`SUGGESTED`, `models/ollama.ts`). |
+| `model` gateway, wizards account           | As today. A hosted home's gateway is not on this path.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `address`                                  | `http://<name>.local:4747` for the phone at home; the firewall question when it is on.                                                                                                                                                                                                                                                                                                                                                                                |
+| `data`                                     | `~/.wizards-bot`, never a temporary folder (the check exists).                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `folders`                                  | The folder dialog through the bridge; macOS asks for Documents, Desktop or iCloud Drive in the app's name.                                                                                                                                                                                                                                                                                                                                                            |
+| `push`                                     | As today: the phone is told by the home only with an Apple key (`wizards-bot push`).                                                                                                                                                                                                                                                                                                                                                                                  |
+| `capability`                               | As today.                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 A check's `command` (`ollama serve`, `claude`, `codex login`) is a line for a terminal. In the
 app it stays shown as it is, with "Terminal öffnen" beside it; a check where the app can do it
@@ -328,8 +348,10 @@ Small changes in `apps/home`, each useful without the app too:
 2. `wizards-bot pair --json`: the address and the code as JSON, without the QR.
 3. The version that last wrote the data folder, kept in it. An older home refuses to start on
    it and says which version is needed.
-4. `PATH` for subscriptions from the data folder (a line the app writes, `WIZARDS_BOT_PATH`), on
-   top of the process's own.
+4. `PATH` for subscriptions: the folders of `WIZARDS_BOT_PATH` and of the file `path` in the
+   data folder, in front of the process's own. The app writes the file from the login shell
+   (`$SHELL -l -i -c`) before it starts its Bot Server and at every start of the app, and starts
+   the Bot Server anew when it changed.
 5. The setup's model pull: a model offered by memory, pulled on a yes, its progress as setup
    events.
 6. `NODE_COMPILE_CACHE` and every other write inside the data folder (or `TMPDIR`), never next
@@ -352,22 +374,56 @@ And in engenty wizards: `wizards bot install`, `update` and `status` know the ap
 1 to 5 are about six weeks for one person. 1 ships nothing alone; 4 is the first thing people
 download.
 
+Built on 2026-11-22, all five in a first version: `apps/mac`, `pnpm pack:mac`, the home's changes
+1 to 6, the model pull in the setup, the job `mac` in `release.yml` and Sparkle. What was checked
+on a Mac (macOS 27.2, Apple silicon, Xcode 27.2):
+
+- `pnpm pack:mac --dmg`: the bundle signed with an Apple Development certificate, the home
+  started from it answered `/health`, the signature held after, the DMG verified.
+- The app's first screen found the Bot Server of `wizards bot install` on 4747 and offered it,
+  and offered no start beside it.
+- "Mit einem Bot Server verbinden" with a home of this repository on another port: a wrong code
+  said so on the form; the right one paired the Mac under its name and opened the setup in the
+  window; after a restart the app opened the chat without a code.
+- The Swift tests (addresses, pairing links, `/health`, versions, `pair` output, the login
+  shell's `PATH`, pairing) and the home's tests for 1 to 5.
+
+Not checked on a Mac: registering the LaunchAgent with `SMAppService` and the approval in
+System Settings, the take-over, removing, an update through Sparkle, notarization and what
+macOS names in its questions. The Mac the app was built on runs a Bot Server of `wizards bot
+install` on 4747, which the app rightly does not start a second one beside; these need a Mac
+without one, or that home stopped for the test, and the Developer ID secrets.
+
+## Not built yet
+
+- The Mac's models for a hosted home ("Die Modelle dieses Macs anbieten", a linked computer).
+- An export before removing the Bot Server; the app moves the data to the Trash instead.
+- The `wizards` command's side (engenty wizards' repository): `wizards bot install`, `update` and
+  `status` do not know the app's LaunchAgent `bot.wizards.home` yet, and `docs/hosted.md`'s
+  Contract has no point for the app.
+- The page `wizards.bot/mac`.
+- The secrets of the job `mac` (it says which), and the Sparkle key pair: without
+  `SPARKLE_PUBLIC_KEY` the app does not look for updates.
+- An Intel DMG, and the Mac as a device with resources of its own.
+
 ## Risks
 
 | Risk                                                                                                         | What we do                                                                                                                           |
 | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| The bundle is large (about 500 MB installed), mostly `@mastra`                                               | Prune in the build, measure each release, and fail the build above a limit we set in milestone 2                                     |
+| The bundle is large (312 MB installed, a 63 MB DMG), mostly `@mastra`                                        | Prune in the build and measure each release; `pnpm pack:mac` prints both sizes                                                       |
 | The agent's `PATH` misses `claude` or `codex` (nvm, Homebrew, `~/.local/bin`)                                | Read it from the login shell; the subscription check says which path it looked in                                                    |
-| The home writes into the bundle and breaks its signature                                                     | Writes go to the data folder; CI starts the home from the bundle and checks the signature after                                      |
+| The home writes into the bundle and breaks its signature                                                     | Writes go to the data folder; `pnpm pack:mac` starts the home from the bundle and checks the signature after                         |
 | An update replaces the bundle under the running home                                                         | Restart the agent after Sparkle; a waiting card resumes after the start                                                              |
 | A Mac laptop sleeps, and tasks wait for it                                                                   | Said on the download page and in the setup; a hosted home with this Mac as a linked computer is the way for tasks that must run      |
 | macOS asks about the local network or a folder and names the wrong program, or asks again after every update | Checked in milestone 2 on a clean Mac; the agent's designated requirement stays the same across updates (same team, same identifier) |
 | Two homes on one data folder (the app's and a `wizards bot install`)                                         | The app never starts one when another answers or is installed; the take-over removes the other first                                 |
 | Notarization fails on something deep in `node_modules` (a prebuilt binary we do not know of)                 | The build lists every Mach-O and signs each; an unknown one fails the build, not notarization                                        |
 
-## Open decisions
+## Decisions
 
-| #   | Question                                     | Recommendation                                                                                                                          |
+Taken as recommended on 2026-11-22, when the build started.
+
+| #   | Question                                     | Decision                                                                                                                                |
 | --- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Where the chat comes from                    | A native shell with the web app in a `WKWebView`                                                                                        |
 | 2   | The updater                                  | Sparkle 2, the one non-Apple dependency of `apps/mac`                                                                                   |
