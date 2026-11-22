@@ -255,14 +255,33 @@ async function link(): Promise<void> {
     );
   const db = new Db(config.dataDir);
   const models = new Models(config, db, new Secrets(db, config.dataDir), hostname());
-  const computer = new LinkedComputer({ ...saved, models, log: (line) => console.log(line) });
-  computer.start();
-  console.log(`Linking this computer to ${saved.home}. Leave this running.`);
+  // Where the link stands, for the Mac app, which shows it: link-state.json beside link.json.
+  const home = saved.home;
+  const note = (state: string) =>
+    writeFileSync(
+      join(config.dataDir, "link-state.json"),
+      JSON.stringify({ state, home, at: new Date().toISOString() }),
+      { mode: 0o600 },
+    );
+  note("connecting");
   const stop = () => {
     computer.stop();
     db.close();
     process.exit(0);
   };
+  const computer = new LinkedComputer({
+    ...saved,
+    models,
+    log: (line) => console.log(line),
+    onState: (state) => {
+      note(state);
+      // A Bot Server that removed this computer will not take it back: the link ends, and a
+      // service manager that starts it again on a failure leaves it ended.
+      if (state === "refused") stop();
+    },
+  });
+  computer.start();
+  console.log(`Linking this computer to ${saved.home}. Leave this running.`);
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
 }

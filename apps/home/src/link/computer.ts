@@ -3,6 +3,12 @@ import type { Models } from "../models/models.ts";
 import type { ToComputer, ToHome } from "./wire.ts";
 
 /**
+ * Where a link stands: `linked` while the home hears the computer, `away` while it tries again,
+ * `refused` once the home no longer knows it (it was removed there): then it stops for good.
+ */
+export type LinkState = "linked" | "away" | "refused";
+
+/**
  * A computer's end of the link: it offers its own models (Ollama, the signed-in clients) to
  * the person's home and runs what the home asks for.
  */
@@ -17,17 +23,20 @@ export class LinkedComputer {
   private readonly token: string;
   private readonly models: Models;
   private readonly log: (line: string) => void;
+  private readonly onState: (state: LinkState) => void;
 
   constructor(options: {
     home: string;
     token: string;
     models: Models;
     log?: (line: string) => void;
+    onState?: (state: LinkState) => void;
   }) {
     this.home = options.home.replace(/\/+$/, "");
     this.token = options.token;
     this.models = options.models;
     this.log = options.log ?? (() => {});
+    this.onState = options.onState ?? (() => {});
     // A client on this computer reaches the home's tools at the home's own address.
     this.models.mcpUrl = `${this.home}/mcp`;
   }
@@ -53,6 +62,7 @@ export class LinkedComputer {
       this.retry = 1000;
       this.announced = "";
       this.log("Linked. This computer's models are offered to your Bot Server.");
+      this.onState("linked");
       void this.announce(true);
     });
     socket.on("message", (data) => {
@@ -64,6 +74,7 @@ export class LinkedComputer {
       if (response.statusCode === 401) {
         this.log("The Bot Server does not know this computer any more. Link it again.");
         this.stopped = true;
+        this.onState("refused");
       }
       socket.terminate();
     });
@@ -72,6 +83,7 @@ export class LinkedComputer {
       for (const run of this.runs.values()) run.abort();
       this.runs.clear();
       if (this.stopped) return;
+      this.onState("away");
       this.log(
         `The Bot Server is out of reach. Trying again in ${Math.round(this.retry / 1000)} s.`,
       );
