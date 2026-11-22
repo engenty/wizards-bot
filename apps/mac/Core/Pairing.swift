@@ -52,12 +52,13 @@ nonisolated enum Pair {
         case problem(String)
     }
 
-    static func request(_ home: URL, code: String, name: String) -> URLRequest {
+    /// `kind`: `browser` for the window, `computer` for a link that offers this Mac's models.
+    static func request(_ home: URL, code: String, name: String, kind: String = "browser") -> URLRequest {
         var request = URLRequest(url: home.appending(path: "v1/pair"))
         request.httpMethod = "POST"
         request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "content-type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["code": code, "name": name, "kind": "browser"])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["code": code, "name": name, "kind": kind])
         return request
     }
 
@@ -73,9 +74,9 @@ nonisolated enum Pair {
         return .paired(token: token)
     }
 
-    static func pair(_ home: URL, code: String, name: String) async -> Result {
+    static func pair(_ home: URL, code: String, name: String, kind: String = "browser") async -> Result {
         do {
-            let (body, response) = try await URLSession.shared.data(for: request(home, code: code, name: name))
+            let (body, response) = try await URLSession.shared.data(for: request(home, code: code, name: name, kind: kind))
             return read(status: (response as? HTTPURLResponse)?.statusCode ?? 0, body: body)
         } catch {
             return .problem(error.localizedDescription)
@@ -91,5 +92,48 @@ nonisolated enum Pair {
         return """
         try { if (!sessionStorage.getItem("\(once)")) { localStorage.setItem("wizards.token", \(quoted)); sessionStorage.setItem("\(once)", "1"); } } catch {}
         """
+    }
+}
+
+/// This Mac's link to a Bot Server elsewhere, as `wizards-bot link` keeps it: `link.json` with
+/// the address and the token, `link-state.json` with how it stands (`apps/home/src/cli.ts`).
+nonisolated enum Link {
+    enum State: String, Equatable, Sendable {
+        case connecting, linked, away, refused
+    }
+
+    static func file(home: URL, token: String) -> Data {
+        let address = home.absoluteString.hasSuffix("/") ? String(home.absoluteString.dropLast()) : home.absoluteString
+        return (try? JSONSerialization.data(withJSONObject: ["home": address, "token": token], options: [.sortedKeys])) ?? Data()
+    }
+
+    /// The token in `link.json`.
+    static func token(_ data: Data) -> String? {
+        (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["token"] as? String
+    }
+
+    /// Removes this Mac from the Bot Server's devices with its own token (`DELETE /v1/device`):
+    /// a Bot Server removes another device only that way.
+    static func removal(home: URL, token: String) -> URLRequest {
+        var request = URLRequest(url: home.appending(path: "v1/device"))
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = 10
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "authorization")
+        return request
+    }
+
+    /// The address in `link.json`.
+    static func home(_ data: Data) -> URL? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let home = json["home"] as? String
+        else { return nil }
+        return URL(string: home)
+    }
+
+    static func state(_ data: Data) -> State? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let state = json["state"] as? String
+        else { return nil }
+        return State(rawValue: state)
     }
 }

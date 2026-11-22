@@ -87,11 +87,26 @@ stop, so a stopped Bot Server is one macOS forgets until it is started again.
 3. On success the window shows the Bot Server's web app, paired. No home starts on this Mac.
 
 A Mac that connects to a hosted home can still offer its own models to it: the hosted home has
-the gateway only, and this Mac may have Ollama or a signed-in subscription. The same window
-offers one more line, "Die Modelle dieses Macs anbieten". On a yes the app registers its agent
-with `wizards-bot link <address> <code>` instead of `start` (a linked computer, as `wizards bot
-setup --link` does today). It is the same LaunchAgent, with another argument. Not built yet: the
-plist's arguments are fixed, so the launcher has to read the mode from the data folder first.
+the gateway only, and this Mac may have Ollama or a signed-in subscription. "Die Modelle dieses
+Macs anbieten …" in the menu bar item and in the settings asks for the address and a code; the
+code comes from that Bot Server, in the chat under "Gerät hinzufügen", as the sheet says.
+
+- The app pairs this Mac with it as a `computer` and writes `link.json` (the address and the
+  token) into the link's own folder, `~/.engenty/wizards-bot-link`, with the login shell's `PATH`
+  beside it. Apart from the Bot Server's data: a Mac may run both, and removing one leaves the
+  other.
+- It registers a second LaunchAgent, `bot.wizards.link`: the app's program with `--link`, which
+  runs `wizards-bot link` on that folder (a linked computer, as `wizards bot setup --link` does).
+  A second plist, because a plist in a bundle is fixed and cannot carry the mode. It stays when
+  the app quits and starts with the Mac.
+- `wizards-bot link` notes how it stands in `link-state.json` (`connecting`, `linked`, `away`,
+  `refused`); the app shows it in the settings and the menu bar ("Angeboten an
+  engrd.wizards.bot."). A Bot Server that removed this Mac refuses it: the link ends with a
+  clean exit, so launchd does not start it again, and the app says to offer the models again
+  with a new code.
+- "Nicht mehr anbieten" removes this Mac from the Bot Server's devices with its own token
+  (`DELETE /v1/device`, the only way a Bot Server removes another device), then the LaunchAgent
+  and the token.
 
 ### A Bot Server is already on this Mac
 
@@ -248,8 +263,11 @@ The home is inside the app, so the app and its home have one version and update 
 - "Von diesem Mac entfernen…" in the app's settings: it stops the home, removes the agent
   (`SMAppService.unregister()`), and asks about the data: "Entfernen, Daten behalten" or
   "Entfernen, Daten in den Papierkorb". The data goes to the Trash, not away, so the person can
-  still take it back. An export before it (`wizards-bot export`) is not offered in the app yet:
-  it asks for a passphrase in a terminal. Then the app can go to the Trash.
+  still take it back. The first choice is "Zuerst eine Sicherung speichern …": a passphrase,
+  twice, at least 12 characters, then the file in a save dialog; the app runs `wizards-bot
+  export` with the passphrase in its environment, never on its command line, shows the file in
+  the Finder and comes back to the choice. "Sicherung speichern …" is in the settings as well.
+  Then the app can go to the Trash.
 - An app dragged to the Trash without that: the agent cannot start without its bundle. Whether
   macOS also takes it off the login items by itself is checked in the second milestone; if not,
   the download page says to use the menu first.
@@ -415,8 +433,6 @@ need the Developer ID secrets, a published update, or a person at the Mac to ans
 
 ## Not built yet
 
-- The Mac's models for a hosted home ("Die Modelle dieses Macs anbieten", a linked computer).
-- An export before removing the Bot Server; the app moves the data to the Trash instead.
 - The `wizards` command's side (engenty wizards' repository): `wizards bot install`, `update` and
   `status` do not know the app's LaunchAgent `bot.wizards.home` yet, and its `bot.json` still
   names `~/.wizards-bot` as `"data"` (docs/hosted.md, Contract 9).

@@ -4,7 +4,15 @@ import Foundation
 /// with `--home`. It finds the Node and the home inside the bundle it lies in, sends what they
 /// print to the data folder, and becomes Node (`execv`), so launchd keeps the Bot Server itself.
 nonisolated enum HomeLauncher {
-    static func run(_ arguments: [String]) -> Never {
+    /// This Mac's link to a Bot Server elsewhere, as the LaunchAgent `bot.wizards.link` runs it:
+    /// `wizards-bot link` with a data folder of its own (`LocalPaths.linkData`), where the app
+    /// wrote `link.json` when it paired.
+    static func link() -> Never {
+        setenv("WIZARDS_BOT_DATA", LocalPaths.linkData.path, 1)
+        run(["link"], log: "link.log")
+    }
+
+    static func run(_ arguments: [String], log name: String = "home.log") -> Never {
         let bundle = Bundle.main
         guard let node = LocalPaths.node(in: bundle), let cli = LocalPaths.cli(in: bundle) else {
             FileHandle.standardError.write(Data("This app carries no Bot Server.\n".utf8))
@@ -12,7 +20,7 @@ nonisolated enum HomeLauncher {
         }
         let data = LocalPaths.data
         try? FileManager.default.createDirectory(at: data.appending(path: "logs"), withIntermediateDirectories: true)
-        log(to: data.appending(path: "logs/home.log"))
+        log(to: data.appending(path: "logs/\(name)"))
 
         // The home writes only into its data folder, never next to its code in the bundle.
         FileManager.default.changeCurrentDirectoryPath(data.path)
@@ -66,6 +74,16 @@ nonisolated enum LocalPaths {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let path = data.path
         return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+    }
+
+    static let linkLabel = "bot.wizards.link"
+    static let linkPlist = "bot.wizards.link.plist"
+
+    /// The link's own folder: `link.json` (where to and its token), `link-state.json` (how it
+    /// stands), `path` and its log. Apart from the Bot Server's data, so removing one leaves the
+    /// other.
+    static var linkData: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appending(path: ".engenty/wizards-bot-link")
     }
 
     static var installPlist: URL {

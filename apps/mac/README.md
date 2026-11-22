@@ -12,6 +12,11 @@ it does and why is in `docs/mac-app.md`.
   program with `--home` (`App/HomeLauncher.swift`), which sends its output to
   `~/.engenty/wizards-bot/logs/home.log` and becomes the Node in `Contents/Resources/node`
   running the home in `Contents/Resources/bot`. The Bot Server keeps running when the app quits.
+- **Offer this Mac's models** to a Bot Server elsewhere, such as one at wizards.bot: the app pairs
+  this Mac as a computer and registers a second LaunchAgent, `bot.wizards.link`, which runs
+  `wizards-bot link` on `~/.engenty/wizards-bot-link`.
+- **Save a backup** of the app's Bot Server (`wizards-bot export`, encrypted with a passphrase),
+  also as the first choice when the Bot Server is removed.
 - A Bot Server that already answers on port 4747 (one of `wizards bot install`, or one started by
   hand) is used as it is; the app starts no second one.
 - The web app knows it runs in the app (`apps/web/src/lib/mac.ts`) and hands it notifications,

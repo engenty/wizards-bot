@@ -58,6 +58,17 @@ struct MenuBarMenu: View {
             Divider()
             Button("Start Bot Server") { Task { await model.startHere() } }
         }
+        if model.link.isOn {
+            Divider()
+            Text(model.link.said)
+            Button("Stop offering this Mac's models") { Task { await model.link.stop() } }
+        } else if model.link.canLink {
+            Divider()
+            Button("Offer this Mac's models…") {
+                show()
+                model.link.asking = true
+            }
+        }
         Divider()
         Button("Quit wizards.bot") { NSApp.terminate(nil) }
             .keyboardShortcut("q")
@@ -94,6 +105,10 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @State private var removing = false
     @State private var takingOver = false
+    @State private var exporting = false
+    @State private var linking = false
+    /// The removal waits for the backup the person chose to save first.
+    @State private var removeAfterExport = false
 
     var body: some View {
         Form {
@@ -104,6 +119,10 @@ struct SettingsView: View {
                     HStack {
                         Button("Show the log") {
                             NSWorkspace.shared.open(LocalPaths.data.appending(path: "logs/home.log"))
+                        }
+                        Button("Save a backup…") {
+                            removeAfterExport = false
+                            exporting = true
                         }
                         Spacer()
                         Button("Remove from this Mac…", role: .destructive) { removing = true }
@@ -122,6 +141,14 @@ struct SettingsView: View {
                     Text(problem).foregroundStyle(.red)
                 }
             }
+            Section("This Mac's models") {
+                Text(model.link.said).foregroundStyle(.secondary)
+                if model.link.isOn {
+                    Button("Stop offering") { Task { await model.link.stop() } }
+                } else if model.link.canLink {
+                    Button("Offer to a Bot Server…") { linking = true }
+                }
+            }
             if Updates.shared.available {
                 Section("Updates") {
                     Button("Check for Updates…") { Updates.shared.check() }
@@ -132,7 +159,15 @@ struct SettingsView: View {
         .frame(width: 480)
         .disabled(model.local.busy)
         .task { await model.local.look() }
+        .sheet(isPresented: $exporting) {
+            ExportSheet(then: removeAfterExport ? { removing = true } : nil)
+        }
+        .sheet(isPresented: $linking) { LinkSheet() }
         .confirmationDialog("Remove the Bot Server from this Mac?", isPresented: $removing) {
+            Button("Save a backup first…") {
+                removeAfterExport = true
+                exporting = true
+            }
             Button("Remove, keep the data") { Task { await model.removeHere(trashData: false) } }
             Button("Remove, move the data to the Trash", role: .destructive) {
                 Task { await model.removeHere(trashData: true) }

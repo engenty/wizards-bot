@@ -22,6 +22,7 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sheet(isPresented: Bindable(model).showPhone) { PhoneSheet() }
+        .sheet(isPresented: Bindable(model.link).asking) { LinkSheet() }
     }
 }
 

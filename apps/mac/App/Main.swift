@@ -1,13 +1,17 @@
 import SwiftUI
 
-/// One program, two jobs: started with `--home` by its LaunchAgent it becomes the Bot Server
-/// (`HomeLauncher`), otherwise it is the app with its window.
+/// One program, three jobs: started with `--home` by its LaunchAgent it becomes the Bot Server,
+/// with `--link` this Mac's link to a Bot Server elsewhere (`HomeLauncher`), otherwise it is the
+/// app with its window.
 @main
 enum Main {
     static func main() {
         let arguments = Array(CommandLine.arguments.dropFirst())
         if arguments.first == "--home" {
             HomeLauncher.run(Array(arguments.dropFirst()))
+        }
+        if arguments.first == "--link" {
+            HomeLauncher.link()
         }
         WizardsMacApp.main()
     }

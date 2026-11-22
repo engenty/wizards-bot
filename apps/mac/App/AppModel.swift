@@ -38,11 +38,13 @@ final class AppModel {
 
     let web = WebHost()
     let local = LocalHome()
+    let link = MacLink()
 
     var menuBarSymbol: String { home == nil ? "sparkle" : "sparkles" }
 
     /// Where the app starts: the Bot Server it knows, or the first screen.
     func begin() async {
+        link.watch()
         await local.look()
         if local.isOurs {
             // After an update the LaunchAgent still runs the old Node and home: start it anew.

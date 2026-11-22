@@ -165,6 +165,41 @@ final class LocalHome {
         await look()
     }
 
+    /// Writes an encrypted copy of the Bot Server's data to `file` with `wizards-bot export`, which
+    /// works while the Bot Server runs. Returns what went wrong, or nil. The passphrase goes to the
+    /// command in its environment, never on its command line.
+    func export(to file: URL, passphrase: String) async -> String? {
+        guard let node = LocalPaths.node(in: .main), let cli = LocalPaths.cli(in: .main) else {
+            return String(localized: "This build of the app carries no Bot Server.")
+        }
+        var environment = ProcessInfo.processInfo.environment
+        environment["WIZARDS_BOT_DATA"] = LocalPaths.data.path
+        environment["WIZARDS_BOT_PASSPHRASE"] = passphrase
+        let (ok, said) = await Self.runSaying(node, [cli.path, "export", file.path], environment: environment)
+        if ok { return nil }
+        let line = said.split(whereSeparator: \.isNewline).last.map(String.init) ?? ""
+        return String(localized: "The backup was not saved: \(line)")
+    }
+
+    /// Runs a program to its end and gives back whether it succeeded and what it printed, errors
+    /// included.
+    static func runSaying(_ program: URL, _ arguments: [String], environment: [String: String]) async -> (Bool, String) {
+        await Task.detached {
+            let process = Process()
+            let pipe = Pipe()
+            process.executableURL = program
+            process.arguments = arguments
+            process.environment = environment
+            process.standardOutput = pipe
+            process.standardError = pipe
+            process.standardInput = FileHandle.nullDevice
+            guard (try? process.run()) != nil else { return (false, "") }
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            return (process.terminationStatus == 0, String(decoding: data, as: UTF8.self))
+        }.value
+    }
+
     /// Starts the app's Bot Server anew, after an update of the app.
     func restart() {
         guard service.status == .enabled else { return }

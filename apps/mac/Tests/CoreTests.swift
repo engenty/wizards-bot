@@ -121,3 +121,33 @@ import Testing
         #expect(script.contains("sessionStorage"))
     }
 }
+
+@Suite struct LinkTests {
+    @Test func theFileTheLinkReads() throws {
+        let data = Link.file(home: URL(string: "https://ada.wizards.bot")!, token: "tok")
+        let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: String])
+        #expect(json == ["home": "https://ada.wizards.bot", "token": "tok"])
+        #expect(Link.home(data)?.absoluteString == "https://ada.wizards.bot")
+    }
+
+    @Test func itsState() {
+        #expect(Link.state(Data(#"{"state":"linked","home":"https://ada.wizards.bot"}"#.utf8)) == .linked)
+        #expect(Link.state(Data(#"{"state":"refused"}"#.utf8)) == .refused)
+        #expect(Link.state(Data(#"{"state":"something"}"#.utf8)) == nil)
+    }
+
+    @Test func theLinkLeaves() {
+        let data = Link.file(home: URL(string: "https://ada.wizards.bot")!, token: "tok")
+        #expect(Link.token(data) == "tok")
+        let request = Link.removal(home: URL(string: "https://ada.wizards.bot")!, token: "tok")
+        #expect(request.httpMethod == "DELETE")
+        #expect(request.url?.absoluteString == "https://ada.wizards.bot/v1/device")
+        #expect(request.value(forHTTPHeaderField: "authorization") == "Bearer tok")
+    }
+
+    @Test func aComputerPairs() throws {
+        let request = Pair.request(URL(string: "https://ada.wizards.bot")!, code: "K7QM", name: "Ada's Mac", kind: "computer")
+        let body = try #require(request.httpBody.flatMap { try JSONSerialization.jsonObject(with: $0) as? [String: String] })
+        #expect(body["kind"] == "computer")
+    }
+}
