@@ -14,7 +14,18 @@ import {
   probeGateway,
   probeOllama,
 } from "./probes.ts";
-import { greeting, type Lang, langOf, pairingLink, same, say, type Words, w } from "./words.ts";
+import {
+  greeting,
+  type Lang,
+  langOf,
+  MAIN_ABOUT,
+  MAIN_ABOUT_BEFORE,
+  pairingLink,
+  same,
+  say,
+  type Words,
+  w,
+} from "./words.ts";
 
 /** A test call's outcome as the home keeps it, with its time. Kept text from before is English. */
 interface Kept extends Omit<Probe, "said" | "todo"> {
@@ -95,7 +106,14 @@ export class Setup {
   }
 
   async change(input: { name?: string; done?: boolean; lang?: Lang }): Promise<SetupView> {
-    if (input.lang) this.home.db.setMeta("person.lang", input.lang);
+    if (input.lang) {
+      this.home.db.setMeta("person.lang", input.lang);
+      // The main agent's first words about itself follow the language, until someone changed them.
+      const main = this.home.store.mainAgent();
+      if ([MAIN_ABOUT.en, MAIN_ABOUT.de, MAIN_ABOUT_BEFORE].includes(main.about)) {
+        this.home.store.updateAgent(main.id, { about: MAIN_ABOUT[input.lang] });
+      }
+    }
     if (input.name) {
       this.home.db.setMeta("person.name", input.name);
       this.home.db.setMeta("person.named", "1");

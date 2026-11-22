@@ -10,6 +10,15 @@ import { Menu } from "../ui/Menu";
 import { StackedAvatar } from "../ui/StackedAvatar";
 import { Face } from "./Face";
 
+/**
+ * Which Bot Server this is, as the person knows it: its host where it has a name of its own
+ * (`ada.wizards.bot`), "Your Bot Server" where it is reached at an address of the network.
+ */
+export function botServerName(host = location.hostname, full = location.host): string {
+  const numeric = /^[\d.]+$/.test(host) || host.includes(":") || host === "localhost";
+  return numeric ? t("you.botServer") : full;
+}
+
 /** The main agent first, then whoever was written with last. */
 function inOrder(agents: Agent[]): Agent[] {
   return [...agents].sort(
@@ -170,6 +179,7 @@ export function Sidebar({
 }) {
   const home = useHome();
   const listed = inOrder(agents);
+  const where = botServerName();
   const you = <StackedAvatar avatar={avatar ?? DEFAULT_AVATAR} size={1} view="head" follows />;
   /** The person's own things: their avatar, and signing this browser out. */
   const userMenu = {
@@ -177,7 +187,7 @@ export function Sidebar({
     head: (
       <>
         <p className="truncate font-medium text-[0.875rem]">{home.data?.name}</p>
-        <p className="truncate text-[0.75rem] text-ink-3">{location.origin}</p>
+        <p className="truncate text-[0.75rem] text-ink-3">{where}</p>
       </>
     ),
     items: [
@@ -201,6 +211,12 @@ export function Sidebar({
         aria-label={t("agents.title")}
         className="enter-fade flex h-full w-16 shrink-0 flex-col items-center gap-1 bg-paper pt-[max(0.625rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       >
+        <Menu
+          {...userMenu}
+          className="grid size-12 place-items-center rounded-xl transition hover:bg-accent/60"
+        >
+          {you}
+        </Menu>
         <IconButton label={t("agents.show")} onClick={onToggle}>
           <PanelLeft className="size-[1.125rem]" />
         </IconButton>
@@ -215,12 +231,6 @@ export function Sidebar({
           ))}
         </ul>
         {gear}
-        <Menu
-          {...userMenu}
-          className="grid size-12 place-items-center rounded-xl transition hover:bg-accent/60"
-        >
-          {you}
-        </Menu>
       </nav>
     );
   }
@@ -229,12 +239,24 @@ export function Sidebar({
       aria-label={t("agents.title")}
       className="enter-fade flex h-full w-full flex-col bg-paper pt-[max(0.625rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]"
     >
-      <div className="flex items-center justify-between gap-2 pr-2 pb-1.5 pl-4">
-        <h2 className="font-display font-semibold text-[1.0625rem]">{t("agents.title")}</h2>
+      <div className="flex items-center gap-1 pr-2 pb-1 pl-2">
+        <Menu
+          {...userMenu}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-accent/60"
+        >
+          <span className="flex w-10 shrink-0 justify-center">{you}</span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate font-medium text-[0.9375rem]">{home.data?.name}</span>
+            <span className="truncate text-[0.8125rem] text-ink-3">{where}</span>
+          </span>
+        </Menu>
         <IconButton label={t("agents.hide")} onClick={onToggle}>
           <PanelLeftClose className="size-[1.125rem]" />
         </IconButton>
       </div>
+      <h2 className="px-4 pt-2 pb-1 font-medium text-[0.75rem] text-ink-3 uppercase tracking-wide">
+        {t("agents.title")}
+      </h2>
       <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2">
         {listed.map((agent) => (
           <Row
@@ -245,19 +267,7 @@ export function Sidebar({
           />
         ))}
       </ul>
-      <div className="flex items-center gap-1 px-2 pt-1.5">
-        <Menu
-          {...userMenu}
-          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-accent/60"
-        >
-          <span className="flex w-10 shrink-0 justify-center">{you}</span>
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-medium text-[0.9375rem]">{home.data?.name}</span>
-            <span className="text-[0.8125rem] text-ink-3">{t("you.label")}</span>
-          </span>
-        </Menu>
-        {gear}
-      </div>
+      <div className="flex px-2 pt-1.5">{gear}</div>
     </nav>
   );
 }

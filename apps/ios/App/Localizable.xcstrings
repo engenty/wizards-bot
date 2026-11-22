@@ -33,22 +33,6 @@
         }
       }
     },
-    "You" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You"
-          }
-        },
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Du"
-          }
-        }
-      }
-    },
     "Your avatar" : {
       "localizations" : {
         "en" : {
@@ -3161,6 +3145,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
+          }
+        }
+      }
+    },
+    "Your Bot Server" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Bot Server"
           }
         }
       }

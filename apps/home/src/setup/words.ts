@@ -64,3 +64,16 @@ export function greeting(name: string, agent: string, lang: Lang): string {
     lang,
   );
 }
+
+/**
+ * What the main agent is, as the person reads it until they or the agent say otherwise. Kept in
+ * every language, so a switch of the language finds it again.
+ */
+export const MAIN_ABOUT = w(
+  "Your own wizard. It knows your other wizards, your accounts and what needs you.",
+  "Dein eigener Wizard. Er kennt deine anderen Wizards, deine Konten und was dich braucht.",
+);
+
+/** The main agent's first `about`, before it was written in two languages. */
+export const MAIN_ABOUT_BEFORE =
+  "Your own agent. It knows your other agents, your accounts and what needs you.";

@@ -350,6 +350,10 @@ test("a pairing code for the setup's own page, not a card in the chat", async ()
 
 test("the checks in the language the person reads", async () => {
   await t.request("/v1/setup", { method: "PATCH", body: { lang: "de" } });
+  assert.equal(
+    t.home.store.mainAgent().about,
+    "Dein eigener Wizard. Er kennt deine anderen Wizards, deine Konten und was dich braucht.",
+  );
   const setup = await t.home.setup.view();
   const gateway = setup.models.find((check) => check.id === "openrouter");
   assert.equal(gateway?.said, "OpenRouter hat den Schlüssel abgelehnt.");

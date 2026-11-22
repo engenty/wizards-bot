@@ -188,7 +188,9 @@ export function Home() {
   // The chat and what stands beside it share what the list of agents leaves.
   const main = useRef<HTMLDivElement>(null);
   const agent = agents.data?.find((a) => a.id === agentId) ?? agents.data?.[0];
-  const width = useWidth(main, Boolean(agent));
+  // The column is measured once it stands: after the setup, which stands in its place first.
+  const inSetup = Boolean(setup.data && needsSetup(setup.data));
+  const width = useWidth(main, Boolean(agent) && !inSetup);
   const [chosen, setChosen] = useStored<number | null>("wizards.chat.width", null);
   // What stands beside the chat stays for its way out after it was closed.
   const standing = useLingering(
@@ -230,7 +232,7 @@ export function Home() {
   }, [visible, unread, conversationId]);
 
   // A home nobody set up, or one without a model, opens on its setup instead of the chat.
-  if (setup.data && needsSetup(setup.data)) {
+  if (inSetup && setup.data) {
     return (
       <>
         <SetupView setup={setup.data} />
