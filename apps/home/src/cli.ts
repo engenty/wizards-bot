@@ -6,6 +6,7 @@ import { createInterface } from "node:readline";
 import { serve } from "@hono/node-server";
 import type { Event, PairResponse, Setup, SetupCheck } from "@wizards-bot/protocol";
 import qrcode from "qrcode-terminal";
+import { exportData, importData, MIN_PASSPHRASE } from "./backup.ts";
 import { loadConfig, VERSION } from "./config.ts";
 import { Home } from "./home.ts";
 import { Secrets } from "./identity.ts";
@@ -31,6 +32,10 @@ const HELP = `wizards.bot ${VERSION}: your own agent, in your own home.
   wizards-bot chat               Talk to your agent in this terminal.
   wizards-bot push --key <file.p8> --key-id <id> --team-id <id>
                                 Give the home your Apple key, so it can notify your phone.
+  wizards-bot export <file>      Write the home's data, encrypted with a passphrase, to a file.
+  wizards-bot import <file>      Bring an export into an empty data folder. Stop the home first.
+                                The passphrase is asked, or read from --passphrase-file <file>
+                                or WIZARDS_BOT_PASSPHRASE.
 
   WIZARDS_BOT_DATA   where the home keeps its data (default ~/.wizards-bot)
   WIZARDS_BOT_PORT   the port it listens on (default 4747)
@@ -54,6 +59,8 @@ async function start(): Promise<void> {
   const server = serve({ fetch: app.fetch, port: config.port, hostname: "0.0.0.0" });
   new LinkHub(home).attach(server as import("node:http").Server);
   home.tasks.start();
+  // A hosted home claims its way to the gateway on its first start.
+  await home.hosted.start();
   // A home without an address asks its contacts' homes for what they keep for it.
   home.peers.mailbox.start();
   await home.channels.start();
@@ -349,6 +356,55 @@ async function chat(): Promise<void> {
   }
 }
 
+/** Asks for a line without showing it. */
+async function hidden(question: string): Promise<string> {
+  const input = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+  const shown = input as unknown as { _writeToOutput(text: string): void };
+  shown._writeToOutput = (text) => {
+    if (text.startsWith(question)) process.stdout.write(question);
+  };
+  const answer = await new Promise<string>((resolve) => input.question(question, resolve));
+  input.close();
+  process.stdout.write("\n");
+  return answer;
+}
+
+/** The passphrase of an export: from a file, the environment, or asked in the terminal. */
+async function passphrase(twice: boolean): Promise<string> {
+  const file = option("passphrase-file");
+  if (file) return readFileSync(file, "utf8").replace(/\r?\n$/, "");
+  if (process.env.WIZARDS_BOT_PASSPHRASE) return process.env.WIZARDS_BOT_PASSPHRASE;
+  if (!process.stdin.isTTY)
+    throw new Error("Give the passphrase with --passphrase-file <file> or WIZARDS_BOT_PASSPHRASE.");
+  const first = await hidden(
+    twice ? `Passphrase (at least ${MIN_PASSPHRASE} characters, keep it apart): ` : "Passphrase: ",
+  );
+  if (twice && (await hidden("Once more: ")) !== first)
+    throw new Error("The two passphrases differ.");
+  return first;
+}
+
+async function exportCommand(): Promise<void> {
+  const file = rest[0];
+  if (!file) throw new Error("Say where: wizards-bot export wizards-bot.export");
+  await exportData(config.dataDir, file, await passphrase(true));
+  console.log(`The home's data is in ${file}. Without the passphrase nobody can read it.`);
+}
+
+async function importCommand(): Promise<void> {
+  const file = rest[0];
+  if (!file || !existsSync(file))
+    throw new Error("Say which file: wizards-bot import wizards-bot.export");
+  const runs = await fetch(`http://127.0.0.1:${config.port}/health`, {
+    signal: AbortSignal.timeout(1500),
+  })
+    .then((response) => response.ok)
+    .catch(() => false);
+  if (runs) throw new Error("A home runs on this computer. Stop it first, then import.");
+  await importData(file, config.dataDir, await passphrase(false));
+  console.log(`The home is back in ${config.dataDir}. Start it with wizards-bot start.`);
+}
+
 const commands: Record<string, () => void | Promise<void>> = {
   start,
   pair,
@@ -358,6 +414,8 @@ const commands: Record<string, () => void | Promise<void>> = {
   push,
   say,
   chat,
+  export: exportCommand,
+  import: importCommand,
 };
 const run = commands[command];
 if (!run) {

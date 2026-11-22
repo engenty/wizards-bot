@@ -142,3 +142,20 @@ export function explainGateway(
   }
   return { said: `${label} did not answer: ${firstLine(detail) || "no reason given"}.` };
 }
+
+/** What a failed test call to the wizards account means: the key and the credits are the Manage-App's. */
+export function explainAccount(
+  label: string,
+  detail: string,
+  status: number | undefined,
+  model: string,
+): Finding {
+  if (status === 401 || status === 403) {
+    return { said: `${label} refused the home's key.`, todo: "Ask for help at wizards.bot." };
+  }
+  if (status === 402 || /credit|balance|insufficient/i.test(detail)) {
+    return { said: `${label} has no credits left.`, todo: "Add credits at wizards.bot." };
+  }
+  const found = explainGateway(label, detail, status, model);
+  return { said: found.said, ...(status === 429 ? { todo: found.todo } : {}) };
+}

@@ -9,6 +9,7 @@ const KNOWN: Record<string, { id: string; label: string }> = {
   openai: { id: "openai", label: "OpenAI" },
   openrouter: { id: "openrouter", label: "OpenRouter" },
   vercel: { id: "vercel", label: "Vercel" },
+  wizards: { id: "wizards", label: "wizards account" },
 };
 
 /**

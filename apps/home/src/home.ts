@@ -16,6 +16,7 @@ import { Handoffs } from "./devices/handoffs.ts";
 import { Events } from "./events.ts";
 import { Files } from "./files/files.ts";
 import { Folders } from "./folders/folders.ts";
+import { Hosted } from "./hosted.ts";
 import { Identity, Secrets } from "./identity.ts";
 import { HomeMastra } from "./mastra.ts";
 import { Models } from "./models/models.ts";
@@ -66,6 +67,8 @@ export class Home {
   readonly handoffs: Handoffs;
   /** The checks of the first start and of `doctor`. */
   readonly setup: Setup;
+  /** What a home on wizards.bot has of the Manage-App: its setup code and its claim. */
+  readonly hosted: Hosted;
   private readonly cardHandlers = new Map<string, CardHandler>();
   /** Card handlers that still run. */
   private readonly handling = new Set<Promise<void>>();
@@ -97,6 +100,7 @@ export class Home {
     this.avatars = new Avatars(this);
     this.channels = new Channels(this, adapters);
     this.setup = new Setup(this);
+    this.hosted = new Hosted(this);
     this.store.failInterrupted();
     this.store.mainAgent();
   }
@@ -248,6 +252,7 @@ export class Home {
   }
 
   close(): void {
+    this.hosted.stop();
     this.peers.mailbox.stop();
     this.tasks.stop();
     this.channels.stop();

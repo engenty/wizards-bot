@@ -7,7 +7,7 @@ import {
 import type { Card, Channel, FileRef, Message } from "@wizards-bot/protocol";
 import type { Home } from "../home.ts";
 import { newToken } from "../ids.ts";
-import { type Engine, splitRef } from "../models/models.ts";
+import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
 import type { AgentRecord } from "../store/store.ts";
 import { Draft } from "./draft.ts";
 import { systemPrompt } from "./prompt.ts";
@@ -278,10 +278,14 @@ class Turn {
   refOf(provider: unknown, modelId: unknown): string | undefined {
     const exact = this.engines.find((engine) => engine.ref === `${provider}:${modelId}`);
     if (exact) return exact.ref;
-    // A gateway's provider is named after it with a suffix, e.g. `openrouter.chat`.
+    // A gateway's provider is named after it with a suffix, e.g. `openrouter.chat`; the
+    // account's gateway client calls itself `gateway`.
     return this.engines.find((engine) => {
       const { sourceId, model } = splitRef(engine.ref);
-      return model === modelId && String(provider).startsWith(sourceId);
+      if (model !== modelId) return false;
+      return (
+        String(provider).startsWith(sourceId) || (provider === "gateway" && sourceId === ACCOUNT.id)
+      );
     })?.ref;
   }
 

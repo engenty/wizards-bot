@@ -23,6 +23,9 @@ importers:
 
   apps/home:
     dependencies:
+      '@ai-sdk/gateway':
+        specifier: 4.0.136
+        version: 4.0.136(zod@4.6.7)
       '@ai-sdk/openai-compatible':
         specifier: 3.0.94
         version: 3.0.94(zod@4.6.7)

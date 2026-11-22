@@ -20,7 +20,8 @@
     "test": "pnpm -r test",
     "release": "node scripts/release.mjs",
     "release:changelog": "node scripts/release.mjs --changelog",
-    "release:tag": "node scripts/release.mjs --tag"
+    "release:tag": "node scripts/release.mjs --tag",
+    "pack:home": "node scripts/pack.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",

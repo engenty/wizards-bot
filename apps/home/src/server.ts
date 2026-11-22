@@ -156,6 +156,9 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     });
   });
 
+  // For Coolify and the status page: the home runs. It says nothing else, to anyone.
+  app.get("/health", (c) => c.json({ ok: true }));
+
   app.get("/v1/home", (c) => c.json(home.info()));
 
   app.post("/v1/pair", async (c) => {
@@ -166,7 +169,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       return fail(c, 429, "too_many", "Too many wrong codes. Wait a minute, then try again.");
     }
     const demo = home.config.demoCode !== undefined && tidyCode(body.code) === home.config.demoCode;
-    if (!(demo || store.redeemPairingCode(body.code))) {
+    if (!(demo || home.hosted.redeemSetupCode(body.code) || store.redeemPairingCode(body.code))) {
       wrongCodes.push(Date.now());
       return fail(c, 401, "unauthorized", "This code is not valid any more. Ask for a new one.");
     }
