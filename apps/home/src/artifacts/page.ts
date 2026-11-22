@@ -327,7 +327,7 @@ export function artifactRules(person: string): string {
     `- Charts and diagrams are SVG drawn with D3 ${D3_VERSION}: \`<script src="${LIB_PREFIX}d3.js"></script>\` gives you the global \`d3\`. Give every <svg> a viewBox and no fixed width, so it fits the pane and the paper.`,
     `- 3D is three.js ${THREE_VERSION} in a \`<script type="module">\`: \`import * as THREE from "three"\` and \`import { OrbitControls } from "three/addons/controls/OrbitControls.js"\`. Make the renderer with \`preserveDrawingBuffer: true\` so the scene prints, and size it to its box when the window changes.`,
     '- A report is one A4 page: put it in `<main class="sheet">`, which is at most as wide as the paper, and keep it under 1000 px high. A title, the few numbers that matter, one or two charts, short text. Dark text on white, and colours that still read on paper.',
-    '- The home adds the print layout (A4, margins, no chart cut off). Give what is only for the screen, such as buttons and sliders, `class="no-print"`. For a wide page, add `@page { size: A4 landscape; }`.',
+    '- The Bot Server adds the print layout (A4, margins, no chart cut off). Give what is only for the screen, such as buttons and sliders, `class="no-print"`. For a wide page, add `@page { size: A4 landscape; }`.',
     `- Label the axes and the units, and name where the data comes from. Write the page in the language ${person} writes in. In the chat, say in one sentence what the page shows.`,
   ].join("\n");
 }

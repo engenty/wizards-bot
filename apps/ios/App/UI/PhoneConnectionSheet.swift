@@ -29,7 +29,7 @@ struct PhoneConnectionSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 } footer: {
-                    Text("The service is used by the model on this \(thisDevice) only. The token stays in this \(thisDevice)’s Keychain; your home learns only the name. A tool that changes something asks you here first.")
+                    Text("The service is used by the model on this \(thisDevice) only. The token stays in this \(thisDevice)’s Keychain; your Bot Server learns only the name. A tool that changes something asks you here first.")
                 }
                 if let problem {
                     Section {

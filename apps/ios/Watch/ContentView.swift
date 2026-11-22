@@ -143,8 +143,8 @@ private struct Unpaired: View {
                 EngentyFigure(kind: .round)
                     .frame(height: 64)
                 Text(model.phoneHasNoHome
-                    ? "Connect your phone to your home first. This watch follows."
-                    : "Open wizards.bot on your phone. It connects this watch to your home.")
+                    ? "Connect your phone to your Bot Server first. This watch follows."
+                    : "Open wizards.bot on your phone. It connects this watch to your Bot Server.")
                     .font(.footnote)
                     .multilineTextAlignment(.center)
                 Button("Try again") { model.ask() }

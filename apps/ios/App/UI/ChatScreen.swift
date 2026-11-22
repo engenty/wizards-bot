@@ -502,8 +502,8 @@ private struct StatusBar: View {
                     Image(systemName: "house")
                         .accessibilityHidden(true)
                     (model.onDevice.isAvailable
-                        ? Text("Your home is out of reach. This device answers for now.")
-                        : Text("Your home is out of reach. Your messages wait until it is back."))
+                        ? Text("Your Bot Server is out of reach. This device answers for now.")
+                        : Text("Your Bot Server is out of reach. Your messages wait until it is back."))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.footnote)
@@ -567,7 +567,7 @@ private struct Waiting: View {
             if model.reachable {
                 ProgressView()
             } else {
-                Text("Your home is out of reach. The chat opens when it is back.")
+                Text("Your Bot Server is out of reach. The chat opens when it is back.")
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                 Button("Show this device") {

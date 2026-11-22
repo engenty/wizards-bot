@@ -78,7 +78,7 @@ struct AgentDetailView: View {
             return
         } catch {
             if detail == nil {
-                problem = (error as? HomeError)?.message ?? String(localized: "Your home is out of reach. Try again in a moment.")
+                problem = (error as? HomeError)?.message ?? String(localized: "Your Bot Server is out of reach. Try again in a moment.")
             }
         }
     }

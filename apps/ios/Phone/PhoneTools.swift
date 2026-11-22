@@ -294,8 +294,8 @@ actor PhoneTools {
             let url: URL? = try PhoneFolderReader.within(connected) { root in PhoneFolderReader.locate(path, in: root) }
             guard let url else { return "There is no file \(path) in \(connected.name)." }
             let question = PhoneQuestion(
-                title: String(localized: "Send “\(url.lastPathComponent)” to your home?"),
-                detail: String(localized: "\(asker) asked for it. A copy is kept in your home; the file stays on this phone too."),
+                title: String(localized: "Send “\(url.lastPathComponent)” to your Bot Server?"),
+                detail: String(localized: "\(asker) asked for it. A copy is kept on your Bot Server; the file stays on this phone too."),
                 yes: String(localized: "Send"), no: String(localized: "Keep it here")
             )
             guard await ask(question) else { return Self.saidNo }

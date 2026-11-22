@@ -158,7 +158,7 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
             forgetHome()
             ask()
         } catch {
-            if agent == nil { problem = String(localized: "Your home is out of reach.") }
+            if agent == nil { problem = String(localized: "Your Bot Server is out of reach.") }
         }
     }
 
@@ -245,7 +245,7 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
             problem = String(localized: "Open wizards.bot on your iPhone and allow where your messages go.")
         } catch {
             isWaiting = false
-            problem = (error as? HomeError)?.message ?? String(localized: "Your home is out of reach. Try again in a moment.")
+            problem = (error as? HomeError)?.message ?? String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         }
     }
 
@@ -282,7 +282,7 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
             if let current { apply(current) } else { items.removeAll { $0.id == card.id } }
             return nil
         } catch {
-            return (error as? HomeError)?.message ?? String(localized: "Your home is out of reach. Try again in a moment.")
+            return (error as? HomeError)?.message ?? String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         }
     }
 

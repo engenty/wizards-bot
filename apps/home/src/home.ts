@@ -10,7 +10,7 @@ import { Artifacts } from "./artifacts/artifacts.ts";
 import { Avatars } from "./avatar/avatars.ts";
 import { type ChannelAdapter, Channels } from "./channels/channels.ts";
 import { ADAPTERS } from "./channels/index.ts";
-import { type Config, VERSION } from "./config.ts";
+import { type Config, isHosted, VERSION } from "./config.ts";
 import { Connections } from "./connections/connections.ts";
 import { Handoffs } from "./devices/handoffs.ts";
 import { Events } from "./events.ts";
@@ -107,11 +107,16 @@ export class Home {
 
   // ── The person ────────────────────────────────────────────────────────────
 
+  /**
+   * The person's name: the one they said, the one their wizards account gave, or the one of this
+   * computer's account. Empty while nobody said it on a hosted home or under `root`: the
+   * setup asks for it then.
+   */
   person(): string {
     const saved = this.db.meta("person.name");
     if (saved) return saved;
-    const name = fullName();
-    this.db.setMeta("person.name", name);
+    const name = isHosted(this.config) ? "" : fullName();
+    if (name) this.db.setMeta("person.name", name);
     return name;
   }
 
@@ -127,8 +132,7 @@ export class Home {
   handleFor(personId: string | undefined): string | undefined {
     const name = (
       this.db.meta("person.handle") ??
-      this.person().split(/\s+/)[0] ??
-      "me"
+      (this.person().split(/\s+/)[0] || "me")
     ).toLowerCase();
     const spelled = name.replace(/[^a-z0-9._-]/g, "");
     if (!this.config.publicUrl) return personId ? `${spelled}@${keyDomain(personId)}` : undefined;
@@ -270,7 +274,12 @@ function fullName(): string {
       if (name) return name;
     }
   } catch {}
-  const user = userInfo().username;
+  return accountName(userInfo().username);
+}
+
+/** A name from the computer's account. The superuser of a server or a container is no one's. */
+export function accountName(user: string): string {
+  if (user === "root") return "";
   return user.charAt(0).toUpperCase() + user.slice(1);
 }
 

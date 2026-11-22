@@ -17,27 +17,27 @@ import { createServer } from "./server.ts";
 import { summary } from "./setup/setup.ts";
 import { Db } from "./store/db.ts";
 
-const HELP = `wizards.bot ${VERSION}: your own agent, in your own home.
+const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
 
-  wizards-bot start              Start the home on this computer.
+  wizards-bot start              Start the Bot Server on this computer.
   wizards-bot pair               Show a code and a QR to add a phone or a computer.
   wizards-bot link <address> <code>
                                 Offer this computer's models (Ollama, Claude, Codex) to your
-                                home on another computer or server. Later: wizards-bot link
-  wizards-bot status             Say what the home has: devices, models, agents.
-  wizards-bot doctor             Test each model with a short call and check the home: its
+                                Bot Server on another computer or server. Later: wizards-bot link
+  wizards-bot status             Say what the Bot Server has: devices, models, agents.
+  wizards-bot doctor             Test each model with a short call and check the Bot Server: its
                                 address, its data folder, folders, notifications. Says what
                                 to do about each problem.
   wizards-bot say "<text>"       Send one message from this terminal and print the answer.
   wizards-bot chat               Talk to your agent in this terminal.
   wizards-bot push --key <file.p8> --key-id <id> --team-id <id>
-                                Give the home your Apple key, so it can notify your phone.
-  wizards-bot export <file>      Write the home's data, encrypted with a passphrase, to a file.
-  wizards-bot import <file>      Bring an export into an empty data folder. Stop the home first.
+                                Give the Bot Server your Apple key, so it can notify your phone.
+  wizards-bot export <file>      Write the Bot Server's data, encrypted with a passphrase, to a file.
+  wizards-bot import <file>      Bring an export into an empty data folder. Stop the Bot Server first.
                                 The passphrase is asked, or read from --passphrase-file <file>
                                 or WIZARDS_BOT_PASSPHRASE.
 
-  WIZARDS_BOT_DATA   where the home keeps its data (default ~/.wizards-bot)
+  WIZARDS_BOT_DATA   where the Bot Server keeps its data (default ~/.wizards-bot)
   WIZARDS_BOT_PORT   the port it listens on (default 4747)
   WIZARDS_BOT_URL    its public address, when it has one (https://…)
   WIZARDS_BOT_SUBSCRIPTIONS   the signed-in apps it may use (default claude,codex)
@@ -66,7 +66,11 @@ async function start(): Promise<void> {
   await home.channels.start();
   await home.models.refresh(true);
   const current = home.models.candidates()[0];
-  console.log(`wizards.bot ${VERSION} runs for ${home.person()}.`);
+  console.log(
+    home.person()
+      ? `Your Bot Server ${VERSION} runs for ${home.person()}.`
+      : `Your Bot Server ${VERSION} runs. Its setup asks for your name.`,
+  );
   console.log(`Address: ${home.address()}`);
   console.log(
     current
@@ -104,7 +108,7 @@ async function status(): Promise<void> {
   const home = openHome();
   await home.models.refresh(true);
   console.log(
-    `Home of ${home.person()} at ${home.address()}${home.handle() ? ` (${home.handle()})` : ""}`,
+    `Bot Server${home.person() ? ` of ${home.person()}` : ""} at ${home.address()}${home.handle() ? ` (${home.handle()})` : ""}`,
   );
   console.log(`Setup: ${summary(await home.setup.view())} (details: wizards-bot doctor)`);
   console.log("\nAgents");
@@ -114,7 +118,7 @@ async function status(): Promise<void> {
   for (const device of home.store.devices())
     console.log(`  ${device.name} (${device.kind}), last seen ${device.seenAt}`);
   if (!home.store.devices().length) console.log("  none");
-  console.log("\nModels, in the order the home tries them");
+  console.log("\nModels, in the order the Bot Server tries them");
   for (const ref of home.models.candidates()) console.log(`  ${ref}`);
   if (!home.models.candidates().length) console.log("  none");
   console.log(
@@ -144,11 +148,11 @@ function printSetup(setup: Setup): void {
     }
   };
   group("Models", setup.models);
-  group("Home", setup.home);
+  group("Bot Server", setup.home);
   group("What your agents can do", setup.capabilities);
   console.log(
     setup.working
-      ? "\nA model answers. Your home is ready to talk."
+      ? "\nA model answers. Your Bot Server is ready to talk."
       : "\nNo model answers yet. Set up one of the models above, then run wizards-bot doctor again.",
   );
 }
@@ -198,7 +202,7 @@ function push(): void {
   }
   const home = openHome();
   home.notifier.setKey({ key: readFileSync(file, "utf8"), keyId, teamId });
-  console.log("Saved. Restart the home so it uses the key.");
+  console.log("Saved. Restart the Bot Server so it uses the key.");
   home.close();
 }
 
@@ -223,7 +227,7 @@ async function link(): Promise<void> {
   }
   if (!saved)
     throw new Error(
-      "Give your home's address and a code from it: wizards-bot link https://me.example.com K7QM-2RXD",
+      "Give your Bot Server's address and a code from it: wizards-bot link https://me.example.com K7QM-2RXD",
     );
   const db = new Db(config.dataDir);
   const models = new Models(config, db, new Secrets(db, config.dataDir), hostname());
@@ -248,7 +252,7 @@ async function terminal(): Promise<{ base: string; token: string }> {
     const check = await fetch(`${base}/v1/agents`, {
       headers: { authorization: `Bearer ${token}` },
     }).catch(() => undefined);
-    if (!check) throw new Error("The home does not run. Start it with `wizards-bot start`.");
+    if (!check) throw new Error("The Bot Server does not run. Start it with `wizards-bot start`.");
     if (check.ok) return { base, token };
   }
   const home = openHome();
@@ -259,7 +263,8 @@ async function terminal(): Promise<{ base: string; token: string }> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ code, name: "Terminal", kind: "computer" }),
   }).catch(() => undefined);
-  if (!response?.ok) throw new Error("The home does not run. Start it with `wizards-bot start`.");
+  if (!response?.ok)
+    throw new Error("The Bot Server does not run. Start it with `wizards-bot start`.");
   const { token } = (await response.json()) as PairResponse;
   writeFileSync(file, token, { mode: 0o600 });
   return { base, token };
@@ -388,7 +393,7 @@ async function exportCommand(): Promise<void> {
   const file = rest[0];
   if (!file) throw new Error("Say where: wizards-bot export wizards-bot.export");
   await exportData(config.dataDir, file, await passphrase(true));
-  console.log(`The home's data is in ${file}. Without the passphrase nobody can read it.`);
+  console.log(`The Bot Server's data is in ${file}. Without the passphrase nobody can read it.`);
 }
 
 async function importCommand(): Promise<void> {
@@ -400,9 +405,9 @@ async function importCommand(): Promise<void> {
   })
     .then((response) => response.ok)
     .catch(() => false);
-  if (runs) throw new Error("A home runs on this computer. Stop it first, then import.");
+  if (runs) throw new Error("A Bot Server runs on this computer. Stop it first, then import.");
   await importData(file, config.dataDir, await passphrase(false));
-  console.log(`The home is back in ${config.dataDir}. Start it with wizards-bot start.`);
+  console.log(`The Bot Server is back in ${config.dataDir}. Start it with wizards-bot start.`);
 }
 
 const commands: Record<string, () => void | Promise<void>> = {

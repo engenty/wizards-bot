@@ -169,7 +169,7 @@ export class Handoffs {
     if (files.some((file) => !file))
       throw new HandoffRefused(
         "invalid",
-        "One of the files is not known to the home. Add it again.",
+        "One of the files is not known to the Bot Server. Add it again.",
       );
     const sent = files.filter((file): file is FileRef => file !== undefined);
     this.home.db.run(

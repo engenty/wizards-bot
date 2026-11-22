@@ -105,7 +105,7 @@ describe("an invite", () => {
     const link = (await invite(ada, "connect")).qr as string;
     const card = await open(ben, link);
     assert.equal(card?.title, "Ada invites you to connect");
-    assert.match(card?.body ?? "", /it is the home the link was made by/);
+    assert.match(card?.body ?? "", /it is the Bot Server the link was made by/);
     // Reading an invite connects nobody.
     assert.equal(ada.home.peers.contact(handle(ben)), undefined);
 
@@ -131,7 +131,10 @@ describe("an invite", () => {
     const card = await open(eve, link);
     assert.equal(card?.title, "Ada invites you to Travel");
     assert.match(card?.body ?? "", /Plans trips\./);
-    assert.match(card?.body ?? "", /Ada's devices do not show it to them, but they run that home/);
+    assert.match(
+      card?.body ?? "",
+      /Ada's devices do not show it to them, but they run that Bot Server/,
+    );
     await eve.answer((card as Card).id, "join");
     await settle(ada, eve);
 
@@ -263,7 +266,7 @@ describe("an invite", () => {
       // The card that asks stands in the main agent's conversation.
       const card = fresh.item();
       assert.equal(card.title, "Ada invites you to connect");
-      assert.match(card.body ?? "", /it is the home the link was made by/);
+      assert.match(card.body ?? "", /it is the Bot Server the link was made by/);
       const newest = fresh.home.store.messages(main(fresh), { limit: 1 }).messages[0];
       assert.ok(newest?.parts.some((part) => part.type === "card" && part.card.id === card.id));
       assert.equal(ada.home.peers.contact(handle(fresh)), undefined);

@@ -52,7 +52,7 @@ export class LinkedComputer {
     socket.on("open", () => {
       this.retry = 1000;
       this.announced = "";
-      this.log("Linked. This computer's models are offered to your home.");
+      this.log("Linked. This computer's models are offered to your Bot Server.");
       void this.announce(true);
     });
     socket.on("message", (data) => {
@@ -62,7 +62,7 @@ export class LinkedComputer {
     });
     socket.on("unexpected-response", (_request, response) => {
       if (response.statusCode === 401) {
-        this.log("The home does not know this computer any more. Link it again.");
+        this.log("The Bot Server does not know this computer any more. Link it again.");
         this.stopped = true;
       }
       socket.terminate();
@@ -72,7 +72,9 @@ export class LinkedComputer {
       for (const run of this.runs.values()) run.abort();
       this.runs.clear();
       if (this.stopped) return;
-      this.log(`The home is out of reach. Trying again in ${Math.round(this.retry / 1000)} s.`);
+      this.log(
+        `The Bot Server is out of reach. Trying again in ${Math.round(this.retry / 1000)} s.`,
+      );
       setTimeout(() => this.connect(), this.retry);
       this.retry = Math.min(this.retry * 2, 60_000);
     });

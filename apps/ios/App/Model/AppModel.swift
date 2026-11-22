@@ -201,7 +201,7 @@ final class AppModel {
         do {
             let info = try await client.home()
             guard info.protocol <= protocolVersion else {
-                throw PairingProblem(message: String(localized: "This home is newer than the app. Update the app, then connect again."))
+                throw PairingProblem(message: String(localized: "This Bot Server is newer than the app. Update the app, then connect again."))
             }
             let request = PairRequest(code: PairingCode.tidy(code), name: UIDevice.current.name, kind: .phone, push: notifier.push)
             let response = try await client.pair(request)
@@ -211,10 +211,10 @@ final class AppModel {
         } catch let problem as PairingProblem {
             throw problem
         } catch HomeError.unreachable {
-            throw PairingProblem(message: String(localized: "No home answers at this address. Check the address and that this device is in the same network."))
+            throw PairingProblem(message: String(localized: "No Bot Server answers at this address. Check the address and that this device is in the same network."))
         } catch let error as HomeError {
             throw PairingProblem(message: error.message
-                ?? String(localized: "The home didn’t accept this code. A code is valid for 10 minutes and works once."))
+                ?? String(localized: "The Bot Server didn’t accept this code. A code is valid for 10 minutes and works once."))
         } catch {
             throw PairingProblem(message: String(localized: "That didn’t work. Try again."))
         }
@@ -308,7 +308,7 @@ final class AppModel {
         case .closed:
             reachable = false
         case .unauthorized:
-            forgetHome(note: String(localized: "Your home signed this device out. Connect it again."))
+            forgetHome(note: String(localized: "Your Bot Server signed this device out. Connect it again."))
         }
     }
 
@@ -364,7 +364,7 @@ final class AppModel {
     private func handle(_ error: Error) {
         switch error as? HomeError {
         case .unauthorized:
-            forgetHome(note: String(localized: "Your home signed this device out. Connect it again."))
+            forgetHome(note: String(localized: "Your Bot Server signed this device out. Connect it again."))
         case .unreachable:
             reachable = false
         default:
@@ -668,7 +668,7 @@ final class AppModel {
                 inviteProblem = answer.message ?? String(localized: "That did not work. Try again.")
             }
         } catch {
-            inviteProblem = String(localized: "Your home is out of reach. Try again in a moment.")
+            inviteProblem = String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         }
     }
 
@@ -702,7 +702,7 @@ final class AppModel {
 
     /// Answers a card. Returns a sentence when that did not work; nil when the card is answered.
     func answer(_ card: Card, action: CardAction, values: [String: FieldValue]?) async -> String? {
-        guard let client else { return String(localized: "This card needs your home.") }
+        guard let client else { return String(localized: "This card needs your Bot Server.") }
         do {
             apply(try await client.answer(card.id, action: action.id, values: values))
             return nil
@@ -716,7 +716,7 @@ final class AppModel {
             return nil
         } catch HomeError.unreachable {
             reachable = false
-            return String(localized: "Your home is out of reach. Try again in a moment.")
+            return String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         } catch {
             handle(error)
             return (error as? HomeError)?.message ?? String(localized: "That didn’t work. Try again.")
@@ -779,7 +779,7 @@ final class AppModel {
 
     /// Disconnects a folder. Returns a sentence when that did not work.
     func disconnect(_ folder: Folder) async -> String? {
-        guard let client else { return String(localized: "Your home is out of reach. Try again in a moment.") }
+        guard let client else { return String(localized: "Your Bot Server is out of reach. Try again in a moment.") }
         do {
             try await client.disconnectFolder(folder.id)
             folders?.removeAll { $0.id == folder.id }
@@ -919,7 +919,7 @@ final class AppModel {
     nonisolated private static func upload(_ url: URL, client: HomeClient) async throws -> FileRef {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= FileLimits.maxBytes else {
-            throw PhoneDataProblem(sentence: "The file is larger than the 15 MB the home takes.")
+            throw PhoneDataProblem(sentence: "The file is larger than the 15 MB the Bot Server takes.")
         }
         let data = try Data(contentsOf: url)
         return try await client.upload(data, name: url.lastPathComponent, mime: mimeType(forName: url.lastPathComponent))
@@ -965,7 +965,7 @@ final class AppModel {
         if UIApplication.shared.applicationState != .active {
             notifier.post(question: PhoneQuestion(
                 title: String(localized: "Where what you write goes"),
-                detail: String(localized: "Your home uses \(services.map(\.label).joined(separator: ", ")). Open wizards.bot to allow it or not."),
+                detail: String(localized: "Your Bot Server uses \(services.map(\.label).joined(separator: ", ")). Open wizards.bot to allow it or not."),
                 yes: "", no: ""
             ))
         }
@@ -985,7 +985,7 @@ final class AppModel {
             models = try await client.agree(to: ask.services.map(\.id))
         } catch {
             handle(error)
-            return (error as? HomeError)?.message ?? String(localized: "Your home is out of reach. Try again in a moment.")
+            return (error as? HomeError)?.message ?? String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         }
         answerConsentLocally(true)
         await syncLocal()
@@ -1007,7 +1007,7 @@ final class AppModel {
             return nil
         } catch {
             handle(error)
-            return (error as? HomeError)?.message ?? String(localized: "Your home is out of reach. Try again in a moment.")
+            return (error as? HomeError)?.message ?? String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         }
     }
 

@@ -52,7 +52,7 @@ export class Zip {
       at += 46 + nameLength + extraLength + commentLength;
       if (flags & 1) throw new ZipRefused("This file is protected with a password.");
       if (method !== 0 && method !== 8)
-        throw new ZipRefused("This zip file is packed in a way this home does not read.");
+        throw new ZipRefused("This zip file is packed in a way this Bot Server does not read.");
       if (local + 30 > bytes.length || view.getUint32(local, true) !== 0x04034b50)
         throw new ZipRefused("This zip file is damaged.");
       const start =

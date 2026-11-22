@@ -109,7 +109,7 @@ export class Setup {
       kind: "secret",
       level: "needs_you",
       title: `Key for ${preset.label}`,
-      body: "The key stays in your home. No model reads it.",
+      body: "The key stays on your Bot Server. No model reads it.",
       fields: [
         { id: "key", label: "API key", type: "secret", required: true },
         {
@@ -376,7 +376,7 @@ export class Setup {
         kind: "model",
         label: "A key of your own",
         state: "absent",
-        said: "Your home uses your account's credits. A key of a gateway or a provider can answer too.",
+        said: "Your Bot Server uses your account's credits. A key of a gateway or a provider can answer too.",
         todo: 'Add it here, or tell your agent "add OpenRouter".',
       });
     }
@@ -402,8 +402,8 @@ export class Setup {
       return {
         ...base,
         state: "problem",
-        said: "This computer has no address on a network, so a phone cannot reach your home.",
-        todo: "Join a Wi-Fi or a network, then start the home again.",
+        said: "This computer has no address on a network, so a phone cannot reach your Bot Server.",
+        todo: "Join a Wi-Fi or a network, then start the Bot Server again.",
       };
     }
     const answers = await fetch(`${address}/v1/home`, { signal: AbortSignal.timeout(1500) })
@@ -414,7 +414,7 @@ export class Setup {
         ...base,
         state: "warning",
         said: `Nothing answers at ${address}.`,
-        todo: "Start the home, and allow it in the computer's firewall if it asks.",
+        todo: "Start the Bot Server, and allow it in the computer's firewall if it asks.",
         command: "wizards-bot start",
       };
     }
@@ -426,8 +426,8 @@ export class Setup {
       ...base,
       state: "ok",
       said: this.home.config.publicUrl
-        ? `Your home answers at ${address}, also away from this network.`
-        : `A phone on the same network reaches your home at ${address}.${phone ? ` ${phone.name} was last here on ${phone.seenAt.slice(0, 10)}.` : ""}`,
+        ? `Your Bot Server answers at ${address}, also away from this network.`
+        : `A phone on the same network reaches your Bot Server at ${address}.${phone ? ` ${phone.name} was last here on ${phone.seenAt.slice(0, 10)}.` : ""}`,
       ...(this.home.config.publicUrl
         ? {}
         : { todo: "Away from this network, your phone answers with its own model." }),
@@ -441,8 +441,8 @@ export class Setup {
       return {
         ...base,
         state: "warning",
-        said: `Your home keeps its data in a temporary folder (${dir}). The computer may empty it.`,
-        todo: "Start the home with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.wizards-bot.",
+        said: `Your Bot Server keeps its data in a temporary folder (${dir}). The computer may empty it.`,
+        todo: "Start the Bot Server with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.wizards-bot.",
       };
     }
     try {
@@ -453,11 +453,11 @@ export class Setup {
           ...base,
           state: "warning",
           said: `The disk of ${tilde(dir)} has less than 1 GB free.`,
-          todo: "Make room on the disk, or your home cannot keep new files.",
+          todo: "Make room on the disk, or your Bot Server cannot keep new files.",
         };
       }
     } catch {}
-    return { ...base, state: "ok", said: `Your home keeps its data in ${tilde(dir)}.` };
+    return { ...base, state: "ok", said: `Your Bot Server keeps its data in ${tilde(dir)}.` };
   }
 
   private folders(): SetupCheck {
@@ -502,7 +502,7 @@ export class Setup {
           ...base,
           state: "absent",
           said: "Without an Apple key, your phone is notified only while the app is open.",
-          todo: "Give the home your Apple key.",
+          todo: "Give the Bot Server your Apple key.",
           command: "wizards-bot push --key AuthKey.p8 --key-id <id> --team-id <id>",
         };
   }
@@ -563,7 +563,7 @@ export class Setup {
           kind: "capability",
           label: "Your phone's model",
           state: "ok",
-          said: `${phones.map((device) => device.name).join(", ")} ${phones.length === 1 ? "has" : "have"} a model of its own: it answers while your home is out of reach.`,
+          said: `${phones.map((device) => device.name).join(", ")} ${phones.length === 1 ? "has" : "have"} a model of its own: it answers while your Bot Server is out of reach.`,
         }
       : {
           id: "phone",

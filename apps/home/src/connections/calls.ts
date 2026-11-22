@@ -98,7 +98,7 @@ export class Calls {
       const question = request.params as Question;
       const shown = this.card(call.connection, question);
       if ("refused" in shown)
-        throw new Error(`The home does not show the person this: ${shown.refused}.`);
+        throw new Error(`The Bot Server does not show the person this: ${shown.refused}.`);
       return new Promise<ElicitAnswer>((resolve) => {
         call.questions.push({ question, answer: resolve });
         call.moved();
@@ -229,7 +229,9 @@ export class Calls {
       };
     }
     if (question.mode !== undefined && question.mode !== "form")
-      return { refused: `it asks in a way the home does not know (${String(question.mode)})` };
+      return {
+        refused: `it asks in a way the Bot Server does not know (${String(question.mode)})`,
+      };
     const form = formOf(question.requestedSchema);
     if ("refused" in form) return form;
     return {

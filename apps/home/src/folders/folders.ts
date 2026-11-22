@@ -154,7 +154,7 @@ export class Folders {
     // A half-typed name lists its parent, so the field can complete it.
     const at = existsSync(wanted) && statSync(wanted).isDirectory() ? wanted : dirname(wanted);
     if (!existsSync(at))
-      throw new FolderRefused("not_found", "There is no such folder on the home’s computer.");
+      throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
     const folders = safeEntries(at)
       .filter((entry) => entry.isDirectory())
       .map((entry) => ({ name: entry.name, path: join(at, entry.name) }))
@@ -273,7 +273,7 @@ export class Folders {
   private allowed(path: string): string {
     const wanted = resolve(expand(path.trim()));
     if (!existsSync(wanted) || !statSync(wanted).isDirectory()) {
-      throw new FolderRefused("not_found", "There is no such folder on the home’s computer.");
+      throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
     }
     const real = realpathSync(wanted);
     const data = realpathSync(this.home.config.dataDir);
@@ -290,7 +290,7 @@ export class Folders {
     if (real === data || real.startsWith(data + sep) || data.startsWith(real + sep)) {
       throw new FolderRefused(
         "invalid",
-        "This folder holds the home’s own data. Choose another one.",
+        "This folder holds the Bot Server’s own data. Choose another one.",
       );
     }
     if (real.split(sep).some((part) => part.startsWith("."))) {
@@ -530,7 +530,7 @@ export class Folders {
       defineTool({
         name: "folder_connect",
         description:
-          "Connect a folder of the home's computer by its path, so agents can read its files (`read`) or also change them after asking (`write`). Asks the person first. Ends your turn.",
+          "Connect a folder of the Bot Server's computer by its path, so agents can read its files (`read`) or also change them after asking (`write`). Asks the person first. Ends your turn.",
         input: z.object({ path: z.string(), access: z.enum(["read", "write"]) }),
         label: () => "Asking to connect a folder",
         run: async (input) => {

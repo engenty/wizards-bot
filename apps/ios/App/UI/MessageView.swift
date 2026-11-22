@@ -42,7 +42,7 @@ struct MessageView: View {
                 }
                 .buttonStyle(.plain)
             } else if model.isWaiting(message) {
-                QuietLine(symbol: "clock", text: Text("waits for your home"))
+                QuietLine(symbol: "clock", text: Text("waits for your Bot Server"))
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)

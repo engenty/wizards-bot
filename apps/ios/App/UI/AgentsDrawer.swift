@@ -207,7 +207,7 @@ private struct YouRow: View {
                         asksSignOut = true
                     }
                 } else {
-                    Button("Connect to a home", systemImage: "house") {
+                    Button("Connect to a Bot Server", systemImage: "house") {
                         close()
                         model.showsPairing = true
                     }
@@ -250,12 +250,12 @@ private struct YouRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.bottom, 4)
-        .confirmationDialog("Sign out of this home?", isPresented: $asksSignOut, titleVisibility: .visible) {
+        .confirmationDialog("Sign out of this Bot Server?", isPresented: $asksSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) {
                 Task { await model.signOut() }
             }
         } message: {
-            Text("This device forgets the home. Your conversations stay in your home.")
+            Text("This device forgets the Bot Server. Your conversations stay on your Bot Server.")
         }
         .sheet(isPresented: $showsAvatar) {
             AvatarSheet()

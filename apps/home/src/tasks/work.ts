@@ -13,7 +13,7 @@ export function workTools(context: TurnContext): Tool[] {
     defineTool({
       name: "go_on",
       description:
-        "Ask for another turn when the work is not finished and this turn is running out, or at a point where it is good to say where the work stands. Say what is done and what is next: the home gives you the next turn with that, without the person writing. Not for waiting on the person: when you need them, call `ask`.",
+        "Ask for another turn when the work is not finished and this turn is running out, or at a point where it is good to say where the work stands. Say what is done and what is next: the Bot Server gives you the next turn with that, without the person writing. Not for waiting on the person: when you need them, call `ask`.",
       input: z.object({
         done: z.string().describe("What is done so far, one or two sentences."),
         next: z.string().describe("What you do in the next turn, one sentence."),
@@ -22,7 +22,7 @@ export function workTools(context: TurnContext): Tool[] {
       run: async (input) =>
         context.goOn(input.done, input.next)
           ? "You get the next turn after this one. End this turn now with one sentence on where the work stands."
-          : "The home gives no further turn in a row. End this turn with where the work stands and what is open; the person decides whether you go on.",
+          : "The Bot Server gives no further turn in a row. End this turn with where the work stands and what is open; the person decides whether you go on.",
     }),
   ];
 }

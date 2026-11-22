@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import { after, before, describe, test } from "node:test";
 import type { Setup } from "@wizards-bot/protocol";
 import { loadConfig } from "./config.ts";
+import { accountName } from "./home.ts";
 import { type TestHome, testHome, textOf } from "./test/fakes.ts";
 
 const TOKEN = "home-token-once";
@@ -19,6 +20,8 @@ class FakeManage {
   claims = 0;
   /** What the claim answers: the contract's answer, or a status. */
   claimStatus = 200;
+  /** The person's name in their account, when the claim gives one. */
+  name: string | undefined;
   /** The headers of each call to the gateway's language model. */
   readonly calls: IncomingHttpHeaders[] = [];
   readonly script: string[] = [];
@@ -47,6 +50,7 @@ class FakeManage {
               gatewayUrl: `${this.url}/`,
               gatewayKey: KEY,
               handle: "ada@wizards.bot",
+              ...(this.name ? { name: this.name } : {}),
             }),
           );
         }
@@ -210,6 +214,54 @@ describe("a hosted home", () => {
     assert.equal(await t.home.hosted.claim(), "kept");
     assert.equal(manage.claims, 1);
     assert.equal(t.home.handle(), "ada@wizards.bot");
+  });
+});
+
+describe("the person's name on a hosted Bot Server", () => {
+  test("is not taken from the account root", () => {
+    assert.equal(accountName("root"), "");
+    assert.equal(accountName("ada"), "Ada");
+  });
+
+  test("is empty until the person says it, so the setup asks", async () => {
+    const manage = new FakeManage();
+    await manage.start();
+    const t = await testHome("Ada", undefined, {
+      config: { manageUrl: manage.url, homeToken: TOKEN, ollamaUrl: "http://127.0.0.1:9" },
+    });
+    try {
+      // What testHome named it, gone: as a new hosted home in a container starts.
+      t.home.db.run("delete from meta where key = 'person.name'");
+      assert.equal(t.home.person(), "");
+      const setup = await t.home.setup.view();
+      assert.deepEqual(setup.name, { value: "", confirmed: false });
+      assert.equal(t.home.handle(), `me@127.0.0.1:${new URL(t.url).port}`);
+      await t.home.setup.change({ name: "Ada Lovelace" });
+      assert.equal(t.home.person(), "Ada Lovelace");
+    } finally {
+      t.stop();
+      manage.stop();
+    }
+  });
+
+  test("is the account's when the claim gives one, for the person to confirm", async () => {
+    const manage = new FakeManage();
+    await manage.start();
+    manage.name = "Ada Lovelace";
+    const t = await testHome("Ada", undefined, {
+      config: { manageUrl: manage.url, homeToken: TOKEN, ollamaUrl: "http://127.0.0.1:9" },
+    });
+    try {
+      t.home.db.run("delete from meta where key = 'person.name'");
+      assert.equal(await t.home.hosted.claim(), "claimed");
+      await t.home.idle();
+      const setup = await t.home.setup.view();
+      assert.deepEqual(setup.name, { value: "Ada Lovelace", confirmed: false });
+      assert.equal(t.home.handle(), "ada@wizards.bot");
+    } finally {
+      t.stop();
+      manage.stop();
+    }
   });
 });
 

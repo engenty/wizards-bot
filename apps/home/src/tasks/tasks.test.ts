@@ -529,7 +529,7 @@ describe("longer work", () => {
       // Two steps per turn: the call, then the end of the turn.
       assert.equal(t.model.requests.length - before, WORK_TURNS * 2);
       const refused = t.model.requests.at(-1)?.messages.at(-1)?.content ?? "";
-      assert.match(refused, /The home gives no further turn in a row/);
+      assert.match(refused, /The Bot Server gives no further turn in a row/);
       assert.equal(textOf(last).trim(), `Part ${WORK_TURNS} is done.`);
       assert.equal(t.home.store.mainAgent().state, "idle");
     } finally {

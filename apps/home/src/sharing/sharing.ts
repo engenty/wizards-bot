@@ -122,9 +122,9 @@ export function reachOf(address: string): Reach {
 /** What to say where a link is made on a home the internet does not reach. Empty: it does. */
 const reachNote = (reach: Reach): string =>
   reach === "computer"
-    ? "Your home has no address others can reach. The link opens on this computer only."
+    ? "Your Bot Server has no address others can reach. The link opens on this computer only."
     : reach === "network"
-      ? "Your home is on a private network. The link opens only on devices in the same network."
+      ? "Your Bot Server is on a private network. The link opens only on devices in the same network."
       : "";
 
 const lastsText = (lasts: LinkLasts): string =>
@@ -353,7 +353,10 @@ export class Sharing {
     const hourAgo = Date.now() - HOUR;
     const times = (this.received.get(contact.handle) ?? []).filter((time) => time > hourAgo);
     if (times.length >= RECEIVED_PER_HOUR) {
-      throw new ShareRefused("too_many", "This home took enough for now. Try again in an hour.");
+      throw new ShareRefused(
+        "too_many",
+        "This Bot Server took enough for now. Try again in an hour.",
+      );
     }
     this.received.set(contact.handle, [...times, Date.now()]);
 
@@ -379,7 +382,7 @@ export class Sharing {
         part = { type: "artifact", artifactId: artifact.id, title: artifact.title };
       } catch (error) {
         if (error instanceof ArtifactRefused) {
-          throw new ShareRefused("invalid", "This home does not keep that page.");
+          throw new ShareRefused("invalid", "This Bot Server does not keep that page.");
         }
         throw error;
       }
@@ -663,7 +666,7 @@ export class Sharing {
       defineTool({
         name: "contact_send",
         description:
-          "Send a copy of a document or an artifact of this conversation to a connected contact, by their handle `name@host`. It arrives in their home, in the chat of their main agent. Asks the person first. Ends your turn.",
+          "Send a copy of a document or an artifact of this conversation to a connected contact, by their handle `name@host`. It arrives in their Bot Server, in the chat of their main agent. Asks the person first. Ends your turn.",
         input: z.object({ ...what, handle: z.string() }),
         label: (input) => `Asking to send to ${String(input.handle ?? "a contact")}`,
         run: async (input) => {
@@ -681,7 +684,7 @@ export class Sharing {
               kind: "approval",
               level: "needs_you",
               title: `Send “${source.title}” to ${contact.name}?`,
-              body: `${contact.name} (${contact.handle}) gets a copy in their home. What you change here later does not reach it.`,
+              body: `${contact.name} (${contact.handle}) gets a copy in their Bot Server. What you change here later does not reach it.`,
               actions: [
                 { id: "send", label: "Send", style: "primary" },
                 { id: "keep", label: "Don't send", style: "plain" },

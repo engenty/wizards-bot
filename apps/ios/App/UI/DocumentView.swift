@@ -75,7 +75,7 @@ struct DocumentView: View {
                     .buttonStyle(ActionButtonStyle(style: .plain))
             }
         } else if session.homeIsNewer {
-            notice("Your home has a newer version of this document.") {
+            notice("Your Bot Server has a newer version of this document.") {
                 Button("Load it and drop my changes") { Task { await session.loadNewer() } }
                     .buttonStyle(ActionButtonStyle(style: .plain))
             }

@@ -133,7 +133,7 @@ function entriesOf(schema: unknown): Entry[] | { refused: string } {
     let value: string | string[] | undefined;
     if (definition.type === "array") {
       const options = isRecord(definition.items) ? optionsOf(definition.items) : undefined;
-      if (!options) return { refused: `its field "${label}" is a list the home cannot show` };
+      if (!options) return { refused: `its field "${label}" is a list the Bot Server cannot show` };
       property = {
         kind: "multi",
         options,
@@ -170,7 +170,7 @@ function entriesOf(schema: unknown): Entry[] | { refused: string } {
       property = { kind: "yes_no" };
       if (typeof definition.default === "boolean") value = definition.default ? YES : NO;
     } else {
-      return { refused: `its field "${label}" is of a kind the home cannot show` };
+      return { refused: `its field "${label}" is of a kind the Bot Server cannot show` };
     }
     if ("options" in property) {
       if (!property.options.length || property.options.length > MAX_OPTIONS)
@@ -341,6 +341,6 @@ export function pageBody(
     `The page is at **${plain(page.host)}**:`,
     `\`\`\`\n${page.url}\n\`\`\``,
     ...(page.warning ? [page.warning] : []),
-    `**${plain(name)}** sent this link. What you do on the page stays there: your home does not read it, and no model does. Come back when you are done.`,
+    `**${plain(name)}** sent this link. What you do on the page stays there: your Bot Server does not read it, and no model does. Come back when you are done.`,
   ].join("\n\n");
 }

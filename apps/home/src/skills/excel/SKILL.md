@@ -12,7 +12,7 @@ Making a workbook
 - `sheets`: each has a `name` and `rows`. The first row is the header. One table per sheet, from A1 on, with no title rows or empty rows above the header.
 - A number is a JSON number: 1200.5, not "1,200.50". A date is text like "2026-11-21".
 - A text that starts with `=` is a formula: "=SUM(B2:B9)". Use formulas for sums and for everything that depends on other cells, so the sheet stays right when the person changes a number.
-- The home does not calculate. Excel works the formulas out when the file opens. Never state a formula's result as if you had read it from the file; work it out yourself when you name a number.
+- The Bot Server does not calculate. Excel works the formulas out when the file opens. Never state a formula's result as if you had read it from the file; work it out yourself when you name a number.
 
 Changing a workbook
 

@@ -21,7 +21,7 @@ final class OnDeviceAgent {
         #if targetEnvironment(simulator)
         // The Simulator reports the model as there, but it lacks the model's safety assets and
         // every answer fails.
-        return String(localized: "The Simulator has no model of its own. Pair it with your home.")
+        return String(localized: "The Simulator has no model of its own. Pair it with your Bot Server.")
         #else
         switch SystemLanguageModel.default.availability {
         case .available:
@@ -76,7 +76,7 @@ final class OnDeviceAgent {
                 // A long conversation: start over with only its last lines.
                 sessions[conversationId] = nil
             } catch LanguageModelSession.GenerationError.guardrailViolation {
-                throw Problem.failed(String(localized: "The model on this device doesn’t answer this. Your home can, once it is back."))
+                throw Problem.failed(String(localized: "The model on this device doesn’t answer this. Your Bot Server can, once it is back."))
             } catch LanguageModelSession.GenerationError.unsupportedLanguageOrLocale {
                 throw Problem.failed(String(localized: "The model on this device doesn’t speak this language."))
             } catch let problem as Problem {

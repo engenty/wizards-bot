@@ -145,7 +145,8 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
    - `WIZARDS_BOT_MANAGE_URL`: the Manage-App's address.
    - `WIZARDS_BOT_HOME_TOKEN`: works once. On its first start the home sends
      `POST <MANAGE_URL>/v1/homes/claim` with `Authorization: Bearer <token>` and gets
-     `{ "gatewayUrl", "gatewayKey", "handle" }`. It keeps the key in its secrets. A second claim
+     `{ "gatewayUrl", "gatewayKey", "handle", "name"? }` (`name`: the person’s name in the account, when it has
+     one). It keeps the key in its secrets. A second claim
      gets 409.
 4. **The gateway.** The home calls the Manage-App's gateway as engenty wizards' runtime does,
    with the AI SDK's gateway client at `<gatewayUrl>/v4/ai` and `Authorization: Bearer

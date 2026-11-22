@@ -37,7 +37,7 @@ export function explainClaude(detail: string): Finding {
   if (/usage limit|limit reached|hit your limit|rate.?limit|\b429\b|overloaded/i.test(detail)) {
     return {
       said: "Your Claude plan's limit is reached for now.",
-      todo: "It comes back by itself after a few hours. Until then the home asks the next model.",
+      todo: "It comes back by itself after a few hours. Until then the Bot Server asks the next model.",
     };
   }
   if (
@@ -66,7 +66,7 @@ export function explainCodex(detail: string, model?: string): Finding {
   if (/usage limit|hit your limit|rate.?limit|\b429\b|quota/i.test(detail)) {
     return {
       said: "Your ChatGPT plan's Codex limit is reached for now.",
-      todo: "It comes back by itself. Until then the home asks the next model.",
+      todo: "It comes back by itself. Until then the Bot Server asks the next model.",
     };
   }
   if (/not logged in|codex login|\b401\b|unauthori[sz]ed|authenticat|log ?in/i.test(detail)) {
@@ -151,7 +151,7 @@ export function explainAccount(
   model: string,
 ): Finding {
   if (status === 401 || status === 403) {
-    return { said: `${label} refused the home's key.`, todo: "Ask for help at wizards.bot." };
+    return { said: `${label} refused the Bot Server's key.`, todo: "Ask for help at wizards.bot." };
   }
   if (status === 402 || /credit|balance|insufficient/i.test(detail)) {
     return { said: `${label} has no credits left.`, todo: "Add credits at wizards.bot." };

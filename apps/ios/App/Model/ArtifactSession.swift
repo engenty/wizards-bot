@@ -53,9 +53,9 @@ final class ArtifactSession: Identifiable {
         } catch is CancellationError {
             return
         } catch HomeError.notFound {
-            problem = String(localized: "This page is no longer in your home.")
+            problem = String(localized: "This page is no longer on your Bot Server.")
         } catch HomeError.unreachable {
-            problem = String(localized: "Your home is out of reach. The page opens when it is back.")
+            problem = String(localized: "Your Bot Server is out of reach. The page opens when it is back.")
         } catch {
             problem = (error as? HomeError)?.message ?? String(localized: "The page didn’t open. Try again.")
         }

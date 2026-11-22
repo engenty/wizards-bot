@@ -112,7 +112,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       return fail(c, 400, "invalid", `The request is not valid: ${z.prettifyError(error)}`);
     }
     console.error("[http]", error);
-    return c.json({ error: "failed", message: "The home could not do this." }, 500);
+    return c.json({ error: "failed", message: "The Bot Server could not do this." }, 500);
   });
 
   // The web app: a device like the phone, served by the home itself.
@@ -213,7 +213,9 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       // The issuer, when the service names it, is checked against the one the sign-in began with.
       const connection = await home.connections.finishSignIn(state, code, c.req.query("iss"));
       if (!connection)
-        return page("This sign-in is not known to your home. Go back to the chat and try again.");
+        return page(
+          "This sign-in is not known to your Bot Server. Go back to the chat and try again.",
+        );
       for (const card of store.openCardsOfKind("connect")) {
         const payload = store.cardPayload<{ connectionId?: string }>(card.id);
         if (payload?.connectionId === connection.id)
@@ -232,7 +234,12 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   app.use("/v1/*", async (c, next) => {
     const device = store.deviceByToken(bearer(c));
     if (!device)
-      return fail(c, 401, "unauthorized", "This device is not paired with the home any more.");
+      return fail(
+        c,
+        401,
+        "unauthorized",
+        "This device is not paired with the Bot Server any more.",
+      );
     c.set("device", device);
     await next();
   });
@@ -331,7 +338,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       c,
       409,
       "needs_consent",
-      `Your home uses ${waiting.map((service) => service.label).join(" and ")}. Say yes to that on this device first.`,
+      `Your Bot Server uses ${waiting.map((service) => service.label).join(" and ")}. Say yes to that on this device first.`,
       { services: waiting },
     );
   };
@@ -347,7 +354,12 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     if (known) return c.json({ message: known }, 202);
     const files = (body.files ?? []).map((id) => home.files.get(id));
     if (files.some((file) => !file))
-      return fail(c, 400, "invalid", "One of the files is not known to the home. Add it again.");
+      return fail(
+        c,
+        400,
+        "invalid",
+        "One of the files is not known to the Bot Server. Add it again.",
+      );
     const attached = files.filter((file) => file !== undefined);
     if (!body.text.trim() && !attached.length)
       return fail(c, 400, "invalid", "The message is empty.");
@@ -699,7 +711,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     await home.models.refresh();
     const known = new Set(home.models.view().services.map((service) => service.id));
     if (services.some((id) => !known.has(id)))
-      return fail(c, 400, "invalid", "The home does not use one of these services.");
+      return fail(c, 400, "invalid", "The Bot Server does not use one of these services.");
     agree(home.db, services, c.get("device").name);
     const view = home.models.view();
     home.events.emit({ type: "models.updated", models: view });

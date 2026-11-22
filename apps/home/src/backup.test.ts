@@ -61,7 +61,7 @@ describe("the export of a home", () => {
   test("does not go over a home that is there", async () => {
     await assert.rejects(
       importData(file, t.home.config.dataDir, PASSPHRASE),
-      /holds a home already/,
+      /holds a Bot Server already/,
     );
   });
 

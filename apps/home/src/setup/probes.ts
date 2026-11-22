@@ -312,8 +312,8 @@ export async function probeAccount(
   if (!key) {
     return {
       state: "problem",
-      said: "Your home has no key for your wizards account.",
-      todo: "Ask for help at wizards.bot: the home could not fetch its key.",
+      said: "Your Bot Server has no key for your wizards account.",
+      todo: "Ask for help at wizards.bot: the Bot Server could not fetch its key.",
     };
   }
   return probeModel(

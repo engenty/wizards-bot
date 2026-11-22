@@ -9,23 +9,23 @@ struct DeviceSection: View {
     var body: some View {
         Section("This device") {
             if let link = model.link {
-                LabeledContent("Home") {
+                LabeledContent("Bot Server") {
                     Text(link.baseURL.host() ?? link.baseURL.absoluteString)
                         .textSelection(.enabled)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("When your home is out of reach")
+                    Text("When your Bot Server is out of reach")
                     Text(model.onDevice.unavailable ?? String(localized: "The model on this device answers, with Apple Intelligence."))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
                 Button("Sign out", role: .destructive) { asksSignOut = true }
-                    .confirmationDialog("Sign out of this home?", isPresented: $asksSignOut, titleVisibility: .visible) {
+                    .confirmationDialog("Sign out of this Bot Server?", isPresented: $asksSignOut, titleVisibility: .visible) {
                         Button("Sign out", role: .destructive) {
                             Task { await model.signOut() }
                         }
                     } message: {
-                        Text("This device forgets the home. Your conversations stay in your home.")
+                        Text("This device forgets the Bot Server. Your conversations stay on your Bot Server.")
                     }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
@@ -34,7 +34,7 @@ struct DeviceSection: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Button("Connect to a home") {
+                Button("Connect to a Bot Server") {
                     dismiss()
                     model.showsPairing = true
                 }

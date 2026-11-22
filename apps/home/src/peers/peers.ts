@@ -231,19 +231,19 @@ export class Peers {
   ): Promise<void> {
     if (this.outside.is(agent)) return this.outside.ask(agent, text, signal, write);
     const { from, remote } = agent;
-    if (!from || !remote) throw new Error("This agent has no home to ask.");
+    if (!from || !remote) throw new Error("This agent has no Bot Server to ask.");
     // The agent's home is where its person's record led last, or where the handle leads.
     const owner = this.contact(from) ?? (await this.lookup(from));
     const address = `${owner.url}${remote}`;
     const signed: Fetch = async (input, init) => {
       if (init?.method !== "POST") {
         const card = await fetch(input, init).catch(() => undefined);
-        if (!card) throw new Error(`The home of ${from} is out of reach.`);
+        if (!card) throw new Error(`The Bot Server of ${from} is out of reach.`);
         return card;
       }
       // The message goes to the home the agent was shared from, wherever its card points.
       if (String(input) !== address || typeof init.body !== "string")
-        throw new Error(`The home of ${from} names another address for this agent.`);
+        throw new Error(`The Bot Server of ${from} names another address for this agent.`);
       const response = await this.signed(
         from,
         remote,
@@ -252,7 +252,9 @@ export class Peers {
       );
       if (!response.ok) {
         const refused = (await response.json().catch(() => ({}))) as { message?: string };
-        throw new Error(refused.message ?? `The home of ${from} answered ${response.status}.`);
+        throw new Error(
+          refused.message ?? `The Bot Server of ${from} answered ${response.status}.`,
+        );
       }
       return response;
     };
@@ -271,7 +273,7 @@ export class Peers {
     const handle = this.home.handle();
     if (!handle) {
       throw new Error(
-        "Others do not know you yet: your home has no address, and you have no key. Make the key with `person_key`: other homes then know you by it.",
+        "Others do not know you yet: your Bot Server has no address, and you have no key. Make the key with `person_key`: other Bot Servers then know you by it.",
       );
     }
     return handle;
@@ -320,9 +322,9 @@ export class Peers {
       const card = HomeCard.safeParse(first);
       if (card.success) found = { ...card.data, url: base };
     }
-    if (!found) throw new Error(`No home answers for ${handle}.`);
+    if (!found) throw new Error(`No Bot Server answers for ${handle}.`);
     if (found.handle.toLowerCase() !== handle.toLowerCase())
-      throw new Error(`The home at that address is not ${handle}.`);
+      throw new Error(`The Bot Server at that address is not ${handle}.`);
     return found;
   }
 
@@ -336,7 +338,7 @@ export class Peers {
     );
     if (!response.ok) {
       const message = ((await response.json().catch(() => ({}))) as { message?: string }).message;
-      throw new Error(message ?? `The home of ${handle} answered ${response.status}.`);
+      throw new Error(message ?? `The Bot Server of ${handle} answered ${response.status}.`);
     }
     return response;
   }
@@ -386,7 +388,7 @@ export class Peers {
       if (followed && (followed.url !== contact.url || followed.handle !== contact.handle))
         response = await send(followed);
     }
-    if (!response) throw new Error(`The home of ${handle} is out of reach.`);
+    if (!response) throw new Error(`The Bot Server of ${handle} is out of reach.`);
     return response;
   }
 
@@ -627,7 +629,10 @@ export class Peers {
     app.get("/.well-known/wizards.json", (c) => {
       const handle = home.handle();
       if (!handle)
-        return c.json({ error: "not_found", message: "This home has no public address." }, 404);
+        return c.json(
+          { error: "not_found", message: "This Bot Server has no public address." },
+          404,
+        );
       const log = this.person.log();
       return c.json({
         protocol: PROTOCOL_VERSION,
@@ -640,10 +645,10 @@ export class Peers {
 
     app.post("/peers/request", async (c) => {
       const request = await this.verified(c, true);
-      if (!request) return refuse(c, 401, "The request is not signed by the home it names.");
+      if (!request) return refuse(c, 401, "The request is not signed by the Bot Server it names.");
       const existing = request.contact;
       if (existing?.state === "blocked")
-        return refuse(c, 403, "This home does not take the request.");
+        return refuse(c, 403, "This Bot Server does not take the request.");
       const name = request.card?.name ?? existing?.name ?? request.handle;
       const ask = () =>
         this.cardInMain({
@@ -676,7 +681,7 @@ export class Peers {
       if (existing?.state === "incoming") return c.json({ state: "waiting" });
       const waiting = this.contacts().filter((contact) => contact.state === "incoming").length;
       if (waiting >= MAX_OPEN_REQUESTS)
-        return refuse(c, 429, "This home has too many open requests.");
+        return refuse(c, 429, "This Bot Server has too many open requests.");
       home.db.run(
         "insert into contact (handle, name, url, public_key, state, created_at) values (?, ?, ?, ?, 'incoming', ?)",
         request.handle,
@@ -696,7 +701,7 @@ export class Peers {
         request?.contact?.state === "requested" ||
         (request?.contact?.state === "connected" && request.contact.limited);
       if (!request?.contact || !waits)
-        return refuse(c, 401, "There is no open request to this home.");
+        return refuse(c, 401, "There is no open request to this Bot Server.");
       home.db.run(
         "update contact set state = 'connected', limited = 0 where handle = ?",
         request.handle,
@@ -723,8 +728,8 @@ export class Peers {
         title: `${request.contact.name} shares “${share.agent.name}” with you`,
         body:
           share.mode === "talk"
-            ? `${share.agent.about}\n\nThe agent stays in ${request.contact.name}'s home. What you write to it is kept there. ${request.contact.name}'s devices do not show it to them, but they run that home.`
-            : `${share.agent.about}\n\nYou get a copy of its instructions. It then runs in your home, with your models.`,
+            ? `${share.agent.about}\n\nThe agent stays on ${request.contact.name}'s Bot Server. What you write to it is kept there. ${request.contact.name}'s devices do not show it to them, but they run that Bot Server.`
+            : `${share.agent.about}\n\nYou get a copy of its instructions. It then runs on your Bot Server, with your models.`,
         actions: [
           { id: "add", label: "Add agent", style: "primary" },
           { id: "refuse", label: "Don't add", style: "plain" },
@@ -823,7 +828,7 @@ export class Peers {
       const caller = contact ? undefined : this.outside.callerOf(c.req.raw.headers);
       if (!contact && !caller) {
         c.header("www-authenticate", 'Bearer realm="a2a"');
-        return refuse(c, 401, "This home does not know the sender.");
+        return refuse(c, 401, "This Bot Server does not know the sender.");
       }
       const agent = home.store.agent(c.req.param("id"));
       const allowed =
@@ -942,7 +947,7 @@ export class Peers {
       defineTool({
         name: "contact_connect",
         description:
-          "Ask another person's home to connect, by their handle `name@host`. They approve it on their side.",
+          "Ask another person's Bot Server to connect, by their handle `name@host`. They approve it on their side.",
         input: z.object({ handle: z.string() }),
         label: (input) => `Asking ${String(input.handle ?? "")} to connect`,
         run: async (input) => {
@@ -1007,7 +1012,7 @@ export class Peers {
               );
             return `- ${contact.name} (${contact.handle}): ${contact.limited ? "joined by an invite, for that only" : contact.state}${shared.length ? `; shared with them: ${shared.join(", ")}` : ""}`;
           });
-          return `Your handle: ${home.handle() ?? "none yet, the home has no public address"}\n${lines.join("\n") || "No contacts."}`;
+          return `Your handle: ${home.handle() ?? "none yet, the Bot Server has no public address"}\n${lines.join("\n") || "No contacts."}`;
         },
       }),
       defineTool({
@@ -1048,7 +1053,7 @@ export class Peers {
             await this.post(handle, "/peers/unshare", { agent: target.id });
             return `${target.name} is taken back from ${name}. It is gone from their list.`;
           } catch {
-            return `${target.name} is taken back from ${name}: it no longer answers them. Their home is out of reach, so it still stands in their list.`;
+            return `${target.name} is taken back from ${name}: it no longer answers them. Their Bot Server is out of reach, so it still stands in their list.`;
           }
         },
       }),
@@ -1069,7 +1074,7 @@ export class Peers {
           if (target?.origin !== "own")
             return `There is no agent of your own with the id ${input.agentId}.`;
           if (target.main)
-            return "The first agent of a home is yours alone. Make an agent for the task and share that one.";
+            return "The first agent of a Bot Server is yours alone. Make an agent for the task and share that one.";
           if (contact?.state !== "connected") return `${input.handle} is not a connected contact.`;
           if (contact.limited)
             return `${contact.name} joined by an invite, for that only. Connect with \`contact_connect\` first, or make an invite to the agent with \`invite_make\`.`;

@@ -102,7 +102,7 @@ export class Mailbox {
       const request = await this.peers.verified(c, false);
       const own = home.handle();
       if (!own || !request?.contact || request.contact.state === "blocked")
-        return c.json({ error: "refused", message: "Only a contact's home is heard." }, 401);
+        return c.json({ error: "refused", message: "Only a contact's Bot Server is heard." }, 401);
       const asked = Asked.safeParse(JSON.parse(request.body || "{}"));
       if (!asked.success) return c.json({ error: "refused", message: "Not valid." }, 400);
       const { handle } = request.contact;

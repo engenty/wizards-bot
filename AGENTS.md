@@ -74,40 +74,40 @@ engenty wizards pins.
 
 One word per thing, in code, comments and everything a person reads.
 
-| Thing                                                     | Word                                                         | Not                                                            |
-| --------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------- |
-| the program on a computer or server                       | home                                                         | server, backend, node, instance                                |
-| iOS app, watch app, a terminal, another computer          | device                                                       | client                                                         |
-| who answers                                               | agent; the first one is the main agent                       | bot, assistant                                                 |
-| inline UI in the chat                                     | card                                                         | widget, form, dialog                                           |
-| open cards that wait for the person                       | what needs you; items in code                                | inbox, tasks, todos                                            |
-| Slack, email, WhatsApp, Signal                            | channel                                                      | integration                                                    |
-| an account or app reached over MCP                        | connection                                                   | integration, plugin                                            |
-| what a connection asks the person while a tool runs       | question; elicitation only as MCP's own name                 | prompt, input request                                          |
-| another person's home you connected to                    | contact                                                      | peer (only as the folder name), friend                         |
-| a conversation of several people and agents               | room; who is in it are its members                           | group chat (fine in copy), channel, thread                     |
-| what says who a person is to other homes                  | the person's record; a signed state of it is a version       | profile, identity document, DID                                |
-| what signs the person's record, kept on a device          | the person's key; it is made, brought back, never sent       | account key, master key, seed (the code is the recovery code)  |
-| what a home keeps for a contact whose home has no address | kept for it; that home asks for it (`/peers/mailbox`)        | queue, push, relay                                             |
-| a link, with its QR code, that lets someone in once       | invite; it is made, used and taken back                      | invitation token, join link, share link                        |
-| the home that numbers a room's messages                   | the home that keeps the room                                 | hub, host, server                                              |
-| an A2A agent that is not a wizards.bot home               | outside agent                                                | external agent, remote agent, third-party agent                |
-| an outside agent let in to write to one of your agents    | caller; you let it in and shut it out                        | client, consumer, guest (in code: whoever a turn answers)      |
-| another computer of yours that offers its models          | linked computer                                              | worker, node                                                   |
-| something the person attached to a message                | file; a picture is a picture                                 | attachment, upload (as a noun), asset                          |
-| a folder of the home's computer agents may use            | connected folder                                             | mount, drive, workspace                                        |
-| a folder connected on a phone, read by the phone only     | connected folder, on the phone                               | synced folder, mount                                           |
-| what a device keeps and offers its agents                 | resource (calendar, reminders, contacts, folder)             | capability, data source                                        |
-| a question or task an agent hands to a device's agent     | hand-off; the agent asks the device                          | job, request, remote call                                      |
-| a page an agent wrote: a chart, a 3D scene                | artifact                                                     | canvas, widget, app, report (only one kind of it)              |
-| a passage the person marked in a document                 | mark; with words of the person on it, a comment              | highlight, annotation, note                                    |
-| giving a document or an artifact a link anyone can open   | publish; the address is a link; ending it is to take it back | share (for this), public URL, revoke, unpublish                |
-| giving a contact a copy of a document or an artifact      | send                                                         | share (the dialog is Share; an agent is shared)                |
-| how the person is drawn                                   | avatar; its parts are traits                                 | character, sprite (for the whole figure), profile picture      |
-| Claude Code or Codex signed in on a computer              | subscription                                                 | CLI provider                                                   |
-| something an agent does by itself                         | task; a time or an event starts it                           | trigger (that is what starts a turn), job, automation, routine |
-| a task that tells the person only when it has to          | quiet task; what its run leaves otherwise is a note          | silent, background, digest                                     |
-| work that takes an agent more than one turn               | longer work; the agent goes on                               | job, run, loop, background work                                |
+| Thing                                                     | Word                                                                       | Not                                                            |
+| --------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| the program on a computer or server                       | home in code; Bot Server in copy (DE: dein, deinen, auf deinem Bot Server) | server, backend, node, instance, Zuhause                       |
+| iOS app, watch app, a terminal, another computer          | device                                                                     | client                                                         |
+| who answers                                               | agent; the first one is the main agent                                     | bot, assistant                                                 |
+| inline UI in the chat                                     | card                                                                       | widget, form, dialog                                           |
+| open cards that wait for the person                       | what needs you; items in code                                              | inbox, tasks, todos                                            |
+| Slack, email, WhatsApp, Signal                            | channel                                                                    | integration                                                    |
+| an account or app reached over MCP                        | connection                                                                 | integration, plugin                                            |
+| what a connection asks the person while a tool runs       | question; elicitation only as MCP's own name                               | prompt, input request                                          |
+| another person's home you connected to                    | contact                                                                    | peer (only as the folder name), friend                         |
+| a conversation of several people and agents               | room; who is in it are its members                                         | group chat (fine in copy), channel, thread                     |
+| what says who a person is to other homes                  | the person's record; a signed state of it is a version                     | profile, identity document, DID                                |
+| what signs the person's record, kept on a device          | the person's key; it is made, brought back, never sent                     | account key, master key, seed (the code is the recovery code)  |
+| what a home keeps for a contact whose home has no address | kept for it; that home asks for it (`/peers/mailbox`)                      | queue, push, relay                                             |
+| a link, with its QR code, that lets someone in once       | invite; it is made, used and taken back                                    | invitation token, join link, share link                        |
+| the home that numbers a room's messages                   | the home that keeps the room                                               | hub, host, server                                              |
+| an A2A agent that is not a wizards.bot home               | outside agent                                                              | external agent, remote agent, third-party agent                |
+| an outside agent let in to write to one of your agents    | caller; you let it in and shut it out                                      | client, consumer, guest (in code: whoever a turn answers)      |
+| another computer of yours that offers its models          | linked computer                                                            | worker, node                                                   |
+| something the person attached to a message                | file; a picture is a picture                                               | attachment, upload (as a noun), asset                          |
+| a folder of the home's computer agents may use            | connected folder                                                           | mount, drive, workspace                                        |
+| a folder connected on a phone, read by the phone only     | connected folder, on the phone                                             | synced folder, mount                                           |
+| what a device keeps and offers its agents                 | resource (calendar, reminders, contacts, folder)                           | capability, data source                                        |
+| a question or task an agent hands to a device's agent     | hand-off; the agent asks the device                                        | job, request, remote call                                      |
+| a page an agent wrote: a chart, a 3D scene                | artifact                                                                   | canvas, widget, app, report (only one kind of it)              |
+| a passage the person marked in a document                 | mark; with words of the person on it, a comment                            | highlight, annotation, note                                    |
+| giving a document or an artifact a link anyone can open   | publish; the address is a link; ending it is to take it back               | share (for this), public URL, revoke, unpublish                |
+| giving a contact a copy of a document or an artifact      | send                                                                       | share (the dialog is Share; an agent is shared)                |
+| how the person is drawn                                   | avatar; its parts are traits                                               | character, sprite (for the whole figure), profile picture      |
+| Claude Code or Codex signed in on a computer              | subscription                                                               | CLI provider                                                   |
+| something an agent does by itself                         | task; a time or an event starts it                                         | trigger (that is what starts a turn), job, automation, routine |
+| a task that tells the person only when it has to          | quiet task; what its run leaves otherwise is a note                        | silent, background, digest                                     |
+| work that takes an agent more than one turn               | longer work; the agent goes on                                             | job, run, loop, background work                                |
 
 Copy follows engenty wizards' `docs/copy-style.md`: calm, plain, "you", no exclamation marks,
 no emoji, no "please".

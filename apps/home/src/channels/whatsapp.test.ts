@@ -414,7 +414,7 @@ test("start checks the values with Meta and says what is wrong", async () => {
     });
 
     await assert.rejects(adapter.start(SETTINGS, context(undefined)), {
-      message: "Meta has to reach your home, and your home has no public address yet",
+      message: "Meta has to reach your Bot Server, and your Bot Server has no public address yet",
     });
     await assert.rejects(
       adapter.start({ ...SETTINGS, appSecret: "" }, context("https://home.example.com")),

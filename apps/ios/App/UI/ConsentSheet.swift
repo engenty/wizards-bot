@@ -14,7 +14,7 @@ struct ConsentSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("What you write here goes to your home at \(host). Your home answers with models of these companies, which then read what you write and what your agents send them:")
+                    Text("What you write here goes to your Bot Server at \(host). Your Bot Server answers with models of these companies, which then read what you write and what your agents send them:")
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(ask.services) { service in
                             Text(verbatim: service.line)
@@ -118,7 +118,7 @@ struct ServicesSection: View {
                     }
                 }
             } else {
-                Text("Your home uses only models on your own computers. Nothing goes to another company.")
+                Text("Your Bot Server uses only models on your own computers. Nothing goes to another company.")
                     .foregroundStyle(.secondary)
             }
             if let problem {
