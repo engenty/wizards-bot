@@ -1,5 +1,4 @@
 import {
-  createCipheriv,
   createDecipheriv,
   createHash,
   createPrivateKey,
@@ -12,6 +11,16 @@ import {
 } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  fileKeyStore,
+  type KeyRing,
+  keyCheckHolds,
+  keyRing,
+  loadOrCreateKey,
+  seal,
+  sealKeyCheck,
+  unseal,
+} from "@engenty/vault";
 import { now } from "./ids.ts";
 import type { Db } from "./store/db.ts";
 
@@ -53,41 +62,40 @@ export class Identity {
 export const sha256 = (value: string): string => createHash("sha256").update(value).digest("hex");
 
 /**
- * Keys, tokens and passwords the person gave the home. They are encrypted with a key that
- * lives beside the database and are handed to connectors and channels, never to a model.
+ * Keys, tokens and passwords the person gave the home. They are sealed with `@engenty/vault`
+ * under the key in `secrets.key`, which lives beside the database, each bound to its name, and
+ * handed to connectors and channels, never to a model. A key check in `meta` stops the home at
+ * start when `secrets.key` is not the key its secrets were sealed with.
  */
 export class Secrets {
-  private readonly key: Buffer;
+  private readonly ring: KeyRing;
   private readonly db: Db;
 
   constructor(db: Db, dataDir: string) {
     this.db = db;
-    const file = join(dataDir, "secrets.key");
-    if (dataDir !== ":memory:" && !existsSync(file))
-      writeFileSync(file, randomBytes(32), { mode: 0o600 });
-    this.key = dataDir === ":memory:" ? randomBytes(32) : readFileSync(file);
+    const key =
+      dataDir === ":memory:"
+        ? randomBytes(32)
+        : loadOrCreateKey(fileKeyStore(join(dataDir, "secrets.key")));
+    this.ring = keyRing({ id: KEY_ID, key });
+    this.db.transaction(() => {
+      this.sealEarlier(key);
+      this.checkKey();
+    });
   }
 
   set(name: string, value: string): void {
-    const iv = randomBytes(12);
-    const cipher = createCipheriv("aes-256-gcm", this.key, iv);
-    const body = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-    const blob = Buffer.concat([iv, cipher.getAuthTag(), body]);
     this.db.run(
       "insert into secret (name, value, updated_at) values (?, ?, ?) on conflict(name) do update set value = excluded.value, updated_at = excluded.updated_at",
       name,
-      blob,
+      seal(this.ring, binding(name), value),
       now(),
     );
   }
 
   get(name: string): string | undefined {
-    const row = this.db.get<{ value: Uint8Array }>("select value from secret where name = ?", name);
-    if (!row) return undefined;
-    const blob = Buffer.from(row.value);
-    const decipher = createDecipheriv("aes-256-gcm", this.key, blob.subarray(0, 12));
-    decipher.setAuthTag(blob.subarray(12, 28));
-    return Buffer.concat([decipher.update(blob.subarray(28)), decipher.final()]).toString("utf8");
+    const row = this.db.get<{ value: string }>("select value from secret where name = ?", name);
+    return row ? unseal(this.ring, binding(name), row.value) : undefined;
   }
 
   has(name: string): boolean {
@@ -97,4 +105,48 @@ export class Secrets {
   delete(name: string): void {
     this.db.run("delete from secret where name = ?", name);
   }
+
+  private checkKey(): void {
+    const row = this.db.get<{ value: string }>("select value from meta where key = ?", KEY_CHECK);
+    if (!row) {
+      this.db.run(
+        "insert into meta (key, value) values (?, ?)",
+        KEY_CHECK,
+        sealKeyCheck(this.ring, OWNER),
+      );
+      return;
+    }
+    if (!keyCheckHolds(this.ring, OWNER, row.value)) {
+      throw new Error(
+        "secrets.key in the data folder is not the key this home's secrets were sealed with.",
+      );
+    }
+  }
+
+  /**
+   * Seals again what a home sealed before it used `@engenty/vault`: nonce, tag and ciphertext as
+   * bytes, under the same key, bound to nothing. Runs at start until no such row is left.
+   */
+  private sealEarlier(key: Buffer): void {
+    const rows = this.db.all<{ name: string; value: Uint8Array | string }>(
+      "select name, value from secret",
+    );
+    for (const { name, value } of rows) {
+      if (typeof value === "string") continue;
+      const blob = Buffer.from(value);
+      const decipher = createDecipheriv("aes-256-gcm", key, blob.subarray(0, 12));
+      decipher.setAuthTag(blob.subarray(12, 28));
+      const plain = Buffer.concat([decipher.update(blob.subarray(28)), decipher.final()]);
+      this.db.run(
+        "update secret set value = ? where name = ?",
+        seal(this.ring, binding(name), plain.toString("utf8")),
+        name,
+      );
+    }
+  }
 }
+
+const KEY_ID = "k1";
+const KEY_CHECK = "secrets.key_check";
+const OWNER = "home";
+const binding = (name: string) => ["wizards-bot", "secret", name];
