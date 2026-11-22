@@ -1,12 +1,20 @@
 // From engenty wizards: the theme switch (apps/web/src/studio/ThemeSwitch.tsx) and the language
 // switch and legal links of its account pages (engenty-wizards-manage, apps/web/src/brand.tsx and
 // pages/legal.tsx).
-import { Moon, Palette, Sun } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { Check, ChevronDown, Moon, Palette, Sun } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PrivacyDialog } from "../chat/ConsentDialog";
 import { Engenty } from "../engenty/Engenty";
-import { type Lang, lang, setLang, t } from "../lib/i18n";
-import { setTheme, type ThemeMode, useThemeMode } from "../lib/theme";
+import { type Key, type Lang, lang, setLang, t } from "../lib/i18n";
+import {
+  BRANDED_GROUNDS,
+  type BrandedGround,
+  setBrandedGround,
+  setTheme,
+  type ThemeMode,
+  useBrandedGround,
+  useThemeMode,
+} from "../lib/theme";
 import { cn } from "../ui";
 
 const THEMES = [
@@ -15,35 +23,126 @@ const THEMES = [
   { mode: "dark", icon: Moon, label: "theme.dark" },
 ] as const satisfies readonly { mode: ThemeMode; icon: typeof Sun; label: string }[];
 
-/** Light · branded · dark: a thumb slides to the pick. */
-export function ThemeSwitch() {
-  const shown = useThemeMode();
-  const index = THEMES.findIndex((option) => option.mode === shown);
+const GROUND_NAME: Record<BrandedGround, Key> = {
+  cobalt: "theme.ground.cobalt",
+  violet: "theme.ground.violet",
+  berry: "theme.ground.berry",
+  petrol: "theme.ground.petrol",
+  emerald: "theme.ground.emerald",
+  brick: "theme.ground.brick",
+  citron: "theme.ground.citron",
+};
+
+/**
+ * The colours of the branded theme as round swatches: each its ground with the accent of its
+ * buttons, and its name on hover. Picking one also picks the branded theme.
+ */
+export function GroundPick({ onPick }: { onPick?: () => void }) {
+  const picked = useBrandedGround();
   return (
-    <fieldset className="relative inline-flex items-center rounded-full border-0 bg-paper-2 p-0.5 ring-1 ring-border-soft">
-      <legend className="sr-only">{t("theme.label")}</legend>
-      <span
-        aria-hidden="true"
-        className="absolute top-0.5 bottom-0.5 left-0.5 w-9 rounded-full bg-card shadow-sm transition-transform duration-300 motion-reduce:transition-none"
-        style={{ transform: `translateX(${index * 100}%)` }}
-      />
-      {THEMES.map(({ mode, icon: Icon, label }) => (
+    <fieldset className="flex flex-wrap items-center gap-1.5 border-0 p-0">
+      <legend className="sr-only">{t("theme.ground")}</legend>
+      {BRANDED_GROUNDS.map(({ ground, stage, accent }) => (
         <button
-          key={mode}
+          key={ground}
           type="button"
-          aria-label={t(label)}
-          aria-pressed={mode === shown}
-          title={t(label)}
-          onClick={() => setTheme(mode)}
+          aria-label={t(GROUND_NAME[ground])}
+          aria-pressed={ground === picked}
+          title={t(GROUND_NAME[ground])}
+          onClick={() => {
+            setBrandedGround(ground);
+            onPick?.();
+          }}
+          style={{ background: stage }}
           className={cn(
-            "relative grid h-7 w-9 cursor-pointer place-items-center rounded-full transition-colors",
-            mode === shown ? "text-ink" : "text-ink-3 hover:text-ink-2",
+            "grid size-7 cursor-pointer place-items-center rounded-full ring-1 ring-border transition-transform hover:scale-110 motion-reduce:transition-none",
+            ground === picked && "ring-2 ring-ink",
           )}
         >
-          <Icon className="size-3.5" />
+          {ground === picked ? (
+            <Check className="size-3.5" style={{ color: accent }} strokeWidth={3} />
+          ) : (
+            <span className="size-2 rounded-full" style={{ background: accent }} />
+          )}
         </button>
       ))}
     </fieldset>
+  );
+}
+
+/**
+ * Light · branded · dark: a thumb slides to the pick. The branded button opens a small menu of
+ * its colours, and picks the branded theme as well.
+ */
+export function ThemeSwitch() {
+  const shown = useThemeMode();
+  const index = THEMES.findIndex((option) => option.mode === shown);
+  const [colours, setColours] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!colours) return;
+    const away = (event: PointerEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setColours(false);
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setColours(false);
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", key);
+    };
+  }, [colours]);
+  return (
+    <div ref={ref} className="relative inline-flex">
+      <fieldset className="relative inline-flex items-center rounded-full border-0 bg-paper-2 p-0.5 ring-1 ring-border-soft">
+        <legend className="sr-only">{t("theme.label")}</legend>
+        <span
+          aria-hidden="true"
+          className="absolute top-0.5 bottom-0.5 left-0.5 w-9 rounded-full bg-card shadow-sm transition-transform duration-300 motion-reduce:transition-none"
+          style={{ transform: `translateX(${index * 100}%)` }}
+        />
+        {THEMES.map(({ mode, icon: Icon, label }) => (
+          <button
+            key={mode}
+            type="button"
+            aria-label={t(label)}
+            aria-pressed={mode === shown}
+            aria-haspopup={mode === "branded" ? "true" : undefined}
+            aria-expanded={mode === "branded" ? colours : undefined}
+            title={mode === "branded" ? t("theme.groundOpen") : t(label)}
+            onClick={() => {
+              if (mode === "branded") {
+                if (shown !== "branded") setTheme(mode);
+                setColours((open) => !open);
+                return;
+              }
+              setColours(false);
+              setTheme(mode);
+            }}
+            className={cn(
+              "relative grid h-7 w-9 cursor-pointer place-items-center rounded-full transition-colors",
+              mode === shown ? "text-ink" : "text-ink-3 hover:text-ink-2",
+            )}
+          >
+            {mode === "branded" ? (
+              <span className="flex items-center gap-px">
+                <Icon className="size-3.5" />
+                <ChevronDown className="size-2.5" strokeWidth={2.5} />
+              </span>
+            ) : (
+              <Icon className="size-3.5" />
+            )}
+          </button>
+        ))}
+      </fieldset>
+      {colours ? (
+        <div className="absolute top-full left-1/2 z-50 mt-2 w-max -translate-x-1/2 rounded-xl bg-card p-2 shadow-overlay ring-1 ring-border-soft">
+          <GroundPick onPick={() => setColours(false)} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

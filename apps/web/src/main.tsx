@@ -3,10 +3,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { Crashed } from "./Crashed";
-import { followSystemTheme } from "./lib/theme";
+import { applyTheme } from "./lib/theme";
 import "./styles/app.css";
 
-followSystemTheme();
+applyTheme();
 
 // The home's events keep the lists current, so a list is asked for once: when the stream
 // stands, and again each time it comes back (lib/stream.ts).
