@@ -138,7 +138,7 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
    `wizards-bot-<version>.tgz`: the home with the built web app and the workspace packages in it,
    and a `package.json` whose dependencies `npm install --omit=dev` installs with Node 24.11 or
    newer. Its `bin` is `wizards-bot`. Data stays in `~/.engenty/wizards-bot`; the home moves a
-   `~/.wizards-bot` of a Bot Server before 0.2 there on its first start. `docs/install.md` says
+   `~/.wizards-bot` of an earlier Bot Server there on its first start. `docs/install.md` says
    how.
 3. **A hosted home's settings.** The Manage-App starts it with:
    - `WIZARDS_BOT_URL=https://<address>.wizards.bot`

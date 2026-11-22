@@ -251,6 +251,17 @@ nonisolated struct FolderListing: Codable, Hashable, Sendable {
     var folders: [Entry]
 }
 
+/// A key, token or password the person gave the home: what uses it and when it was set, never its value.
+nonisolated struct SecretEntry: Codable, Hashable, Sendable, Identifiable {
+    enum Kind: String, Codable, Sendable { case gateway, account, connection, channel, outside }
+    var name: String
+    var kind: Kind
+    var label: String
+    var setAt: String
+    var id: String { name }
+}
+
+nonisolated struct SecretsEnvelope: Codable, Sendable { var secrets: [SecretEntry] }
 nonisolated struct FoldersEnvelope: Codable, Sendable { var folders: [Folder] }
 nonisolated struct FilesEnvelope: Codable, Sendable { var files: [FileRef] }
 nonisolated struct FolderPathBody: Codable, Sendable { var path: String }

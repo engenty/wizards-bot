@@ -1,6 +1,6 @@
 import Foundation
 
-/// What `wizards-bot pair` printed: `--json` from 0.2 on, the lines `Address:` and `Code:` before.
+/// What `wizards-bot pair` printed: `--json` from a newer one, the lines `Address:` and `Code:` from an earlier one.
 nonisolated enum PairOutput {
     static func read(_ output: String) -> (address: String?, code: String)? {
         if let start = output.firstIndex(of: "{"),

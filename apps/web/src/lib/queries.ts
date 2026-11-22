@@ -14,6 +14,7 @@ import type {
   HomeInfo,
   Models,
   PublishedLinks,
+  SecretEntry,
   Setup,
   SharedKind,
 } from "@wizards-bot/protocol";
@@ -165,6 +166,16 @@ export function useFolders() {
     queryKey: keys.folders(),
     queryFn: ({ signal }) =>
       api.get<{ folders: Folder[] }>("/v1/folders", signal).then((r) => r.folders),
+  });
+}
+
+/** The secrets of the home: what uses each one and when it was set. */
+export function useSecrets(enabled: boolean) {
+  return useQuery({
+    queryKey: keys.secrets(),
+    enabled,
+    queryFn: ({ signal }) =>
+      api.get<{ secrets: SecretEntry[] }>("/v1/secrets", signal).then((r) => r.secrets),
   });
 }
 

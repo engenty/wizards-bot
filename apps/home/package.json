@@ -17,6 +17,7 @@
     "@ai-sdk/gateway": "4.0.136",
     "@ai-sdk/openai-compatible": "3.0.94",
     "@chat-adapter/slack": "^4.45.0",
+    "@engenty/vault": "0.20.2",
     "@wizards-bot/avatar": "workspace:*",
     "@wizards-bot/protocol": "workspace:*",
     "@hono/node-server": "2.1.11",

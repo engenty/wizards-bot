@@ -55,7 +55,7 @@ flowchart LR
    next to itself (`HomeLauncher.swift`), sends what the home prints to
    `~/.engenty/wizards-bot/logs/home.log`, and becomes Node with `execv`, so launchd keeps the
    home itself. Data stays in `~/.engenty/wizards-bot`, port 4747, as with every other install.
-   Bot Servers before 0.2 kept it in `~/.wizards-bot`; the home moves it over on its first start
+   Earlier Bot Servers kept it in `~/.wizards-bot`; the home moves it over on its first start
    (docs/install.md). Later all of it moves to `~/.wizards/`, with the move of the domain.
 2. **macOS approves it.** On registering, macOS shows "Background item added". If the person
    turned background items off for us before, `SMAppService.status` is `.requiresApproval`; the
@@ -98,7 +98,7 @@ plist's arguments are fixed, so the launcher has to read the mode from the data 
 `wizards bot install` puts the home in `~/.engenty/wizards/bot/<version>` with its own
 LaunchAgent `com.engenty.wizards.bot` (`~/Library/LaunchAgents/com.engenty.wizards.bot.plist`)
 and `~/.engenty/wizards/bot/bot.json`. A home started by hand in a terminal has neither. Both use
-the data folder (`~/.engenty/wizards-bot`, or `~/.wizards-bot` before 0.2) and port 4747.
+the data folder (`~/.engenty/wizards-bot`, or `~/.wizards-bot` of an earlier one) and port 4747.
 
 Before the first screen, the app looks:
 

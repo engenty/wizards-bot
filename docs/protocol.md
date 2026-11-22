@@ -18,7 +18,7 @@ status. Codes a device handles: `unauthorized` (401: pair again), `already_answe
 
 `GET /health` → `{ "ok": true, "home": true, "version": "0.2.0" }`: the home runs, it is a Bot
 Server, and its version. For a proxy, Coolify, a status page and the Mac app, which tells a Bot
-Server from another program on port 4747 by it. Homes before 0.2 answer `{ "ok": true }`.
+Server from another program on port 4747 by it. Earlier homes answer `{ "ok": true }`.
 
 `GET /v1/home` → `HomeInfo`
 
@@ -930,6 +930,24 @@ PowerPoint file or a PDF as the text read from it, any other file by its name.
 
 An agent's message carries `file` parts too: a Word, Excel or PowerPoint file the agent made.
 A device draws it the same way, and the person saves it from `GET /v1/files/:id`.
+
+## Secrets
+
+`GET /v1/secrets` → `{ "secrets": SecretEntry[] }`: the keys, tokens and passwords the person
+gave the home, for the settings. Each names what uses it (`kind`: `gateway`, `account`,
+`connection`, `channel` or `outside`, and its `label`) and when it was set (`setAt`). A value
+never leaves the home, here or anywhere else; the home's own secrets are not listed. A secret is
+set, replaced and removed in the conversation, through a card's `secret` field and the main
+agent's tools.
+
+```json
+{
+  "name": "connection.con_….key",
+  "kind": "connection",
+  "label": "linear",
+  "setAt": "2026-11-22T20:00:00.000Z"
+}
+```
 
 ## Folders
 

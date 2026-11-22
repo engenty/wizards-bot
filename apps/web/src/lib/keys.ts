@@ -20,6 +20,8 @@ export const keys = {
   contacts: () => ["contacts"] as const,
   models: () => ["models"] as const,
   folders: () => ["folders"] as const,
+  /** What uses each secret of the home, never a value. */
+  secrets: () => ["secrets"] as const,
   /** The person's devices with what each keeps and offers its agents. */
   devices: () => ["devices"] as const,
   /** The files the person sent in a conversation. */

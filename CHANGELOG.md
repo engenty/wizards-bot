@@ -4,6 +4,18 @@ All notable changes to wizards.bot. Generated from [Conventional Commits](https:
 by [git-cliff](https://git-cliff.org) via `pnpm release`. Pre-`1.0`: a **minor**
 bump is a notable or breaking change, **patch** is fixes and small features.
 
+## [0.1.3] - 2026-11-22
+
+- ADDED **[web]** The settings in two columns (#14)
+- ADDED **[web]** Seven colours for the branded theme, citron by default (#7)
+- ADDED **[web]** Theme and language in the user menu; the Wizard centred in the chat's header (#12)
+
+## [0.1.2] - 2026-11-22
+
+- ADDED Bot Server in copy, a calmer setup in the person's language, and the sidebar (#6)
+- FIXED **[web]** The user menu opens below the person's card at the top (#8)
+- FIXED **[ios]** Talking no longer hears its own voice, and the chat keeps its place (#5)
+
 ## [0.1.1] - 2026-11-22
 
 - ADDED Hosted homes at <name>.wizards.bot (#3)

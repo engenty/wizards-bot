@@ -2,7 +2,7 @@ import Foundation
 
 /// What `GET /health` of an address said.
 nonisolated enum Health: Equatable, Sendable {
-    /// A Bot Server answers; `version` is there from 0.2 on.
+    /// A Bot Server answers; an earlier one says no `version`.
     case home(version: String?)
     /// The address answers, but not as a Bot Server.
     case notHome
@@ -12,7 +12,7 @@ nonisolated enum Health: Equatable, Sendable {
         case noSuchAddress, nothingListens, noAnswer, certificate, offline, other(String)
     }
 
-    /// A Bot Server answers `{ "ok": true }`; from 0.2 on also `"home": true` and its version.
+    /// A Bot Server answers `{ "ok": true }`; a newer one also `"home": true` and its version.
     static func read(status: Int, body: Data) -> Health {
         guard status == 200,
               let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],

@@ -34,7 +34,7 @@ node apps/home/src/cli.ts start
   ```
 
 - The data stays in `~/.engenty/wizards-bot` (`WIZARDS_BOT_DATA`), apart from the version: a new
-  version is a new folder, and the old one can go once the new one runs. Bot Servers before 0.2
+  version is a new folder, and the old one can go once the new one runs. Earlier Bot Servers
   kept it in `~/.wizards-bot`; the first start of a newer one moves it over, in one rename, and
   says so. When both folders are there it uses the new one and says the old one is still there.
 - It listens on port 4747 (`WIZARDS_BOT_PORT`). `GET /health` answers `{ "ok": true, "home": true,

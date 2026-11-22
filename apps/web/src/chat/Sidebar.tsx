@@ -1,10 +1,11 @@
 import { DEFAULT_AVATAR } from "@wizards-bot/avatar";
 import type { Agent, Avatar } from "@wizards-bot/protocol";
-import { LogOut, PanelLeft, PanelLeftClose, Settings, Smile } from "lucide-react";
+import { LogOut, PanelLeftClose, Settings, Smile } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { lang, t } from "../lib/i18n";
 import { useHome } from "../lib/queries";
 import { when } from "../lib/time";
+import { LangSwitch, ThemeSwitch } from "../setup/Frame";
 import { cn, IconButton } from "../ui";
 import { Menu } from "../ui/Menu";
 import { StackedAvatar } from "../ui/StackedAvatar";
@@ -188,6 +189,15 @@ export function Sidebar({
       <>
         <p className="truncate font-medium text-[0.875rem]">{home.data?.name}</p>
         <p className="truncate text-[0.75rem] text-ink-3">{where}</p>
+        {/* The theme and the language, each on a line of its own, as in engenty wizards' menu. */}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-[0.875rem]">{t("theme.label")}</span>
+          <ThemeSwitch />
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <span className="text-[0.875rem]">{t("lang.label")}</span>
+          <LangSwitch />
+        </div>
       </>
     ),
     items: [
@@ -217,9 +227,6 @@ export function Sidebar({
         >
           {you}
         </Menu>
-        <IconButton label={t("agents.show")} onClick={onToggle}>
-          <PanelLeft className="size-[1.125rem]" />
-        </IconButton>
         <ul className="mt-1 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
           {listed.map((agent) => (
             <Figure
