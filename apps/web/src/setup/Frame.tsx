@@ -138,7 +138,7 @@ export function ThemeSwitch() {
         ))}
       </fieldset>
       {colours ? (
-        <div className="absolute top-full left-1/2 z-50 mt-2 w-max -translate-x-1/2 rounded-xl bg-card p-2 shadow-overlay ring-1 ring-border-soft">
+        <div className="absolute top-full right-0 z-50 mt-2 w-max max-w-[11.5rem] rounded-xl bg-card p-2 shadow-overlay ring-1 ring-border-soft">
           <GroundPick onPick={() => setColours(false)} />
         </div>
       ) : null}
