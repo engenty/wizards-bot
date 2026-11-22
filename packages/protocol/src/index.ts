@@ -189,6 +189,24 @@ export const Part = z.discriminatedUnion("type", [
 ]);
 export type Part = z.infer<typeof Part>;
 
+/**
+ * One thing a search found (`GET /v1/search?q=`): a Wizard, a message of the person's own
+ * conversations, a document or an artifact. Conversations someone else has with an agent are
+ * not searched.
+ */
+export const SearchHit = z.object({
+  kind: z.enum(["agent", "message", "document", "artifact"]),
+  /** The agent, message, document or artifact. */
+  id: z.string(),
+  /** The Wizard whose conversation it is in, or the Wizard itself. */
+  agentId: z.string(),
+  title: z.string(),
+  /** A few words around what was found. */
+  snippet: z.string(),
+  at: z.string(),
+});
+export type SearchHit = z.infer<typeof SearchHit>;
+
 export const Message = z.object({
   id: z.string(),
   conversationId: z.string(),
