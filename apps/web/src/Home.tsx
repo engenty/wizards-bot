@@ -1,0 +1,411 @@
+import { useQueryClient } from "@tanstack/react-query";
+import type { Agent, Event } from "@wizards-bot/protocol";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { AgentPane } from "./chat/AgentPane";
+import { ArtifactPane } from "./chat/ArtifactPane";
+import { AvatarDialog } from "./chat/AvatarDialog";
+import { Chat } from "./chat/Chat";
+import { ConsentDialog } from "./chat/ConsentDialog";
+import { DocumentPane } from "./chat/DocumentPane";
+import { FolderDialog } from "./chat/FolderDialog";
+import { ItemsDialog } from "./chat/ItemsDialog";
+import { SettingsDialog } from "./chat/SettingsDialog";
+import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
+import { Engenty } from "./engenty/Engenty";
+import { api } from "./lib/api";
+import { t } from "./lib/i18n";
+import { keys } from "./lib/keys";
+import { CHAT_MIN, PANE_MIN, sidebar, sidebarFits, split } from "./lib/layout";
+import { useLingering } from "./lib/motion";
+import { noticesOf, notify } from "./lib/notify";
+import { useAgents, useAvatar, useItems, useSetup } from "./lib/queries";
+import { setDeviceToken } from "./lib/session";
+import { useStored } from "./lib/stored";
+import { useEvents, useLink } from "./lib/stream";
+import { SetupView } from "./setup/SetupView";
+import { needsSetup } from "./setup/steps";
+import { cn } from "./ui";
+
+const AGENT_KEY = "wizards.agent";
+
+/** The dialog that is open over the chat. */
+type Open = "settings" | "items" | "folder" | "avatar";
+
+/** The agent whose chat was open last, kept per browser. */
+function lastAgent(): string | null {
+  try {
+    return localStorage.getItem(AGENT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+const onResize = (listener: () => void) => {
+  window.addEventListener("resize", listener);
+  return () => window.removeEventListener("resize", listener);
+};
+const onVisibility = (listener: () => void) => {
+  document.addEventListener("visibilitychange", listener);
+  return () => document.removeEventListener("visibilitychange", listener);
+};
+
+/** The width an element has, as it changes. 0 before it is measured. */
+function useWidth(ref: React.RefObject<HTMLElement | null>, key: unknown): number {
+  const [width, setWidth] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` says the element is another one now
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) {
+      return;
+    }
+    setWidth(el.getBoundingClientRect().width);
+    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref, key]);
+  return width;
+}
+
+/**
+ * The line between the chat and what stands beside it. The person drags it, or moves it with
+ * the arrow keys, to give the chat another width; a double click gives the width back to the
+ * app.
+ */
+function Divider({
+  chat,
+  most,
+  onChange,
+  onReset,
+}: {
+  chat: number;
+  /** The widest the chat can get. */
+  most: number;
+  onChange: (chat: number) => void;
+  onReset: () => void;
+}) {
+  const drag = useRef<{ x: number; chat: number } | null>(null);
+  const end = () => {
+    drag.current = null;
+  };
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a line the person moves is a separator with a value, which <hr> is not
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={t("split.resize")}
+      aria-valuemin={CHAT_MIN}
+      aria-valuemax={most}
+      aria-valuenow={chat}
+      tabIndex={0}
+      style={{ left: chat - 4 }}
+      className="group absolute inset-y-0 z-10 w-2 cursor-col-resize touch-none outline-none"
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { x: e.clientX, chat };
+      }}
+      onPointerMove={(e) => {
+        if (drag.current) {
+          onChange(drag.current.chat + e.clientX - drag.current.x);
+        }
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onDoubleClick={onReset}
+      onKeyDown={(e) => {
+        const to = {
+          ArrowLeft: chat - 16,
+          ArrowRight: chat + 16,
+          Home: CHAT_MIN,
+          End: most,
+        }[e.key];
+        if (to !== undefined) {
+          e.preventDefault();
+          onChange(to);
+        } else if (e.key === "Enter") {
+          onReset();
+        }
+      }}
+    >
+      <span className="-translate-x-1/2 absolute inset-y-0 left-1/2 w-0.5 rounded-full transition group-hover:bg-ember group-focus-visible:bg-ember group-active:bg-ember" />
+    </div>
+  );
+}
+
+/**
+ * The app of a paired browser: the agents at the left, the chat with one of them, and a
+ * document or an artifact beside it. On a narrow window the agents open over the chat, and so
+ * does the document.
+ */
+export function Home() {
+  const client = useQueryClient();
+  const link = useLink();
+  const agents = useAgents();
+  const items = useItems();
+  const avatar = useAvatar();
+  const setup = useSetup();
+  const [agentId, setAgentId] = useState(lastAgent);
+  const [documentId, setDocumentId] = useState<string | null>(null);
+  // An artifact opens where a document opens, and so does what there is to know about the
+  // agent: one of the three stands beside the chat.
+  const [artifactId, setArtifactId] = useState<string | null>(null);
+  const [about, setAbout] = useState(false);
+  const [dialog, setDialog] = useState<Open | null>(null);
+  /** The chat the folder dialog was opened from; none from the settings. */
+  const [folderFrom, setFolderFrom] = useState<string>();
+  // A dialog that gives way to another one also reports that it closed: only the one that is
+  // open closes anything.
+  const close = useMemo(() => {
+    const only = (name: Open) => () => setDialog((open) => (open === name ? null : open));
+    return {
+      settings: only("settings"),
+      items: only("items"),
+      folder: only("folder"),
+      avatar: only("avatar"),
+    };
+  }, []);
+
+  // The list of agents: open where the window has room and the person did not close it.
+  const windowWidth = useSyncExternalStore(onResize, () => window.innerWidth);
+  const [collapsed, setCollapsed] = useStored("wizards.agents.closed", false);
+  const [drawer, setDrawer] = useState(false);
+  const pane = Boolean(documentId || artifactId || about);
+  const side = sidebar(windowWidth, pane, collapsed);
+  useEffect(() => {
+    if (side === "open") {
+      setDrawer(false);
+    }
+  }, [side]);
+
+  // The chat and what stands beside it share what the list of agents leaves.
+  const main = useRef<HTMLDivElement>(null);
+  const agent = agents.data?.find((a) => a.id === agentId) ?? agents.data?.[0];
+  const width = useWidth(main, Boolean(agent));
+  const [chosen, setChosen] = useStored<number | null>("wizards.chat.width", null);
+  // What stands beside the chat stays for its way out after it was closed.
+  const standing = useLingering(
+    documentId
+      ? `document:${documentId}`
+      : artifactId
+        ? `artifact:${artifactId}`
+        : about
+          ? "agent:about"
+          : null,
+    180,
+  );
+  const parts = standing.value ? split(width, chosen) : null;
+  const beside = parts && parts !== "over" ? parts : null;
+
+  // While the page is not in front, a card that waits and a finished answer are told.
+  const onEvent = useCallback(
+    (event: Event) => {
+      const all = client.getQueryData<Agent[]>(keys.agents()) ?? [];
+      notify(noticesOf(event, (id) => all.find((a) => a.id === id)?.name ?? "wizards.bot"));
+    },
+    [client],
+  );
+  useEvents(client, onEvent);
+
+  const waiting = items.data?.length ?? 0;
+  useEffect(() => {
+    document.title = waiting ? `(${waiting}) wizards.bot` : "wizards.bot";
+  }, [waiting]);
+
+  // What the agent wrote into the chat that is open and in front is read.
+  const visible = useSyncExternalStore(onVisibility, () => document.visibilityState === "visible");
+  const unread = agent && agent.state !== "working" ? agent.unread : 0;
+  const conversationId = agent?.conversationId;
+  useEffect(() => {
+    if (visible && unread && conversationId) {
+      void api.post(`/v1/conversations/${conversationId}/read`).catch(() => undefined);
+    }
+  }, [visible, unread, conversationId]);
+
+  // A home nobody set up, or one without a model, opens on its setup instead of the chat.
+  if (setup.data && needsSetup(setup.data)) {
+    return (
+      <>
+        <SetupView setup={setup.data} />
+        <ConsentDialog />
+      </>
+    );
+  }
+
+  // The agent picked last, or the main agent when that one is gone.
+  if (!agent) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+        <Engenty kind="round" size={56} />
+        {link === "away" || agents.error ? (
+          <p role="status" className="max-w-xs text-[0.875rem] text-ink-3">
+            {link === "away" ? t("home.away") : agents.error?.message}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  const pick = (picked: Agent) => {
+    setAgentId(picked.id);
+    try {
+      localStorage.setItem(AGENT_KEY, picked.id);
+    } catch {
+      // The pick lasts for this visit then.
+    }
+    setDocumentId(null);
+    setArtifactId(null);
+    setAbout(false);
+    setDialog(null);
+    setDrawer(false);
+  };
+  const signOut = async () => {
+    await api.del("/v1/device").catch(() => undefined);
+    setDeviceToken(null);
+  };
+  const settings = () => {
+    setDrawer(false);
+    setDialog("settings");
+  };
+  const list = (rail: boolean, onToggle: () => void) => (
+    <Sidebar
+      agents={agents.data ?? []}
+      current={agent}
+      avatar={avatar.data ?? null}
+      rail={rail}
+      onPick={pick}
+      onToggle={onToggle}
+      onSettings={settings}
+      onAvatar={() => {
+        setDrawer(false);
+        setDialog("avatar");
+      }}
+      onSignOut={() => void signOut()}
+    />
+  );
+
+  const [paneKind, paneId] = (standing.value ?? "").split(/:(.*)/);
+  const paneProps = { over: !beside, leaving: standing.leaving };
+
+  return (
+    <div className="flex h-full">
+      <div
+        className={cn(
+          "side-slot h-full shrink-0 overflow-hidden bg-paper",
+          side === "none" ? "w-0" : "border-border-soft border-r",
+          side === "open" && "w-72",
+          side === "rail" && "w-16",
+        )}
+      >
+        {side === "open" ? (
+          <div className="h-full w-72">{list(false, () => setCollapsed(true))}</div>
+        ) : side === "rail" ? (
+          // Where the list fits, it opens beside the chat and stays; where not, over the chat.
+          list(true, () => (sidebarFits(windowWidth, pane) ? setCollapsed(false) : setDrawer(true)))
+        ) : null}
+      </div>
+      <SidebarDrawer open={drawer} onClose={() => setDrawer(false)}>
+        {side === "open" ? null : list(false, () => setDrawer(false))}
+      </SidebarDrawer>
+      <div ref={main} className="relative flex h-full min-w-0 flex-1">
+        <div className="h-full min-w-0 flex-1">
+          <Chat
+            agent={agent}
+            items={items.data ?? []}
+            link={link}
+            onAgents={side === "none" ? () => setDrawer(true) : undefined}
+            onAgent={() => {
+              setDocumentId(null);
+              setArtifactId(null);
+              setAbout((open) => !open);
+            }}
+            unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
+            onItems={() => setDialog("items")}
+            onDocument={(id) => {
+              setArtifactId(null);
+              setAbout(false);
+              setDocumentId(id);
+            }}
+            onArtifact={(id) => {
+              setDocumentId(null);
+              setAbout(false);
+              setArtifactId(id);
+            }}
+            onFolder={() => {
+              setFolderFrom(agent.conversationId);
+              setDialog("folder");
+            }}
+          />
+        </div>
+        {beside && !standing.leaving ? (
+          <Divider
+            chat={beside.chat}
+            most={width - PANE_MIN}
+            onChange={(chat) => setChosen(Math.min(Math.max(chat, CHAT_MIN), width - PANE_MIN))}
+            onReset={() => setChosen(null)}
+          />
+        ) : null}
+        {paneId ? (
+          // Beside the chat, a column that opens and closes; over it, the pane places itself.
+          // The same elements either way, so a text being edited survives a turned tablet.
+          <div
+            className={beside ? "pane-slot h-full shrink-0 overflow-hidden" : "contents"}
+            style={beside ? { width: beside.pane } : undefined}
+            data-leaving={standing.leaving || undefined}
+          >
+            <div
+              className={beside ? "h-full" : "contents"}
+              style={beside ? { width: beside.pane } : undefined}
+            >
+              {paneKind === "document" ? (
+                <DocumentPane
+                  key={paneId}
+                  id={paneId}
+                  {...paneProps}
+                  onClose={() => setDocumentId(null)}
+                />
+              ) : paneKind === "artifact" ? (
+                <ArtifactPane
+                  key={paneId}
+                  id={paneId}
+                  {...paneProps}
+                  onClose={() => setArtifactId(null)}
+                />
+              ) : (
+                <AgentPane
+                  key={agent.id}
+                  agent={agent}
+                  {...paneProps}
+                  onFolder={() => {
+                    setFolderFrom(agent.conversationId);
+                    setDialog("folder");
+                  }}
+                  onClose={() => setAbout(false)}
+                />
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
+      <SettingsDialog
+        open={dialog === "settings"}
+        onFolder={() => {
+          setFolderFrom(undefined);
+          setDialog("folder");
+        }}
+        onClose={close.settings}
+      />
+      <ItemsDialog open={dialog === "items"} items={items.data ?? []} onClose={close.items} />
+      <FolderDialog open={dialog === "folder"} conversationId={folderFrom} onClose={close.folder} />
+      <AvatarDialog open={dialog === "avatar"} saved={avatar.data ?? null} onClose={close.avatar} />
+      <ConsentDialog />
+    </div>
+  );
+}

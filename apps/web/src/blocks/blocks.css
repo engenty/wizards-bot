@@ -1,0 +1,380 @@
+/*
+ * From engenty wizards, apps/web/src/studio/space/blocks/blocks.css, written against this app's
+ * theme: the text looks as it reads (`prose-zen`), with the handle, the `/` menu and the bubble
+ * floating over it. Colours, radii and shadows are the names of styles/theme.css.
+ */
+@reference "../styles/app.css";
+
+.block-editor {
+  position: relative;
+}
+
+/* The left edge is the handle's: two small buttons under a mouse, one larger under a finger. */
+.block-page {
+  position: relative;
+  padding: 8px 20px 48px 48px;
+}
+@media (pointer: coarse) {
+  .block-page {
+    padding: 8px 16px 48px 44px;
+  }
+}
+.block-page .tiptap {
+  min-height: 40vh;
+  outline: none;
+  @apply caret-ember;
+}
+.block-page .tiptap .is-empty:first-child::before,
+.block-page .tiptap p.is-editor-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  @apply text-ink-4;
+}
+.soft-break::before {
+  content: " ";
+}
+.block-doc pre.raw-md {
+  position: relative;
+  padding: 0.6em 0.8em;
+  white-space: pre-wrap;
+  font-size: 0.85em;
+  @apply rounded-lg border border-border border-dashed font-mono text-ink-2;
+}
+.block-doc pre.raw-md code {
+  background: none;
+  padding: 0;
+}
+.block-doc pre.raw-md::after {
+  content: "Markdown";
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  @apply font-sans text-ink-4;
+}
+.block-doc pre:not(.raw-md) {
+  padding: 0.7em 0.9em;
+  font-size: 0.85em;
+  @apply rounded-lg bg-paper-2 font-mono;
+}
+.block-doc pre:not(.raw-md) code {
+  background: none;
+  padding: 0;
+}
+.block-doc li > p {
+  margin: 0.15em 0;
+}
+/* A wide table scrolls inside itself; the pane never scrolls sideways. */
+.block-doc .tableWrapper {
+  overflow-x: auto;
+}
+/* Cells show their edges, so an empty table can be told from empty lines. */
+.block-doc td,
+.block-doc th {
+  min-width: 3em;
+  @apply border border-border-soft;
+}
+.block-doc td p,
+.block-doc th p {
+  margin: 0;
+}
+.block-doc th {
+  font-weight: 600;
+}
+.block-doc hr {
+  border: 0;
+  @apply border-border border-t;
+}
+.block-doc ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 2px;
+}
+.block-doc ul[data-type="taskList"] li {
+  display: flex;
+  gap: 8px;
+}
+.block-doc ul[data-type="taskList"] li > label {
+  margin-top: 0.2em;
+}
+.block-doc ul[data-type="taskList"] input {
+  @apply accent-ember;
+}
+.block-doc ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+.block-doc ul[data-type="taskList"] li > div > p {
+  margin: 0;
+}
+.block-doc .selectedCell {
+  @apply bg-ember-veil;
+}
+.block-doc img.ProseMirror-selectednode {
+  @apply outline-2 outline-ember;
+}
+.block-doc a {
+  cursor: text;
+}
+
+/* The handle beside each block. */
+.block-gutter {
+  position: absolute;
+  left: 4px;
+  z-index: 2;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+.block-gutter.on {
+  opacity: 1;
+}
+.block-gutter-btn {
+  width: 20px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  @apply rounded-md text-ink-4;
+}
+.block-gutter-btn:hover {
+  @apply bg-accent text-ink;
+}
+.block-gutter-btn.grip {
+  cursor: grab;
+}
+@media (pointer: coarse) {
+  .block-gutter-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+.block-drop-line {
+  position: absolute;
+  left: 48px;
+  right: 20px;
+  height: 2px;
+  margin-top: -1px;
+  pointer-events: none;
+  @apply rounded-md bg-ember;
+}
+.block-drag-preview {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  max-width: 240px;
+  padding: 4px 8px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  @apply rounded-md border border-border bg-card text-ink;
+}
+
+/* Floating: the handle's menu, the `/` menu, the bubble, a table's tools. */
+.block-menu,
+.slash-menu,
+.block-bubble,
+.block-table-tools > span {
+  @apply border border-border bg-card text-ink shadow-overlay;
+}
+.block-menu {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  gap: 1px;
+  width: 220px;
+  max-width: calc(100vw - 16px);
+  max-height: 70vh;
+  overflow: auto;
+  padding: 6px;
+  @apply rounded-xl;
+}
+.block-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  font-size: 13px;
+  text-align: left;
+  @apply rounded-md;
+}
+.block-menu-item:hover {
+  @apply bg-accent;
+}
+.block-menu-item.danger:hover {
+  @apply text-rose;
+}
+.block-menu-label {
+  padding: 6px 8px 3px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  @apply text-ink-4;
+}
+.block-menu-sep {
+  height: 1px;
+  margin: 4px 0;
+  @apply bg-border-soft;
+}
+.block-menu-glyph {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  @apply rounded-md bg-paper text-ink-2;
+}
+.slash-menu {
+  display: grid;
+  gap: 1px;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  max-height: 340px;
+  overflow: auto;
+  padding: 6px;
+  @apply rounded-xl;
+}
+.slash-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  text-align: left;
+  @apply rounded-md;
+}
+.slash-item.on {
+  @apply bg-accent;
+}
+.slash-icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  @apply rounded-md border border-border-soft bg-paper text-ink-2;
+}
+.slash-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.slash-title {
+  font-size: 13px;
+  @apply text-ink;
+}
+.slash-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  @apply text-ink-3;
+}
+.block-bubble {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 16px);
+  padding: 4px;
+  z-index: 35;
+  @apply rounded-lg;
+}
+/* A table's tools stay at the upper edge of what is in view and take no room in the text. */
+.block-table-tools {
+  position: sticky;
+  top: 4px;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+  height: 0;
+  padding-right: 12px;
+}
+.block-table-tools > span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: max-content;
+  padding: 3px;
+  @apply rounded-lg;
+}
+.block-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  @apply rounded-md text-ink-2;
+}
+.block-tool:hover,
+.block-tool.on {
+  @apply bg-accent text-ink;
+}
+@media (pointer: coarse) {
+  .block-tool {
+    min-width: 36px;
+    height: 36px;
+  }
+  .block-menu-item,
+  .slash-item {
+    padding-block: 9px;
+  }
+}
+.block-bubble-href {
+  max-width: 180px;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  @apply text-ink-3;
+}
+.block-bubble-input {
+  width: min(280px, 60vw);
+  padding: 5px 8px;
+  font-size: 13px;
+  outline: none;
+  @apply rounded-md border border-border bg-paper text-ink;
+}
+.block-bubble-input:focus {
+  @apply border-focus;
+}
+
+/* The handle fades to the block it moves to; nothing else here moves (styles/app.css). */
+@media (prefers-reduced-motion: no-preference) {
+  .block-gutter {
+    transition: opacity 120ms var(--ease-settle);
+  }
+}
+
+/* A passage the person marked, while the document is read; with a comment it is underlined. */
+.doc-mark {
+  border-radius: 2px;
+  cursor: pointer;
+  background: var(--color-amber-tint);
+  box-decoration-break: clone;
+}
+.doc-mark.has-comment {
+  text-decoration: underline 2px var(--color-ember);
+  text-underline-offset: 3px;
+}
+/* Over a selection while the document is read: mark, comment, ask. */
+.read-bar {
+  z-index: 45;
+}
+.read-bar-comment {
+  max-width: min(320px, 70vw);
+  padding: 2px 8px;
+  font-size: 13px;
+  white-space: pre-wrap;
+  @apply text-ink-2;
+}

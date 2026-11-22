@@ -1,0 +1,395 @@
+/*
+ * From engenty wizards, apps/web/src/styles/app.css: the page, focus, rendered Markdown, the
+ * camera's sheet and how things move. The fonts are bundled: the app runs in a
+ * private home and asks no one else for a file.
+ */
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
+@import "@fontsource-variable/space-grotesk/wght.css";
+@import "tailwindcss";
+@import "./theme.css";
+@import "./shadcn-ember.css";
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--f-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100dvh;
+}
+
+/* iOS zooms the page into any field typed in below 16 px, and does not zoom back out. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"]),
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Taps answer at once and leave no grey flash. */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* The notch and the home indicator. */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+::selection {
+  color: var(--ink);
+  background: var(--ember-veil);
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--focus-line);
+  outline-offset: 2px;
+}
+
+/* A field shows focus by its own border (`border-focus`), not an outline. */
+:is(input:not([type="checkbox"], [type="radio"]), textarea):focus-visible {
+  outline: none;
+}
+
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline-width: 2px;
+  }
+}
+
+/* Rendered Markdown: an agent's answer, a card's body, a document. */
+.prose-zen {
+  line-height: 1.6;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.prose-zen > * + * {
+  margin-top: 0.75em;
+}
+.prose-zen h1,
+.prose-zen h2,
+.prose-zen h3 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1.25em;
+}
+.prose-zen h1 {
+  font-size: 1.5rem;
+}
+.prose-zen h2 {
+  font-size: 1.2rem;
+}
+.prose-zen h3 {
+  font-size: 1.05rem;
+}
+.prose-zen ul,
+.prose-zen ol {
+  padding-left: 1.25em;
+}
+.prose-zen ul {
+  list-style: disc;
+}
+.prose-zen ol {
+  list-style: decimal;
+}
+.prose-zen a {
+  color: var(--ember-strong-mark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-zen table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+/* A wide table scrolls inside itself; the page never scrolls sideways. */
+@media (max-width: 639px) {
+  .prose-zen table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+.prose-zen pre {
+  overflow-x: auto;
+}
+.prose-zen img {
+  max-width: 100%;
+  height: auto;
+}
+.prose-zen th,
+.prose-zen td {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 0.4em 0.6em;
+  text-align: left;
+  /* A column is as wide as its longest word: a cell breaks a word only when it must. */
+  overflow-wrap: break-word;
+}
+.prose-zen code {
+  font-family: var(--f-mono);
+  font-size: 0.9em;
+  background: var(--paper-2);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+}
+.prose-zen blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.9em;
+  color: var(--ink-2);
+}
+
+/* What can be clicked shows the hand. */
+@layer base {
+  :is(button, summary, [role="button"], label:has(input)):not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* A recording in progress. */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.72);
+    opacity: 0.55;
+  }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+/* An agent about to answer: three dots that rise in turn. */
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: none;
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+.animate-typing {
+  animation: typing 1.2s ease-in-out infinite;
+}
+
+/* The camera fills a phone's screen; on a desk it is a centred sheet. */
+dialog.media-sheet {
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  padding: 0;
+  background: #000;
+  color: #fff;
+}
+dialog.media-sheet::backdrop {
+  background: oklch(20% 0.01 60 / 0.5);
+}
+@media (min-width: 640px) and (min-height: 560px) {
+  dialog.media-sheet {
+    margin: auto;
+    width: min(720px, calc(100% - 48px));
+    height: min(640px, calc(100dvh - 48px));
+    border-radius: calc(var(--radius) * 2);
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-dot,
+  .animate-typing {
+    animation: none;
+  }
+}
+
+/*
+ * How things come and go. Everything moves a short way and settles without a bounce; what
+ * leaves is quicker than what comes. Someone who asked their system for less motion gets none
+ * of it.
+ */
+:root {
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-leave: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A message, a notice, a card: it rises into its place. */
+  @keyframes enter-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  .enter-rise {
+    animation: enter-rise 280ms var(--ease-settle) backwards;
+  }
+
+  /* What changes in its place: the list of agents, a document's text. */
+  @keyframes enter-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  .enter-fade {
+    animation: enter-fade 200ms ease-out backwards;
+  }
+
+  /* A count that appears. */
+  @keyframes enter-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+  }
+  .enter-pop {
+    animation: enter-pop 240ms var(--ease-settle) backwards;
+  }
+
+  /* The list of agents changes its width. */
+  .side-slot {
+    transition: width 240ms var(--ease-settle);
+  }
+
+  /*
+   * A document beside the chat: its column opens from nothing to the width it has, and the
+   * chat gives way at the same pace. Its content has that width from the start, so nothing
+   * in it moves.
+   */
+  @keyframes pane-open {
+    from {
+      width: 0;
+      opacity: 0;
+    }
+  }
+  @keyframes pane-close {
+    to {
+      width: 0;
+      opacity: 0;
+    }
+  }
+  .pane-slot {
+    animation: pane-open 280ms var(--ease-settle) backwards;
+  }
+  .pane-slot[data-leaving] {
+    animation: pane-close 180ms var(--ease-leave) forwards;
+  }
+
+  /* A document over the chat, on a narrow window: it comes in from the right. */
+  @keyframes pane-over-open {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes pane-over-close {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  .pane-over {
+    animation: pane-over-open 300ms var(--ease-settle) backwards;
+  }
+  .pane-over[data-leaving] {
+    animation: pane-over-close 200ms var(--ease-leave) forwards;
+  }
+
+  /*
+   * A dialog rises a little as it opens and sinks as it closes; on a phone, where it fills
+   * the screen, it comes up from the lower edge. The shade behind it fades. `overlay` and
+   * `display` wait for the way out, so a closed dialog is still drawn while it leaves.
+   */
+  dialog.sheet {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+    transition:
+      opacity 160ms var(--ease-leave),
+      transform 160ms var(--ease-leave),
+      overlay 160ms allow-discrete,
+      display 160ms allow-discrete;
+  }
+  dialog.sheet[open] {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 240ms var(--ease-settle),
+      transform 240ms var(--ease-settle),
+      overlay 240ms allow-discrete,
+      display 240ms allow-discrete;
+  }
+  @starting-style {
+    dialog.sheet[open] {
+      opacity: 0;
+      transform: translateY(10px) scale(0.985);
+    }
+  }
+  @media (max-width: 639px) {
+    dialog.sheet {
+      opacity: 1;
+      transform: translateY(100%);
+    }
+    @starting-style {
+      dialog.sheet[open] {
+        opacity: 1;
+        transform: translateY(100%);
+      }
+    }
+  }
+
+  /* The list of agents over the chat comes in from the left edge. */
+  dialog.drawer {
+    transform: translateX(-100%);
+    transition:
+      transform 200ms var(--ease-leave),
+      overlay 200ms allow-discrete,
+      display 200ms allow-discrete;
+  }
+  dialog.drawer[open] {
+    transform: none;
+    transition:
+      transform 280ms var(--ease-settle),
+      overlay 280ms allow-discrete,
+      display 280ms allow-discrete;
+  }
+  @starting-style {
+    dialog.drawer[open] {
+      transform: translateX(-100%);
+    }
+  }
+
+  :is(dialog.sheet, dialog.drawer)::backdrop {
+    opacity: 0;
+    transition:
+      opacity 200ms ease-out,
+      overlay 200ms allow-discrete,
+      display 200ms allow-discrete;
+  }
+  :is(dialog.sheet, dialog.drawer)[open]::backdrop {
+    opacity: 1;
+  }
+  @starting-style {
+    :is(dialog.sheet, dialog.drawer)[open]::backdrop {
+      opacity: 0;
+    }
+  }
+}

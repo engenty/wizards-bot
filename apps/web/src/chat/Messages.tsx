@@ -1,0 +1,344 @@
+import type { Agent, Message, Part } from "@wizards-bot/protocol";
+import { Check, ChevronRight, FileText, Shapes, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Engenty } from "../engenty/Engenty";
+import type { Thread } from "../lib/events";
+import { t } from "../lib/i18n";
+import { elapsed } from "../lib/time";
+import { cn, Spinner } from "../ui";
+import { Markdown } from "../ui/Markdown";
+import { CardView } from "./CardView";
+import { Face, Writer } from "./Face";
+import { MessageFiles } from "./MessageFiles";
+
+/** One line about what the agent is doing, or did. */
+function Activity({ part }: { part: Extract<Part, { type: "activity" }> }) {
+  return (
+    <div className="flex items-center gap-2 text-[0.8125rem] text-ink-3">
+      {part.state === "running" ? (
+        <Spinner className="size-3.5 shrink-0" />
+      ) : part.state === "failed" ? (
+        <X className="size-3.5 shrink-0 text-rose" />
+      ) : (
+        <Check className="size-3.5 shrink-0 text-moss" />
+      )}
+      <span className="min-w-0">{part.label}</span>
+    </div>
+  );
+}
+
+/** An agent about to answer: three dots that rise in turn. */
+function Typing() {
+  return (
+    <div className="flex h-6 items-center gap-1" aria-hidden="true">
+      {[0, 0.15, 0.3].map((delay) => (
+        <span
+          key={delay}
+          className="size-1.5 animate-typing rounded-full bg-ink-3"
+          style={{ animationDelay: `${delay}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** How long the agent has been at it, once it is longer than a moment: "12 s", "1:05". */
+function Elapsed({ since }: { since: string }) {
+  const start = Date.parse(since);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const text = elapsed(now - start);
+  return text ? (
+    <span className="text-[0.75rem] text-ink-4 tabular-nums" aria-hidden="true">
+      {text}
+    </span>
+  ) : null;
+}
+
+/**
+ * A message's parts, in order. Files are drawn together; a part of a type this page does not
+ * know shows its title, or one line, and never breaks the message.
+ */
+function Parts({
+  message,
+  onDocument,
+  onArtifact,
+  onProblem,
+}: {
+  message: Message;
+  onDocument: (id: string) => void;
+  onArtifact: (id: string) => void;
+  onProblem: (text: string) => void;
+}) {
+  const mine = message.role === "you";
+  const files = message.parts.flatMap((part) => (part.type === "file" ? [part.file] : []));
+  const firstFile = message.parts.findIndex((part) => part.type === "file");
+  return message.parts.map((part, i) => {
+    // The message is one list for as long as it stands: a part keeps its place.
+    const key = `${part.type}-${i}`;
+    switch (part.type) {
+      case "text":
+        if (!part.text) {
+          return null;
+        }
+        return mine ? (
+          <div key={key} className="rounded-xl rounded-br-md bg-paper-2 px-4 py-2.5">
+            <Markdown text={part.text} className="text-[0.9375rem]" />
+          </div>
+        ) : (
+          <Markdown key={key} text={part.text} className="text-[0.9375rem]" />
+        );
+      case "activity":
+        return <Activity key={key} part={part} />;
+      case "card":
+        return <CardView key={part.card.id} card={part.card} />;
+      case "file":
+        return i === firstFile ? (
+          <MessageFiles key={key} files={files} mine={mine} onProblem={onProblem} />
+        ) : null;
+      case "document":
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onDocument(part.documentId)}
+            className="flex w-full max-w-sm items-center gap-2.5 rounded-xl bg-card px-3.5 py-3 text-left text-[0.9375rem] shadow-soft ring-1 ring-border-soft transition hover:ring-ink-4"
+          >
+            <FileText className="size-4 shrink-0 text-ink-3" />
+            <span className="min-w-0 flex-1 truncate font-medium">{part.title}</span>
+            <ChevronRight className="size-4 shrink-0 text-ink-4" />
+          </button>
+        );
+      case "artifact":
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onArtifact(part.artifactId)}
+            className="flex w-full max-w-sm items-center gap-2.5 rounded-xl bg-card px-3.5 py-3 text-left text-[0.9375rem] shadow-soft ring-1 ring-border-soft transition hover:ring-ink-4"
+          >
+            <Shapes className="size-4 shrink-0 text-ink-3" />
+            <span className="min-w-0 flex-1 truncate font-medium">{part.title}</span>
+            <ChevronRight className="size-4 shrink-0 text-ink-4" />
+          </button>
+        );
+      default: {
+        const title = (part as { title?: unknown }).title;
+        return (
+          <p key={key} className="text-[0.8125rem] text-ink-3">
+            {typeof title === "string" ? title : t("chat.unknownPart")}
+          </p>
+        );
+      }
+    }
+  });
+}
+
+function MessageView({
+  message,
+  agent,
+  onDocument,
+  onArtifact,
+  onProblem,
+}: {
+  message: Message;
+  agent: Agent;
+  onDocument: (id: string) => void;
+  onArtifact: (id: string) => void;
+  onProblem: (text: string) => void;
+}) {
+  if (message.role === "note") {
+    return (
+      <div className="enter-rise flex flex-col items-center gap-2 text-center text-[0.8125rem] text-ink-3 [&_.prose-zen]:text-ink-3">
+        <Parts
+          message={message}
+          onDocument={onDocument}
+          onArtifact={onArtifact}
+          onProblem={onProblem}
+        />
+      </div>
+    );
+  }
+  if (message.role === "you") {
+    return (
+      <div className="enter-rise ml-8 flex min-w-0 flex-col items-end gap-1.5 self-end">
+        <Parts
+          message={message}
+          onDocument={onDocument}
+          onArtifact={onArtifact}
+          onProblem={onProblem}
+        />
+        {message.model === "apple:on-device" ? (
+          <p className="text-[0.75rem] text-ink-4">{t("chat.onDevice")}</p>
+        ) : null}
+      </div>
+    );
+  }
+  const drawn = message.parts.some((part) => part.type !== "text" || part.text);
+  // While the answer is open and no tool line turns, the dots say the agent is still at it:
+  // between two tools, and while it thinks after a line of text.
+  const thinking =
+    message.state === "streaming" &&
+    !message.parts.some((part) => part.type === "activity" && part.state === "running");
+  // An answer that was stopped before its first word is done and holds nothing: no figure
+  // stands beside nothing.
+  if (!drawn && message.state === "done") {
+    return null;
+  }
+  return (
+    <div className="enter-rise flex items-start gap-3">
+      <div className="shrink-0">
+        {message.from ? (
+          <Writer from={message.from} size={28} />
+        ) : (
+          <Engenty kind={agent.kind} size={28} animated={false} />
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-0.5">
+        {message.from ? (
+          // In a room: who wrote it, and for an agent whose it is.
+          <p className="-mb-1.5 font-medium text-[0.8125rem] text-ink-2">
+            {message.from.name}
+            {message.from.of ? (
+              <span className="font-normal text-ink-3"> · {message.from.of}</span>
+            ) : null}
+          </p>
+        ) : null}
+        <Parts
+          message={message}
+          onDocument={onDocument}
+          onArtifact={onArtifact}
+          onProblem={onProblem}
+        />
+        {message.state === "streaming" ? (
+          <div className="flex items-center gap-2.5">
+            {thinking ? <Typing /> : null}
+            <Elapsed since={message.createdAt} />
+          </div>
+        ) : null}
+        {message.state === "failed" ? (
+          <p className="text-[0.8125rem] text-ink-3">{t("chat.failed")}</p>
+        ) : null}
+        {message.model === "apple:on-device" ? (
+          <p className="text-[0.75rem] text-ink-4">{t("chat.onDevice")}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A conversation: the person's messages on the right, the agent's with its figure. The list
+ * stays at its end while it grows, unless the person has scrolled up to read; earlier messages
+ * come in above without moving what is read.
+ */
+export function Messages({
+  thread,
+  agent,
+  onEarlier,
+  onDocument,
+  onArtifact,
+  onProblem,
+}: {
+  /** Undefined while the conversation loads. */
+  thread: Thread | undefined;
+  agent: Agent;
+  onEarlier: () => void;
+  onDocument: (id: string) => void;
+  onArtifact: (id: string) => void;
+  onProblem: (text: string) => void;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  // Whether the list is at its end, and how far from the end it was before it last grew.
+  const atEnd = useRef(true);
+  const fromEnd = useRef(0);
+  const first = thread?.messages[0]?.id;
+  const last = thread?.messages.at(-1);
+
+  // A new conversation starts at its end, and so does the person's own new message.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the conversation and its last message say when
+  useLayoutEffect(() => {
+    atEnd.current = true;
+    scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
+  }, [agent.conversationId, last?.role === "you" ? last.id : null]);
+
+  // Earlier messages came in above: what was read stays where it was.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the first message says when
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    if (el && !atEnd.current) {
+      el.scrollTop = el.scrollHeight - fromEnd.current;
+    }
+  }, [first]);
+
+  // Whatever makes the list taller (text being written, a picture that has loaded) keeps it
+  // at its end.
+  useLayoutEffect(() => {
+    const el = scroller.current;
+    const inner = content.current;
+    if (!el || !inner) {
+      return;
+    }
+    const follow = () => {
+      if (atEnd.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    };
+    follow();
+    const observer = new ResizeObserver(follow);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={scroller}
+      onScroll={(e) => {
+        const el = e.currentTarget;
+        fromEnd.current = el.scrollHeight - el.scrollTop;
+        atEnd.current = fromEnd.current - el.clientHeight < 80;
+      }}
+      className="min-h-0 flex-1 overflow-y-auto"
+    >
+      <div
+        ref={content}
+        className={cn(
+          "mx-auto flex w-full max-w-[46rem] flex-col gap-5 px-4 pt-2 pb-6 sm:px-5",
+          thread?.messages.length === 0 && "h-full justify-center",
+        )}
+      >
+        {thread?.more ? (
+          <button
+            type="button"
+            onClick={onEarlier}
+            className="self-center rounded-full px-3 py-1.5 text-[0.8125rem] text-ink-3 transition hover:bg-accent hover:text-ink"
+          >
+            {t("chat.older")}
+          </button>
+        ) : null}
+        {thread?.messages.length === 0 ? (
+          <div className="enter-rise flex flex-col items-center gap-4 text-center">
+            <Face agent={agent} size={96} />
+            <p className="max-w-xs text-ink-2 leading-relaxed">
+              {agent.origin === "room" ? t("room.empty") : t("chat.empty", { name: agent.name })}
+            </p>
+          </div>
+        ) : null}
+        {thread?.messages.map((message) => (
+          <MessageView
+            key={message.id}
+            message={message}
+            agent={agent}
+            onDocument={onDocument}
+            onArtifact={onArtifact}
+            onProblem={onProblem}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

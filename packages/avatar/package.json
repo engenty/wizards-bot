@@ -1,0 +1,18 @@
+{
+  "name": "@wizards-bot/avatar",
+  "private": true,
+  "license": "MIT",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./png": "./src/png.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@wizards-bot/protocol": "workspace:*"
+  }
+}

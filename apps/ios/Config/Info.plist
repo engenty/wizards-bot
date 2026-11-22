@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>bot.wizards</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>wizardsbot</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>wizards.bot talks to your home when it runs on a computer in your network.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>The camera reads the code that connects this device to your home and the code of an invite, and takes the photos you send to your agents. A photo goes to your home only when you send it.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone hears what you say to your agent instead of typing. It is turned into text on this device, and only the text is sent.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>What you say is turned into text on this device, never by a service elsewhere. The text goes to your agent like a message you typed.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Your agents ask this phone about your calendar. It is read here, and only the answer goes to your home. A new or changed entry asks you first.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Your agents ask this phone about your reminders. They are read here, and only the answer goes to your home. A new or changed reminder asks you first.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Your agents ask this phone about your contacts. They are read here, and only the answer goes to your home.</string>
+</dict>
+</plist>

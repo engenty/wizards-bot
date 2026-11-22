@@ -1,0 +1,160 @@
+import { useQueryClient } from "@tanstack/react-query";
+import type { Setup, SetupCheck } from "@wizards-bot/protocol";
+import { AlertTriangle, Check, Circle, CircleHelp, Copy, RotateCw, X } from "lucide-react";
+import { useState } from "react";
+import { api } from "../lib/api";
+import { lang, t } from "../lib/i18n";
+import { keys } from "../lib/keys";
+import { when } from "../lib/time";
+import { Button, cn, IconButton, Spinner } from "../ui";
+import { testable, testedAt, testing } from "./steps";
+
+const ICONS: Record<SetupCheck["state"], React.ReactNode> = {
+  ok: <Check className="size-4 text-moss" />,
+  warning: <AlertTriangle className="size-4 text-ember-strong" />,
+  problem: <X className="size-4 text-rose" />,
+  absent: <Circle className="size-3.5 text-ink-4" />,
+  untested: <CircleHelp className="size-4 text-ink-4" />,
+  testing: <Spinner className="size-4 text-ink-3" />,
+};
+
+/** A command for a terminal on the home's computer, with a way to copy it. */
+function Command({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () =>
+    navigator.clipboard?.writeText(text).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => undefined,
+    );
+  return (
+    <div className="mt-1.5 flex max-w-full items-center gap-1 rounded-lg bg-paper-2 py-0.5 pr-0.5 pl-3">
+      <code className="min-w-0 flex-1 truncate font-mono text-[0.8125rem] text-ink">{text}</code>
+      <IconButton label={copied ? t("setup.copied") : t("setup.copy")} onClick={() => void copy()}>
+        {copied ? <Check className="size-4 text-moss" /> : <Copy className="size-4" />}
+      </IconButton>
+    </div>
+  );
+}
+
+/** One check: what was found and, while it is not fine, what to do. */
+function CheckRow({ check, onTest }: { check: SetupCheck; onTest?: (source: string) => void }) {
+  const fine = check.state === "ok";
+  return (
+    <li className="flex gap-3 py-3">
+      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
+        {ICONS[check.state]}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <p className="min-w-0 flex-1 font-medium text-[0.9375rem]">{check.label}</p>
+          <span
+            className={cn(
+              "shrink-0 text-[0.75rem]",
+              check.state === "ok" && "text-moss",
+              check.state === "problem" && "text-rose",
+              check.state === "warning" && "text-ember-strong",
+              !["ok", "problem", "warning"].includes(check.state) && "text-ink-3",
+            )}
+          >
+            {t(`status.state.${check.state}`)}
+          </span>
+        </div>
+        <p className="mt-0.5 break-words text-[0.875rem] text-ink-2 leading-snug">{check.said}</p>
+        {check.todo && !fine ? (
+          <p className="mt-1 text-[0.8125rem] text-ink-3 leading-snug">{check.todo}</p>
+        ) : null}
+        {check.command && !fine ? <Command text={check.command} /> : null}
+        {onTest && check.source && testable(check) && check.state !== "ok" ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-3 mt-1"
+            onClick={() => onTest(check.source as string)}
+          >
+            <RotateCw className="size-3.5" />
+            {t("setup.test")}
+          </Button>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+export function CheckList({
+  checks,
+  onTest,
+}: {
+  checks: SetupCheck[];
+  onTest?: (source: string) => void;
+}) {
+  return (
+    <ul className="divide-y divide-border-soft">
+      {checks.map((check) => (
+        <CheckRow key={check.id} check={check} onTest={onTest} />
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Makes test calls again, all or one, and keeps what the home answers. The event of each
+ * finished call arrives as well; this keeps the page right where the stream is late.
+ */
+export function useTest(onProblem: (text: string) => void) {
+  const client = useQueryClient();
+  return (source?: string) =>
+    api.post<Setup>("/v1/setup/test", source ? { source } : {}).then(
+      (setup) => client.setQueryData(keys.setup(), setup),
+      (err: Error) => onProblem(err.message),
+    );
+}
+
+/** "Test again" for all models, and when they were tested last. */
+export function TestAgain({ setup, onTest }: { setup: Setup; onTest: () => void }) {
+  const at = testedAt(setup);
+  const busy = testing(setup);
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3">
+      <Button variant="secondary" size="sm" busy={busy} onClick={onTest}>
+        {busy ? null : <RotateCw className="size-3.5" />}
+        {busy ? t("setup.testing") : t("setup.testAll")}
+      </Button>
+      {at && !busy ? (
+        <span className="text-[0.75rem] text-ink-3">
+          {t("status.tested", { time: when(at, new Date(), lang) })}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** The same checks as the first start, for the settings: live, with "Test again". */
+export function SetupStatus({ setup }: { setup: Setup }) {
+  const [problem, setProblem] = useState<string | null>(null);
+  const test = useTest(setProblem);
+  return (
+    <div>
+      <h4 className="mt-1 font-medium text-[0.75rem] text-ink-3 uppercase tracking-wide">
+        {t("status.models")}
+      </h4>
+      <CheckList checks={setup.models} onTest={(source) => void test(source)} />
+      <TestAgain setup={setup} onTest={() => void test()} />
+      <h4 className="mt-5 font-medium text-[0.75rem] text-ink-3 uppercase tracking-wide">
+        {t("status.home")}
+      </h4>
+      <CheckList checks={setup.home} />
+      <h4 className="mt-5 font-medium text-[0.75rem] text-ink-3 uppercase tracking-wide">
+        {t("status.abilities")}
+      </h4>
+      <CheckList checks={setup.capabilities} />
+      {problem ? (
+        <p role="alert" className="mt-2 text-[0.8125rem] text-rose">
+          {problem}
+        </p>
+      ) : null}
+    </div>
+  );
+}

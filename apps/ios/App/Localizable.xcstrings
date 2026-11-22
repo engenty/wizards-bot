@@ -1,0 +1,3170 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "writing…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "writing…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "schreibt…"
+          }
+        }
+      }
+    },
+    "Hide the wizards" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide the wizards"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wizards ausblenden"
+          }
+        }
+      }
+    },
+    "You" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du"
+          }
+        }
+      }
+    },
+    "Your avatar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your avatar"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Avatar"
+          }
+        }
+      }
+    },
+    "Make your avatar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make your avatar"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avatar erstellen"
+          }
+        }
+      }
+    },
+    "You change your avatar in the web app." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You change your avatar in the web app."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deinen Avatar änderst du in der Web-App."
+          }
+        }
+      }
+    },
+    "You make your avatar in the web app." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You make your avatar in the web app."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deinen Avatar erstellst du in der Web-App."
+          }
+        }
+      }
+    },
+    "%lld files" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld file"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld files"
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Datei"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld Dateien"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld need you" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld needs you"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld need you"
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld braucht dich"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld brauchen dich"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld unread" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ungelesen"
+          }
+        }
+      }
+    },
+    "About %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über %@"
+          }
+        }
+      }
+    },
+    "Address of your home" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse deines Zuhauses"
+          }
+        }
+      }
+    },
+    "Answered: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beantwortet: %@"
+          }
+        }
+      }
+    },
+    "Apple Intelligence is switched off on this device. You can switch it on in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apple Intelligence ist auf diesem Gerät ausgeschaltet. Du kannst es in den Einstellungen einschalten."
+          }
+        }
+      }
+    },
+    "Automatic width" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatische Breite"
+          }
+        }
+      }
+    },
+    "Back" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurück"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbrechen"
+          }
+        }
+      }
+    },
+    "Choose a folder on your home’s computer. Once it is connected, your agents read its files." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle einen Ordner auf dem Computer deines Zuhauses. Sobald er verbunden ist, lesen deine Agenten seine Dateien."
+          }
+        }
+      }
+    },
+    "Choose folder…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner wählen …"
+          }
+        }
+      }
+    },
+    "Close" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schließen"
+          }
+        }
+      }
+    },
+    "Code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code"
+          }
+        }
+      }
+    },
+    "Connect" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden"
+          }
+        }
+      }
+    },
+    "Connect a folder" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner verbinden"
+          }
+        }
+      }
+    },
+    "Connect to a home" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit einem Zuhause verbinden"
+          }
+        }
+      }
+    },
+    "Connect to your home" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit deinem Zuhause verbinden"
+          }
+        }
+      }
+    },
+    "Data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daten"
+          }
+        }
+      }
+    },
+    "Disconnect" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trennen"
+          }
+        }
+      }
+    },
+    "Disconnect %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ trennen"
+          }
+        }
+      }
+    },
+    "Disconnect “%@”? The files stay where they are." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ trennen? Die Dateien bleiben, wo sie sind."
+          }
+        }
+      }
+    },
+    "Divider between the chat and the document" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trenner zwischen Chat und Dokument"
+          }
+        }
+      }
+    },
+    "Does by itself" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tut von selbst"
+          }
+        }
+      }
+    },
+    "Edit" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bearbeiten"
+          }
+        }
+      }
+    },
+    "Every %@ at %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every %1$@ at %2$@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeden %1$@ um %2$@"
+          }
+        }
+      }
+    },
+    "Every day at %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jeden Tag um %@"
+          }
+        }
+      }
+    },
+    "Every hour" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Stunde"
+          }
+        }
+      }
+    },
+    "Home" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuhause"
+          }
+        }
+      }
+    },
+    "Keep my text" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meinen Text behalten"
+          }
+        }
+      }
+    },
+    "Listening…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hört zu …"
+          }
+        }
+      }
+    },
+    "Load it and drop my changes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laden und meine Änderungen verwerfen"
+          }
+        }
+      }
+    },
+    "Message" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachricht"
+          }
+        }
+      }
+    },
+    "Monday to Friday at %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montag bis Freitag um %@"
+          }
+        }
+      }
+    },
+    "Name" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "New messages" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Nachrichten"
+          }
+        }
+      }
+    },
+    "Next" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weiter"
+          }
+        }
+      }
+    },
+    "No folder dialog opens on your home’s computer. Type the path." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf dem Computer deines Zuhauses öffnet sich kein Dialog für Ordner. Gib den Pfad ein."
+          }
+        }
+      }
+    },
+    "No home answers at this address. Check the address and that this device is in the same network." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter dieser Adresse antwortet kein Zuhause. Prüfe die Adresse und ob dieses Gerät im selben Netzwerk ist."
+          }
+        }
+      }
+    },
+    "Not sent. Send again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht gesendet. Noch einmal senden"
+          }
+        }
+      }
+    },
+    "Nothing needs you right now" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gerade braucht dich nichts"
+          }
+        }
+      }
+    },
+    "Nothing yet. Connect a folder with +, or send files in the chat, and %@ works with them." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch nichts. Verbinde einen Ordner mit +, oder schick Dateien im Chat, dann arbeitet %@ damit."
+          }
+        }
+      }
+    },
+    "Nothing yet. Tell %@ what to do at a set time or when something happens: a new file in a folder, a mail, a change in your calendar." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch nichts. Sag %@, was zu einer festen Zeit geschehen soll oder wenn etwas passiert: eine neue Datei in einem Ordner, eine Mail, eine Änderung im Kalender."
+          }
+        }
+      }
+    },
+    "On screen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geöffnet"
+          }
+        }
+      }
+    },
+    "Once" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einmal"
+          }
+        }
+      }
+    },
+    "Open the link" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link öffnen"
+          }
+        }
+      }
+    },
+    "Opens the document" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet das Dokument"
+          }
+        }
+      }
+    },
+    "Or type what the pairing card shows" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oder tippe ein, was die Karte zum Verbinden zeigt"
+          }
+        }
+      }
+    },
+    "Paused. %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Angehalten. %@"
+          }
+        }
+      }
+    },
+    "Point the camera at the code on the pairing card." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richte die Kamera auf den Code der Karte zum Verbinden."
+          }
+        }
+      }
+    },
+    "QR code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QR-Code"
+          }
+        }
+      }
+    },
+    "Read" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lesen"
+          }
+        }
+      }
+    },
+    "Read and change" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lesen und ändern"
+          }
+        }
+      }
+    },
+    "Read only" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur lesen"
+          }
+        }
+      }
+    },
+    "Remembers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merkt sich"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speichern"
+          }
+        }
+      }
+    },
+    "Saving didn’t work. Try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Speichern hat nicht geklappt. Versuch es noch einmal."
+          }
+        }
+      }
+    },
+    "Scan the code" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code scannen"
+          }
+        }
+      }
+    },
+    "Send" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einstellungen"
+          }
+        }
+      }
+    },
+    "Show the wizards" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wizards zeigen"
+          }
+        }
+      }
+    },
+    "Show this device" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät zeigen"
+          }
+        }
+      }
+    },
+    "Shows what this agent does and works with" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt, was dieser Agent tut und womit er arbeitet"
+          }
+        }
+      }
+    },
+    "Shows what waits for your answer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt, was auf deine Antwort wartet"
+          }
+        }
+      }
+    },
+    "Shows your agents and this device" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zeigt deine Agenten und dieses Gerät"
+          }
+        }
+      }
+    },
+    "Sign in" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anmelden"
+          }
+        }
+      }
+    },
+    "Sign out" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abmelden"
+          }
+        }
+      }
+    },
+    "Sign out of this home?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von diesem Zuhause abmelden?"
+          }
+        }
+      }
+    },
+    "Speaking…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spricht …"
+          }
+        }
+      }
+    },
+    "Stop talking" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprechen beenden"
+          }
+        }
+      }
+    },
+    "Stop the reply" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antwort anhalten"
+          }
+        }
+      }
+    },
+    "Take the agent’s version" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version des Agenten nehmen"
+          }
+        }
+      }
+    },
+    "Talk" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprechen"
+          }
+        }
+      }
+    },
+    "Tap to talk and hear the replies. Hold to say one message." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe, um zu sprechen und die Antworten zu hören. Halte, um eine Nachricht zu sagen."
+          }
+        }
+      }
+    },
+    "Tell %@ to change or remove a task." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sag %@, wenn sich eine Aufgabe ändern oder wegfallen soll."
+          }
+        }
+      }
+    },
+    "That didn’t work. Try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das hat nicht geklappt. Versuch es noch einmal."
+          }
+        }
+      }
+    },
+    "The agent wrote a newer version while you were editing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Agent hat eine neuere Version geschrieben, während du bearbeitet hast."
+          }
+        }
+      }
+    },
+    "The camera isn’t available" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Kamera ist nicht verfügbar"
+          }
+        }
+      }
+    },
+    "The chat is %lld points wide" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Chat ist %lld Punkte breit"
+          }
+        }
+      }
+    },
+    "The document didn’t open. Try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Dokument ließ sich nicht öffnen. Versuch es noch einmal."
+          }
+        }
+      }
+    },
+    "The document isn’t here" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Dokument ist nicht da"
+          }
+        }
+      }
+    },
+    "The files stay where they are. Your home reads them in place and copies nothing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Dateien bleiben, wo sie sind. Dein Zuhause liest sie an Ort und Stelle und kopiert nichts."
+          }
+        }
+      }
+    },
+    "The folder dialog is open on your home’s computer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Ordner-Dialog ist auf dem Computer deines Zuhauses offen."
+          }
+        }
+      }
+    },
+    "The folder holds more than that." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Im Ordner liegt noch mehr."
+          }
+        }
+      }
+    },
+    "The folder’s path" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pfad des Ordners"
+          }
+        }
+      }
+    },
+    "The home didn’t accept this code. A code is valid for 10 minutes and works once." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Zuhause hat diesen Code nicht angenommen. Ein Code gilt 10 Minuten und funktioniert einmal."
+          }
+        }
+      }
+    },
+    "The model on this device answers, with Apple Intelligence." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät antwortet, mit Apple Intelligence."
+          }
+        }
+      }
+    },
+    "The model on this device couldn’t answer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät konnte nicht antworten."
+          }
+        }
+      }
+    },
+    "The model on this device doesn’t answer this. Your home can, once it is back." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät beantwortet das nicht. Dein Zuhause kann es, sobald es wieder da ist."
+          }
+        }
+      }
+    },
+    "The model on this device doesn’t speak this language." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät spricht diese Sprache nicht."
+          }
+        }
+      }
+    },
+    "The model on this device gave no answer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät hat nichts geantwortet."
+          }
+        }
+      }
+    },
+    "The model on this device is still loading. Try again in a few minutes." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät lädt noch. Versuch es in ein paar Minuten noch einmal."
+          }
+        }
+      }
+    },
+    "The model on this device isn’t available right now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät ist gerade nicht verfügbar."
+          }
+        }
+      }
+    },
+    "The Simulator has no model of its own. Pair it with your home." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Simulator hat kein eigenes Modell. Koppel ihn mit deinem Zuhause."
+          }
+        }
+      }
+    },
+    "There is no folder at this path." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An diesem Pfad ist kein Ordner."
+          }
+        }
+      }
+    },
+    "This card needs your home." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Karte braucht dein Zuhause."
+          }
+        }
+      }
+    },
+    "This device" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät"
+          }
+        }
+      }
+    },
+    "This device answers on its own. It can’t reach your mail, calendar or files." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät antwortet allein. Es kommt nicht an deine E-Mails, deinen Kalender oder deine Dateien."
+          }
+        }
+      }
+    },
+    "This device can’t listen right now. Try again in a moment." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät kann gerade nicht zuhören. Versuch es gleich noch einmal."
+          }
+        }
+      }
+    },
+    "This device can’t run a model of its own." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät kann kein eigenes Modell ausführen."
+          }
+        }
+      }
+    },
+    "This device can’t turn speech into text in your language without sending it away." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät kann Sprache in deiner Sprache nicht in Text umwandeln, ohne sie wegzuschicken."
+          }
+        }
+      }
+    },
+    "This device forgets the home. Your conversations stay in your home." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät vergisst das Zuhause. Deine Chats bleiben in deinem Zuhause."
+          }
+        }
+      }
+    },
+    "This device works on its own" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät arbeitet allein"
+          }
+        }
+      }
+    },
+    "This document is no longer in your home." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Dokument ist nicht mehr in deinem Zuhause."
+          }
+        }
+      }
+    },
+    "This home is newer than the app. Update the app, then connect again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Zuhause ist neuer als die App. Aktualisiere die App und verbinde dich dann noch einmal."
+          }
+        }
+      }
+    },
+    "This reply stopped." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Antwort wurde abgebrochen."
+          }
+        }
+      }
+    },
+    "Try again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch einmal versuchen"
+          }
+        }
+      }
+    },
+    "Type the address and the code instead. You can allow the camera in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe stattdessen die Adresse und den Code ein. Du kannst die Kamera in den Einstellungen erlauben."
+          }
+        }
+      }
+    },
+    "Type the path" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pfad eingeben"
+          }
+        }
+      }
+    },
+    "Uploaded" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hochgeladen"
+          }
+        }
+      }
+    },
+    "Use this device only" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur dieses Gerät nutzen"
+          }
+        }
+      }
+    },
+    "What may your agents do in this folder?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was dürfen deine Agenten in diesem Ordner?"
+          }
+        }
+      }
+    },
+    "What needs you" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was dich braucht"
+          }
+        }
+      }
+    },
+    "When %@ changes, looked at every %lld min" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When %1$@ changes, looked at every %2$lld min"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn sich %1$@ ändert, alle %2$lld Min. nachgesehen"
+          }
+        }
+      }
+    },
+    "When a file is added or changed in %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn in %@ eine Datei dazukommt oder sich ändert"
+          }
+        }
+      }
+    },
+    "When another service calls its address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn ein anderer Dienst seine Adresse aufruft"
+          }
+        }
+      }
+    },
+    "When mail arrives" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn eine Mail kommt"
+          }
+        }
+      }
+    },
+    "When mail arrives from %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn eine Mail von %@ kommt"
+          }
+        }
+      }
+    },
+    "When mail arrives from %@ with “%@” in the subject" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When mail arrives from %1$@ with “%2$@” in the subject"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn eine Mail von %1$@ mit „%2$@“ im Betreff kommt"
+          }
+        }
+      }
+    },
+    "When mail arrives with “%@” in the subject" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn eine Mail mit „%@“ im Betreff kommt"
+          }
+        }
+      }
+    },
+    "When your home is out of reach" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn dein Zuhause nicht erreichbar ist"
+          }
+        }
+      }
+    },
+    "Without a home, the model on this device answers. It can’t reach your mail, calendar or files." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ohne Zuhause antwortet das Modell auf diesem Gerät. Es kommt nicht an deine E-Mails, deinen Kalender oder deine Dateien."
+          }
+        }
+      }
+    },
+    "Wizards" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wizards"
+          }
+        }
+      }
+    },
+    "Working" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arbeitet"
+          }
+        }
+      }
+    },
+    "Working on: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arbeitet an: %@"
+          }
+        }
+      }
+    },
+    "Writing" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schreibt"
+          }
+        }
+      }
+    },
+    "Your agent runs in your home, on your computer or a server. This device talks to it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Agent läuft in deinem Zuhause, auf deinem Computer oder einem Server. Dieses Gerät spricht mit ihm."
+          }
+        }
+      }
+    },
+    "Your agents ask you before each change." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Agenten fragen dich vor jeder Änderung."
+          }
+        }
+      }
+    },
+    "Your agents read the files and change nothing." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Agenten lesen die Dateien und ändern nichts."
+          }
+        }
+      }
+    },
+    "Your home has a newer version of this document." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause hat eine neuere Version dieses Dokuments."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. The chat opens when it is back." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Der Chat öffnet sich, sobald es wieder da ist."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. The document opens when it is back." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Das Dokument öffnet sich, sobald es wieder da ist."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. This device answers for now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Vorerst antwortet dieses Gerät."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. Try again in a moment." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Versuch es gleich noch einmal."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. Your messages wait until it is back." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Deine Nachrichten warten, bis es wieder da ist."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. Your text stays here. Save it again in a moment." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Dein Text bleibt hier. Speichere ihn gleich noch einmal."
+          }
+        }
+      }
+    },
+    "Your home signed this device out. Connect it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause hat dieses Gerät abgemeldet. Verbinde es noch einmal."
+          }
+        }
+      }
+    },
+    "answered" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "beantwortet"
+          }
+        }
+      }
+    },
+    "e.g. 192.168.1.20:4747" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "z. B. 192.168.1.20:4747"
+          }
+        }
+      }
+    },
+    "e.g. K7QM-2RXD" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "z. B. K7QM-2RXD"
+          }
+        }
+      }
+    },
+    "wizards.bot may not use the microphone or speech recognition. You can allow both in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "wizards.bot darf das Mikrofon oder die Spracherkennung nicht nutzen. Du kannst beides in den Einstellungen erlauben."
+          }
+        }
+      }
+    },
+    "failed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "from %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "von %@"
+          }
+        }
+      }
+    },
+    "in %lld folders" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld folder"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld folders"
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld Ordner"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld Ordnern"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "last: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zuletzt: %@"
+          }
+        }
+      }
+    },
+    "needs you" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "braucht dich"
+          }
+        }
+      }
+    },
+    "next: %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nächstes Mal: %@"
+          }
+        }
+      }
+    },
+    "no longer open" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nicht mehr offen"
+          }
+        }
+      }
+    },
+    "on this device" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "auf diesem Gerät"
+          }
+        }
+      }
+    },
+    "quiet" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "leise"
+          }
+        }
+      }
+    },
+    "signed in" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "angemeldet"
+          }
+        }
+      }
+    },
+    "turn %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "turn %1$lld of %2$lld"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchgang %1$lld von %2$lld"
+          }
+        }
+      }
+    },
+    "waits for your home" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "wartet auf dein Zuhause"
+          }
+        }
+      }
+    },
+    "working" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "arbeitet"
+          }
+        }
+      }
+    },
+    "Take a photo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take a photo"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foto aufnehmen"
+          }
+        }
+      }
+    },
+    "Photos" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fotos"
+          }
+        }
+      }
+    },
+    "File" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datei"
+          }
+        }
+      }
+    },
+    "Files, photo, folder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files, photo, folder"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dateien, Foto, Ordner"
+          }
+        }
+      }
+    },
+    "“%@” was not attached. %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” was not attached. %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ wurde nicht angehängt. %@"
+          }
+        }
+      }
+    },
+    "“%@” was not attached." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” was not attached."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ wurde nicht angehängt."
+          }
+        }
+      }
+    },
+    "A message carries %lld files at most. The rest was left out." : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "A message carries %lld file at most. The rest was left out."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "A message carries %lld files at most. The rest was left out."
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Eine Nachricht trägt höchstens %lld Datei. Der Rest blieb draußen."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Eine Nachricht trägt höchstens %lld Dateien. Der Rest blieb draußen."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "It is larger than 15 MB. Your home takes files up to that size." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It is larger than 15 MB. Your home takes files up to that size."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sie ist größer als 15 MB. Dein Zuhause nimmt Dateien bis zu dieser Größe."
+          }
+        }
+      }
+    },
+    "Opens the file" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the file"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet die Datei"
+          }
+        }
+      }
+    },
+    "Your home could not send this file. Try again later." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your home could not send this file. Try again later."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause konnte diese Datei nicht schicken. Versuch es später noch einmal."
+          }
+        }
+      }
+    },
+    "Remove %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ entfernen"
+          }
+        }
+      }
+    },
+    "%@ is being uploaded…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is being uploaded…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ wird hochgeladen …"
+          }
+        }
+      }
+    },
+    "Opens the page" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the page"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnet die Seite"
+          }
+        }
+      }
+    },
+    "Working for %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working for %@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arbeitet seit %@"
+          }
+        }
+      }
+    },
+    "The page isn’t shown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The page isn’t shown"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Seite wird nicht gezeigt"
+          }
+        }
+      }
+    },
+    "Your home sent this page without closing it off, so it is not shown." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your home sent this page without closing it off, so it is not shown."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause hat diese Seite nicht abgeschottet geschickt. Sie wird deshalb nicht gezeigt."
+          }
+        }
+      }
+    },
+    "The page isn’t here" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The page isn’t here"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Seite ist nicht da"
+          }
+        }
+      }
+    },
+    "The page didn’t open. Try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The page didn’t open. Try again."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Seite ließ sich nicht öffnen. Versuch es noch einmal."
+          }
+        }
+      }
+    },
+    "This page is no longer in your home." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This page is no longer in your home."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Seite ist nicht mehr in deinem Zuhause."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. The page opens when it is back." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your home is out of reach. The page opens when it is back."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Die Seite öffnet sich, sobald es wieder da ist."
+          }
+        }
+      }
+    },
+    "%@ asked for it. A copy is kept in your home; the file stays on this phone too." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ hat danach gefragt. Eine Kopie bleibt in deinem Zuhause, die Datei bleibt auch auf diesem Telefon."
+          }
+        }
+      }
+    },
+    "%@ may ask this %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ darf dieses %2$@ fragen"
+          }
+        }
+      }
+    },
+    "Add" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hinzufügen"
+          }
+        }
+      }
+    },
+    "Add a reminder?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Erinnerung hinzufügen?"
+          }
+        }
+      }
+    },
+    "Add to your calendar?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In deinen Kalender eintragen?"
+          }
+        }
+      }
+    },
+    "Allow" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erlauben"
+          }
+        }
+      }
+    },
+    "Asked of this %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fragen an dieses %@"
+          }
+        }
+      }
+    },
+    "Change" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ändern"
+          }
+        }
+      }
+    },
+    "Change this calendar entry?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Termin ändern?"
+          }
+        }
+      }
+    },
+    "Change this reminder?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Erinnerung ändern?"
+          }
+        }
+      }
+    },
+    "Disconnect “%@” from this %@? The files stay where they are." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%1$@“ von diesem %2$@ trennen? Die Dateien bleiben, wo sie sind."
+          }
+        }
+      }
+    },
+    "Don't add" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht hinzufügen"
+          }
+        }
+      }
+    },
+    "Don't change" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht ändern"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erledigt"
+          }
+        }
+      }
+    },
+    "Due %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fällig %@"
+          }
+        }
+      }
+    },
+    "Goes back when your home is in reach" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geht zurück, sobald dein Zuhause erreichbar ist"
+          }
+        }
+      }
+    },
+    "iCloud Drive, On My %@ or another place in Files. The files stay here: your agents ask this %@, and only the answer goes to your home." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Drive, Auf meinem %1$@ oder ein anderer Ort in Dateien. Die Dateien bleiben hier: Deine Agenten fragen dieses %2$@, und nur die Antwort geht an dein Zuhause."
+          }
+        }
+      }
+    },
+    "Its model reads your calendar, reminders, contacts and the folders here, and sends back only the answer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sein Modell liest deinen Kalender, deine Erinnerungen, Kontakte und die Ordner hier und schickt nur die Antwort zurück."
+          }
+        }
+      }
+    },
+    "Keep it" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Behalten"
+          }
+        }
+      }
+    },
+    "Keep it here" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier behalten"
+          }
+        }
+      }
+    },
+    "Leave it" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offen lassen"
+          }
+        }
+      }
+    },
+    "Let %@ ask this phone?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darf %@ dieses Telefon fragen?"
+          }
+        }
+      }
+    },
+    "Not answered %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht beantwortet %@"
+          }
+        }
+      }
+    },
+    "Not done" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht erledigt"
+          }
+        }
+      }
+    },
+    "On %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf %@"
+          }
+        }
+      }
+    },
+    "On this %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf diesem %@"
+          }
+        }
+      }
+    },
+    "On your home’s computer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf dem Computer deines Zuhauses"
+          }
+        }
+      }
+    },
+    "Remove" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen"
+          }
+        }
+      }
+    },
+    "Remove from your calendar?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aus deinem Kalender entfernen?"
+          }
+        }
+      }
+    },
+    "Send “%@” to your home?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%@“ an dein Zuhause schicken?"
+          }
+        }
+      }
+    },
+    "Sent back %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurückgeschickt %@"
+          }
+        }
+      }
+    },
+    "The files stay on this %@. When your agents need something in them, they ask this %@: its own model reads the files here and sends back only the answer. A file goes to your home only after you said yes here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Dateien bleiben auf diesem %1$@. Wenn deine Agenten etwas darin brauchen, fragen sie dieses %2$@: Sein eigenes Modell liest die Dateien hier und schickt nur die Antwort zurück. Eine Datei geht erst an dein Zuhause, wenn du hier Ja gesagt hast."
+          }
+        }
+      }
+    },
+    "The model on this device doesn’t answer this." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf diesem Gerät beantwortet das nicht."
+          }
+        }
+      }
+    },
+    "The question needed more than the model on this device can read at once." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Frage braucht mehr, als das Modell auf diesem Gerät auf einmal lesen kann."
+          }
+        }
+      }
+    },
+    "This phone can’t keep a way back to this folder. Choose another one." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Telefon kann sich den Weg zu diesem Ordner nicht merken. Wähl einen anderen."
+          }
+        }
+      }
+    },
+    "Tick off" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abhaken"
+          }
+        }
+      }
+    },
+    "Tick off this reminder?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Erinnerung abhaken?"
+          }
+        }
+      }
+    },
+    "Where is the folder?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wo ist der Ordner?"
+          }
+        }
+      }
+    },
+    "Working on it" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wird bearbeitet"
+          }
+        }
+      }
+    },
+    "Your home reads the files on its computer, in place." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause liest die Dateien auf seinem Computer, dort wo sie liegen."
+          }
+        }
+      }
+    },
+    "“%@”\n\nThe model on this phone reads your calendar, reminders, contacts and the folders connected here to answer. Only the answer goes to %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%1$@“\n\nDas Modell auf diesem Telefon liest dafür deinen Kalender, deine Erinnerungen, Kontakte und die hier verbundenen Ordner. Nur die Antwort geht an %2$@."
+          }
+        }
+      }
+    },
+    "Let %@ do “%@”?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darf %1$@ „%2$@“ ausführen?"
+          }
+        }
+      }
+    },
+    "Don't allow" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht erlauben"
+          }
+        }
+      }
+    },
+    "Address" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adresse"
+          }
+        }
+      }
+    },
+    "Access token, if it needs one" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugangstoken, falls er einen braucht"
+          }
+        }
+      }
+    },
+    "The service is used by the model on this %@ only. The token stays in this %@’s Keychain; your home learns only the name. A tool that changes something asks you here first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Den Dienst nutzt nur das Modell auf diesem %1$@. Der Token bleibt im Schlüsselbund dieses %2$@; dein Zuhause erfährt nur den Namen. Ein Werkzeug, das etwas ändert, fragt dich hier vorher."
+          }
+        }
+      }
+    },
+    "Sign in a service" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einen Dienst anmelden"
+          }
+        }
+      }
+    },
+    "This is not an address. It starts with https://." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist keine Adresse. Sie beginnt mit https://."
+          }
+        }
+      }
+    },
+    "No service answers at this address." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unter dieser Adresse antwortet kein Dienst."
+          }
+        }
+      }
+    },
+    "Sign in a service on this %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einen Dienst auf diesem %@ anmelden"
+          }
+        }
+      }
+    },
+    "Sign “%@” out of this %@? Its token is removed." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„%1$@“ von diesem %2$@ abmelden? Sein Token wird entfernt."
+          }
+        }
+      }
+    },
+    "Sign out %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ abmelden"
+          }
+        }
+      }
+    },
+    "You read it and send it. The app sends nothing by itself." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du liest sie und schickst sie ab. Die App schickt nichts von selbst."
+          }
+        }
+      }
+    },
+    "Call %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ anrufen"
+          }
+        }
+      }
+    },
+    "Message to %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachricht an %@"
+          }
+        }
+      }
+    },
+    "Call" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anrufen"
+          }
+        }
+      }
+    },
+    "WhatsApp" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WhatsApp"
+          }
+        }
+      }
+    },
+    "Write" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schreiben"
+          }
+        }
+      }
+    },
+    "This app may not read your contacts. You can allow it in Settings, or ask your agent to give the number." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese App darf deine Kontakte nicht lesen. Du kannst es in den Einstellungen erlauben oder deinen Agenten nach der Nummer fragen."
+          }
+        }
+      }
+    },
+    "No contact with a number or an address for this name." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Kontakt mit Nummer oder Adresse zu diesem Namen."
+          }
+        }
+      }
+    },
+    "Open the message" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nachricht öffnen"
+          }
+        }
+      }
+    },
+    "Open" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffnen"
+          }
+        }
+      }
+    },
+    "Where what you write goes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where what you write goes"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wohin geht, was du schreibst"
+          }
+        }
+      }
+    },
+    "What you write here goes to your home at %@. Your home answers with models of these companies, which then read what you write and what your agents send them:" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What you write here goes to your home at %@. Your home answers with models of these companies, which then read what you write and what your agents send them:"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was du hier schreibst, geht an dein Zuhause unter %@. Dein Zuhause antwortet mit Modellen dieser Firmen, die dann lesen, was du schreibst und was deine Agenten ihnen schicken:"
+          }
+        }
+      }
+    },
+    "That can be your messages, the files and photos you add, the answers this phone sends back for your agents, and what your agents found. Each company handles it under its own terms." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That can be your messages, the files and photos you add, the answers this phone sends back for your agents, and what your agents found. Each company handles it under its own terms."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das können deine Nachrichten sein, die Dateien und Fotos, die du anhängst, die Antworten, die dieses Telefon für deine Agenten zurückschickt, und was deine Agenten gefunden haben. Jede Firma geht damit nach ihren eigenen Bedingungen um."
+          }
+        }
+      }
+    },
+    "A model on your own computer, such as Ollama, and the model on this phone read it where they are and need no yes. You can take your yes back in Settings." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A model on your own computer, such as Ollama, and the model on this phone read it where they are and need no yes. You can take your yes back in Settings."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Modell auf deinem eigenen Computer, etwa Ollama, und das Modell auf diesem Telefon lesen es dort, wo sie sind, und brauchen kein Ja. Dein Ja nimmst du in den Einstellungen zurück."
+          }
+        }
+      }
+    },
+    "Read the privacy policy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the privacy policy"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutzerklärung lesen"
+          }
+        }
+      }
+    },
+    "Not now" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not now"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt nicht"
+          }
+        }
+      }
+    },
+    "Privacy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutz"
+          }
+        }
+      }
+    },
+    "Allowed on %@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allowed on %1$@, %2$@"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erlaubt auf %1$@, %2$@"
+          }
+        }
+      }
+    },
+    "Waits for your yes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waits for your yes"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wartet auf dein Ja"
+          }
+        }
+      }
+    },
+    "Take back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take back"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurücknehmen"
+          }
+        }
+      }
+    },
+    "Your home uses only models on your own computers. Nothing goes to another company." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your home uses only models on your own computers. Nothing goes to another company."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause nutzt nur Modelle auf deinen eigenen Computern. Nichts geht an eine andere Firma."
+          }
+        }
+      }
+    },
+    "Your home uses %@. Open wizards.bot to allow it or not." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your home uses %@. Open wizards.bot to allow it or not."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause nutzt %@. Öffne wizards.bot, um es zu erlauben oder nicht."
+          }
+        }
+      }
+    },
+    "Make my key on this iPhone" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make my key on this iPhone"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meinen Schlüssel auf diesem iPhone erzeugen"
+          }
+        }
+      }
+    },
+    "I have a recovery code" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I have a recovery code"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ich habe einen Wiederherstellungscode"
+          }
+        }
+      }
+    },
+    "Your recovery code" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your recovery code"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Wiederherstellungscode"
+          }
+        }
+      }
+    },
+    "Write it down and keep it where only you find it. It is shown this once, and it brings your key back when this iPhone is lost." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write it down and keep it where only you find it. It is shown this once, and it brings your key back when this iPhone is lost."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schreib ihn auf und bewahre ihn dort auf, wo nur du ihn findest. Er wird nur dieses eine Mal gezeigt und holt deinen Schlüssel zurück, wenn dieses iPhone verloren geht."
+          }
+        }
+      }
+    },
+    "I wrote it down" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I wrote it down"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ich habe ihn aufgeschrieben"
+          }
+        }
+      }
+    },
+    "Recovery code" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery code"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiederherstellungscode"
+          }
+        }
+      }
+    },
+    "Bring my key back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bring my key back"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meinen Schlüssel zurückholen"
+          }
+        }
+      }
+    },
+    "That is not a recovery code. Check it against what you wrote down." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That is not a recovery code. Check it against what you wrote down."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das ist kein Wiederherstellungscode. Vergleiche ihn mit dem, was du aufgeschrieben hast."
+          }
+        }
+      }
+    },
+    "That code belongs to another key than the one in your record." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That code belongs to another key than the one in your record."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Code gehört zu einem anderen Schlüssel als dem in deinem Eintrag."
+          }
+        }
+      }
+    },
+    "Sign with my key" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign with my key"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit meinem Schlüssel unterschreiben"
+          }
+        }
+      }
+    },
+    "Your key is on another device. Open this card there, or bring the key to this iPhone with your recovery code." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your key is on another device. Open this card there, or bring the key to this iPhone with your recovery code."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Schlüssel ist auf einem anderen Gerät. Öffne diese Karte dort oder hol den Schlüssel mit deinem Wiederherstellungscode auf dieses iPhone."
+          }
+        }
+      }
+    },
+    "That did not work. Try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That did not work. Try again."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das hat nicht geklappt. Versuch es noch einmal."
+          }
+        }
+      }
+    },
+    "Scan an invite" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Einladung scannen"
+          }
+        }
+      }
+    },
+    "Point the camera at the code of the invite." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Richte die Kamera auf den Code der Einladung."
+          }
+        }
+      }
+    },
+    "Give the invite’s link to your agent instead. You can allow the camera in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gib den Link der Einladung stattdessen deinem Agenten. Die Kamera kannst du in den Einstellungen erlauben."
+          }
+        }
+      }
+    },
+    "The invite did not open" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Einladung ließ sich nicht öffnen"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -1,0 +1,4 @@
+packages:
+  - apps/home
+  - apps/web
+  - packages/*

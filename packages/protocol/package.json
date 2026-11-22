@@ -1,0 +1,18 @@
+{
+  "name": "@wizards-bot/protocol",
+  "private": true,
+  "license": "MIT",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./limits": "./src/limits.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  }
+}

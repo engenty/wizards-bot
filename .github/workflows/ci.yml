@@ -1,0 +1,45 @@
+name: CI
+
+# The gates of AGENTS.md on every pull request, every push to main and every release tag. The
+# iOS app is not built here: it is checked with xcodebuild on a Mac before a change lands.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # The checks run side by side, each on its own runner, so a failing one doesn't hide another.
+  verify:
+    name: verify (${{ matrix.check }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint, typecheck, test, build]
+    steps:
+      - uses: actions/checkout@v7
+
+      # The pnpm version is the `packageManager` of package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: ${{ matrix.check }}
+        run: pnpm ${{ matrix.check }}

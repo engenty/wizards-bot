@@ -1,0 +1,125 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSLocalNetworkUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "wizards.bot talks to your home when it runs on a computer in your network."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "wizards.bot spricht mit deinem Zuhause, wenn es auf einem Computer in deinem Netzwerk läuft."
+          }
+        }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The camera reads the code that connects this device to your home and the code of an invite, and takes the photos you send to your agents. A photo goes to your home only when you send it."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Kamera liest den Code, der dieses Gerät mit deinem Zuhause verbindet, und den Code einer Einladung und nimmt die Fotos auf, die du deinen Agenten schickst. Ein Foto geht erst an dein Zuhause, wenn du es sendest."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The microphone hears what you say to your agent instead of typing. It is turned into text on this device, and only the text is sent."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Mikrofon hört, was du deinem Agenten sagst, statt zu tippen. Es wird auf diesem Gerät in Text umgewandelt, und nur der Text wird gesendet."
+          }
+        }
+      }
+    },
+    "NSSpeechRecognitionUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What you say is turned into text on this device, never by a service elsewhere. The text goes to your agent like a message you typed."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was du sagst, wird auf diesem Gerät in Text umgewandelt, nie von einem Dienst anderswo. Der Text geht an deinen Agenten wie eine getippte Nachricht."
+          }
+        }
+      }
+    },
+    "NSCalendarsFullAccessUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your agents ask this phone about your calendar. It is read here, and only the answer goes to your home. A new or changed entry asks you first."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Agenten fragen dieses Telefon nach deinem Kalender. Er wird hier gelesen, nur die Antwort geht an dein Zuhause. Ein neuer oder geänderter Termin fragt dich vorher."
+          }
+        }
+      }
+    },
+    "NSRemindersFullAccessUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your agents ask this phone about your reminders. They are read here, and only the answer goes to your home. A new or changed reminder asks you first."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Agenten fragen dieses Telefon nach deinen Erinnerungen. Sie werden hier gelesen, nur die Antwort geht an dein Zuhause. Eine neue oder geänderte Erinnerung fragt dich vorher."
+          }
+        }
+      }
+    },
+    "NSContactsUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your agents ask this phone about your contacts. They are read here, and only the answer goes to your home."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Agenten fragen dieses Telefon nach deinen Kontakten. Sie werden hier gelesen, nur die Antwort geht an dein Zuhause."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

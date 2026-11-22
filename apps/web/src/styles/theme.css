@@ -1,0 +1,45 @@
+/*
+ * From engenty wizards, packages/runner/src/theme.css: what Tailwind knows of the app's look,
+ * its variants and the names its utilities take (`bg-paper-2`, `text-ink-3`, `rounded-lg`). The
+ * values behind the names are the tokens of shadcn-ember.css.
+ */
+@custom-variant dark (&:is(.dark *));
+/* A finger, not a mouse: controls grow to a 44 px touch target. */
+@custom-variant coarse (@media (pointer: coarse));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-input: var(--input);
+  --color-focus: var(--focus-line);
+  --color-focus-glow: var(--focus-glow);
+  --color-card: var(--card);
+  --color-ember: var(--ember-mark);
+  --color-ember-tint: var(--ember-tint);
+  --color-ember-strong: var(--ember-strong-mark);
+  --color-ember-veil: var(--ember-veil);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-moss: var(--moss);
+  --color-moss-tint: var(--moss-tint);
+  --color-amber-tint: var(--amber-tint);
+  --color-rose: var(--rose);
+  --color-rose-tint: var(--rose-tint);
+  --font-sans: var(--f-ui);
+  --font-display: var(--f-display);
+  --font-mono: var(--f-mono);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --shadow-soft: var(--shadow-ember-soft);
+  --shadow-overlay: var(--shadow-ember-overlay);
+}

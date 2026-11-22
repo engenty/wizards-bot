@@ -1,0 +1,47 @@
+/*
+ * From engenty wizards, apps/web/src/styles/shadcn-ember.css: the semantic names over the Ember
+ * primitives, cut down to the ones this app draws with.
+ */
+@import "./ember-primitives.css";
+
+:root {
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: oklch(100% 0 0);
+  --primary: var(--ember-strong);
+  /* The text on the accent is light or dark by the accent's own lightness (the step at
+     l = 0.65), never by the theme. */
+  --primary-foreground: oklch(
+    from var(--primary) calc(0.16 + 0.83 * clamp(0, (0.65 - l) * 1000, 1)) 0.01 h
+  );
+  /* Hover and selection wash: it reads on white cards and on the warm page. */
+  --accent: color-mix(in oklch, var(--ink) calc(7.5% * var(--contrast)), var(--paper));
+  --border: color-mix(in oklch, var(--ink) calc(12% * var(--contrast)), var(--paper));
+  /* The one soft rule: half-strength `--border` for quiet separators inside content. */
+  --border-soft: color-mix(in oklch, var(--border) 50%, transparent);
+  --input: color-mix(in oklch, var(--ink) calc(10% * var(--contrast)), var(--paper));
+
+  /* About 8px for a control; cards use the larger steps (theme.css). */
+  --radius: 0.5rem;
+
+  /* Focus stays quiet: a soft ink line. A system that asks for more contrast gets the ember
+     ring. */
+  --focus-line: color-mix(in oklch, var(--ink) 26%, transparent);
+  --focus-glow: transparent;
+}
+
+.dark {
+  /* The card sits one step above the page. Lines and the hover wash sit on cards as often as on
+     the page, so they are mixed from the card up. */
+  --card: oklch(from var(--stage) calc(l + 0.06) calc(c * 0.95) h);
+  --accent: color-mix(in oklch, var(--ink) 10%, var(--card));
+  --border: color-mix(in oklch, var(--ink) 18%, var(--card));
+  --input: color-mix(in oklch, var(--ink) 24%, var(--card));
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --focus-line: var(--ember);
+    --focus-glow: var(--ember-veil);
+  }
+}

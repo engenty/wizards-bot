@@ -1,0 +1,117 @@
+/*
+ * From engenty wizards, apps/web/src/styles/ember-primitives.css, with the plain dark of its
+ * app.css: the Ember primitives in OKLCH, cut down to the ones this app draws with.
+ */
+:root {
+  /* Seeds: every step below derives from these two. */
+  --raw-primary: #e0531b;
+  --raw-background: #faf8f5;
+
+  /* Baseline contrast scalar. */
+  --contrast: 1;
+
+  --hue-success: 150;
+  --hue-danger: 25;
+  --hue-warning: 70;
+
+  /* Paper and ink */
+  --paper: oklch(from var(--raw-background) calc(0.99 - (0.02 * var(--contrast))) c h);
+  --paper-2: oklch(
+    from var(--raw-background) calc(0.96 - (0.03 * var(--contrast))) calc(c * 1.2) h
+  );
+
+  --ink: oklch(from var(--raw-background) calc(0.22 + (0.05 / var(--contrast))) calc(c * 1.2) h);
+  --ink-2: oklch(from var(--raw-background) calc(0.4 + (0.05 / var(--contrast))) c h);
+  --ink-3: oklch(from var(--raw-background) calc(0.55 + (0.05 / var(--contrast))) calc(c * 0.8) h);
+  --ink-4: oklch(from var(--raw-background) calc(0.7 + (0.05 / var(--contrast))) calc(c * 0.6) h);
+
+  /* Ember, the one accent */
+  --ember: oklch(from var(--raw-primary) l c h);
+  --ember-strong: oklch(from var(--raw-primary) calc(l - (0.08 * var(--contrast))) c h);
+  --ember-tint: oklch(
+    from var(--raw-primary) calc(0.96 + 0.02 * (1 - var(--contrast))) calc(c * 0.2) h
+  );
+  --ember-veil: oklch(from var(--raw-primary) l c h / 0.1);
+  /* Ember as text and marks on the page: it keeps a lightness the paper can carry. */
+  --ember-mark: oklch(from var(--ember) min(l, 0.65) c h);
+  --ember-strong-mark: oklch(from var(--ember-strong) min(l, 0.65) c h);
+
+  /* What went well, what went wrong, what to look at */
+  --moss: oklch(
+    from var(--raw-background) calc(0.48 - (0.04 * var(--contrast))) 0.13 var(--hue-success)
+  );
+  --moss-tint: oklch(
+    from var(--raw-background) calc(0.98 - (0.01 * var(--contrast))) 0.025 var(--hue-success)
+  );
+  --rose: oklch(
+    from var(--raw-background) calc(0.64 - (0.05 * var(--contrast))) 0.2 var(--hue-danger)
+  );
+  --rose-tint: oklch(
+    from var(--raw-background) calc(0.98 - (0.01 * var(--contrast))) 0.03 var(--hue-danger)
+  );
+  --amber-tint: oklch(
+    from var(--raw-background) calc(0.98 - (0.01 * var(--contrast))) 0.04 var(--hue-warning)
+  );
+
+  /* Type stacks; the font files are bundled (app.css). */
+  --f-display: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --f-ui: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --f-mono: "Geist Mono Variable", ui-monospace, monospace;
+
+  /* Elevation: tinted ambient shadows. Soft for what lies on the page, overlay for menus and
+     dialogs that float over it. */
+  --shadow-ember-soft:
+    0 1px 2px oklch(from var(--raw-background) 0.4 c h / 0.03),
+    0 3px 10px oklch(from var(--raw-background) 0.3 c h / 0.05);
+  --shadow-ember-overlay:
+    0 2px 4px oklch(from var(--raw-background) 0.2 c h / 0.08),
+    0 10px 28px oklch(from var(--raw-background) 0.15 c h / 0.16);
+}
+
+/* Dark stands on a near-black with a trace of the engenty blue. Every surface and ink step
+   derives from that stage. */
+.dark {
+  --stage: oklch(21% 0.035 264);
+  /* How much colour the inks take from the stage. */
+  --dark-tint: 0.45;
+  --raw-background: var(--stage);
+
+  --paper: oklch(from var(--stage) l c h);
+  --paper-2: oklch(from var(--stage) calc(l + 0.1) calc(c * 0.92) h);
+  --ink: oklch(from var(--stage) 0.97 calc(0.015 * var(--dark-tint)) h);
+  --ink-2: oklch(from var(--stage) 0.9 calc(0.03 * var(--dark-tint)) h);
+  --ink-3: oklch(from var(--stage) 0.8 calc(0.05 * var(--dark-tint)) h);
+  --ink-4: oklch(from var(--stage) 0.68 calc(0.06 * var(--dark-tint)) h);
+
+  --ember-strong: oklch(from var(--raw-primary) calc(l + (0.08 * var(--contrast))) c h);
+  --ember-tint: oklch(from var(--raw-primary) calc(0.18 + 0.02 * var(--contrast)) calc(c * 0.35) h);
+  --ember-mark: oklch(from var(--ember) max(l, 0.6) c h);
+  --ember-strong-mark: oklch(from var(--ember-strong) max(l, 0.6) c h);
+
+  --moss: oklch(
+    from var(--raw-background) calc(0.65 + (0.05 * var(--contrast))) 0.13 var(--hue-success)
+  );
+  --moss-tint: oklch(
+    from var(--raw-background) calc(0.18 + (0.02 * var(--contrast))) 0.04 var(--hue-success)
+  );
+  --rose: oklch(
+    from var(--raw-background) calc(0.62 + (0.05 * var(--contrast))) 0.2 var(--hue-danger)
+  );
+  --rose-tint: oklch(
+    from var(--raw-background) calc(0.18 + (0.02 * var(--contrast))) 0.05 var(--hue-danger)
+  );
+  --amber-tint: oklch(
+    from var(--raw-background) calc(0.18 + (0.02 * var(--contrast))) 0.05 var(--hue-warning)
+  );
+
+  --shadow-ember-soft: 0 1px 2px oklch(0% 0 0 / 0.18), 0 3px 10px oklch(0% 0 0 / 0.22);
+  --shadow-ember-overlay: 0 2px 4px oklch(0% 0 0 / 0.3), 0 10px 28px oklch(0% 0 0 / 0.44);
+  color-scheme: dark;
+}
+
+/* The system asks for more contrast: the grey steps, inks and lines move apart. */
+@media (prefers-contrast: more) {
+  :root {
+    --contrast: 1.4;
+  }
+}

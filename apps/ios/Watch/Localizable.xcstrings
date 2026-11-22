@@ -1,0 +1,116 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Answer on your phone" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf deinem iPhone beantworten"
+          }
+        }
+      }
+    },
+    "Connect your phone to your home first. This watch follows." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinde zuerst dein iPhone mit deinem Zuhause. Diese Uhr folgt."
+          }
+        }
+      }
+    },
+    "Needs you" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Braucht dich"
+          }
+        }
+      }
+    },
+    "Open wizards.bot on your iPhone and allow where your messages go." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne wizards.bot auf deinem iPhone und erlaube, wohin deine Nachrichten gehen."
+          }
+        }
+      }
+    },
+    "Open wizards.bot on your phone. It connects this watch to your home." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Öffne wizards.bot auf deinem iPhone. Es verbindet diese Uhr mit deinem Zuhause."
+          }
+        }
+      }
+    },
+    "Say something" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sag etwas"
+          }
+        }
+      }
+    },
+    "Talk" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprechen"
+          }
+        }
+      }
+    },
+    "Talk to %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit %@ sprechen"
+          }
+        }
+      }
+    },
+    "Try again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch einmal versuchen"
+          }
+        }
+      }
+    },
+    "Your home is out of reach." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar."
+          }
+        }
+      }
+    },
+    "Your home is out of reach. Try again in a moment." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Zuhause ist nicht erreichbar. Versuch es gleich noch einmal."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

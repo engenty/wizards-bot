@@ -1,0 +1,38 @@
+# Dependabot keeps the dependencies current and opens a pull request for every security advisory
+# that has a fix. Version updates come once a week, minor and patch ones grouped into one pull
+# request per ecosystem; majors come one by one.
+version: 2
+updates:
+  # The pnpm workspace: one lockfile at the root for apps/* and packages/*.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # The actions the workflows use.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # The base image of the home's Dockerfile.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore(docker)
