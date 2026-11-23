@@ -6,15 +6,7 @@ import type {
   VaultItem,
   VaultSecret,
 } from "@wizards-bot/protocol";
-import {
-  ChevronRight,
-  CreditCard,
-  Download,
-  KeyRound,
-  NotebookText,
-  Plus,
-  Search,
-} from "lucide-react";
+import { CreditCard, Download, KeyRound, NotebookText, Plus, Search } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/i18n";
@@ -419,7 +411,8 @@ type Open =
   | { kind: "item"; item: VaultItem }
   | null;
 
-const KINDS: Kind[] = ["login", "card", "note"];
+/** The two tabs of the Vault: what it keeps, and what was done with it. */
+type Tab = "items" | "activity";
 
 /** What a row says under its name: the website and the user name, or the card's holder. */
 function line(item: VaultItem) {
@@ -428,23 +421,21 @@ function line(item: VaultItem) {
 
 /**
  * The Vault, as a page of the settings: the person's passwords (with their authenticator keys),
- * payment cards and notes, sealed with the Bot Server's key. A tab for each kind, a search once a
- * list is long, and the activity folded away. The agents sign in with a password only after the
- * person said yes in the chat, and never see it.
+ * payment cards and notes, sealed with the Bot Server's key, in one list (an icon tells them
+ * apart, a search finds one once the list is long), and beside it the activity. The agents sign
+ * in with a password only after the person said yes in the chat, and never see it.
  */
 export function VaultSettings() {
   const vault = useVault();
   const agents = useAgents();
   const [open, setOpen] = useState<Open>(null);
-  const [kind, setKind] = useState<Kind>("login");
+  const [tab, setTab] = useState<Tab>("items");
   const [query, setQuery] = useState("");
-  const [log, setLog] = useState(false);
-  const items = vault.data?.items ?? [];
-  const ofKind = items.filter((i) => i.kind === kind);
+  const items = [...(vault.data?.items ?? [])].sort((a, b) => a.label.localeCompare(b.label));
   const words = query.trim().toLowerCase();
   const listed = words
-    ? ofKind.filter((i) => `${i.label} ${line(i)}`.toLowerCase().includes(words))
-    : ofKind;
+    ? items.filter((i) => `${i.label} ${line(i)}`.toLowerCase().includes(words))
+    : items;
   const agentName = (id: string | null) =>
     id ? (agents.data?.find((a) => a.id === id)?.name ?? "—") : undefined;
   const add = (itemKind: Kind) => setOpen({ kind: "form", itemKind });
@@ -459,26 +450,23 @@ export function VaultSettings() {
             aria-label={t("vault.title")}
             className="inline-flex min-w-0 items-center overflow-x-auto rounded-full bg-paper-2 p-0.5 ring-1 ring-border-soft"
           >
-            {KINDS.map((one) => (
+            {(["items", "activity"] as const).map((one) => (
               <button
                 key={one}
                 type="button"
                 role="tab"
-                aria-selected={one === kind}
-                onClick={() => {
-                  setKind(one);
-                  setQuery("");
-                }}
+                aria-selected={one === tab}
+                onClick={() => setTab(one)}
                 className={cn(
                   "h-7 shrink-0 rounded-full px-3 text-[0.8125rem] transition",
-                  one === kind
+                  one === tab
                     ? "bg-card font-medium text-ink shadow-sm"
                     : "text-ink-3 hover:text-ink",
                 )}
               >
-                {t(`vault.tab.${one}`)}
+                {t(one === "items" ? "vault.tab.items" : "vault.activity")}
                 <span className="ml-1.5 text-ink-4 tabular-nums">
-                  {items.filter((i) => i.kind === one).length}
+                  {one === "items" ? items.length : activity.length}
                 </span>
               </button>
             ))}
@@ -503,7 +491,7 @@ export function VaultSettings() {
             <span className="max-sm:sr-only">{t("vault.add")}</span>
           </Menu>
         </div>
-        {ofKind.length > 6 ? (
+        {tab === "items" && items.length > 6 ? (
           <label className="mt-2 flex h-8 items-center gap-2 rounded-lg bg-paper-2 px-2.5 ring-1 ring-border-soft">
             <Search className="size-3.5 shrink-0 text-ink-3" />
             <input
@@ -517,78 +505,69 @@ export function VaultSettings() {
           </label>
         ) : null}
       </div>
-      {listed.length ? (
-        <ul className="mt-1 divide-y divide-border-soft">
-          {listed.map((item) => {
-            const Icon = ICONS[item.kind];
-            return (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => setOpen({ kind: "item", item })}
-                  className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-accent/60"
-                >
-                  <Icon className="size-4 shrink-0 text-ink-3" />
-                  <span className="min-w-0 flex-1 truncate text-[0.875rem]">
-                    <span className="font-medium">{item.label}</span>
-                    {line(item) ? <span className="text-ink-3"> · {line(item)}</span> : null}
-                  </span>
-                  {item.authenticator ? (
-                    <span className="shrink-0 text-[0.75rem] text-ink-3">
-                      {t("vault.authenticator")}
-                    </span>
-                  ) : null}
-                  {item.readable ? null : (
-                    <span className="shrink-0 text-[0.75rem] text-rose">
-                      {t("vault.unreadable")}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : vault.data ? (
-        <p className="mt-3 text-[0.875rem] text-ink-2">
-          {words ? t("vault.noMatch") : t(`vault.empty.${kind}`)}
-        </p>
-      ) : null}
-      {vault.data && !words && !ofKind.length ? (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {kind === "login" ? (
-            <Button variant="secondary" size="sm" onClick={() => setOpen({ kind: "import" })}>
-              <Download className="size-4" />
-              {t("vault.add.import")}
-            </Button>
-          ) : null}
-          <Button variant="secondary" size="sm" onClick={() => add(kind)}>
-            <Plus className="size-4" />
-            {t(`vault.form.new.${kind}`)}
-          </Button>
-        </div>
-      ) : null}
-      <p className="mt-4 text-[0.8125rem] text-ink-3 leading-relaxed">{t("vault.how")}</p>
-      {activity.length ? (
-        <div className="mt-4">
-          <button
-            type="button"
-            aria-expanded={log}
-            onClick={() => setLog((shown) => !shown)}
-            className="flex items-center gap-1 font-medium text-[0.8125rem] text-ink-3 transition hover:text-ink"
-          >
-            <ChevronRight className={cn("size-3.5 transition-transform", log && "rotate-90")} />
-            {t("vault.activity")}
-            <span className="font-normal text-ink-4 tabular-nums">{activity.length}</span>
-          </button>
-          {log ? (
-            <ul className="mt-1 max-h-60 divide-y divide-border-soft overflow-y-auto">
-              {activity.map((entry) => (
-                <ActivityLine key={entry.id} entry={entry} agent={agentName(entry.agentId)} />
-              ))}
+      {tab === "activity" ? (
+        activity.length ? (
+          <ul className="mt-1 divide-y divide-border-soft">
+            {activity.map((entry) => (
+              <ActivityLine key={entry.id} entry={entry} agent={agentName(entry.agentId)} />
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-[0.875rem] text-ink-2">{t("vault.activity.none")}</p>
+        )
+      ) : (
+        <>
+          {listed.length ? (
+            <ul className="mt-1 divide-y divide-border-soft">
+              {listed.map((item) => {
+                const Icon = ICONS[item.kind];
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpen({ kind: "item", item })}
+                      className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-accent/60"
+                    >
+                      <Icon className="size-4 shrink-0 text-ink-3" />
+                      <span className="min-w-0 flex-1 truncate text-[0.875rem]">
+                        <span className="font-medium">{item.label}</span>
+                        {line(item) ? <span className="text-ink-3"> · {line(item)}</span> : null}
+                      </span>
+                      {item.authenticator ? (
+                        <span className="shrink-0 text-[0.75rem] text-ink-3">
+                          {t("vault.authenticator")}
+                        </span>
+                      ) : null}
+                      {item.readable ? null : (
+                        <span className="shrink-0 text-[0.75rem] text-rose">
+                          {t("vault.unreadable")}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
+          ) : vault.data ? (
+            <p className="mt-3 text-[0.875rem] text-ink-2">
+              {words ? t("vault.noMatch") : t("vault.empty")}
+            </p>
           ) : null}
-        </div>
-      ) : null}
+          {vault.data && !items.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setOpen({ kind: "import" })}>
+                <Download className="size-4" />
+                {t("vault.add.import")}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => add("login")}>
+                <Plus className="size-4" />
+                {t("vault.form.new.login")}
+              </Button>
+            </div>
+          ) : null}
+          <p className="mt-4 text-[0.8125rem] text-ink-3 leading-relaxed">{t("vault.how")}</p>
+        </>
+      )}
       {vault.error ? (
         <p role="alert" className="mt-3 text-[0.8125rem] text-rose">
           {vault.error.message}
