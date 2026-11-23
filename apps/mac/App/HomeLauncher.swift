@@ -70,10 +70,12 @@ nonisolated enum LocalPaths {
     }
 
     /// The data folder as a person reads it: `~/.engenty/wizards-bot`.
-    static var dataShown: String {
+    static var dataShown: String { shown(data) }
+
+    /// A folder as a person reads it, with `~` for the home folder.
+    static func shown(_ url: URL) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let path = data.path
-        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+        return url.path.hasPrefix(home + "/") ? "~" + url.path.dropFirst(home.count) : url.path
     }
 
     static let linkLabel = "bot.wizards.link"
@@ -84,6 +86,11 @@ nonisolated enum LocalPaths {
     /// other.
     static var linkData: URL {
         FileManager.default.homeDirectoryForCurrentUser.appending(path: ".engenty/wizards-bot-link")
+    }
+
+    /// What `wizards bot install` wrote about its Bot Server: its version and its data folder.
+    static var installBot: URL {
+        FileManager.default.homeDirectoryForCurrentUser.appending(path: ".engenty/wizards/bot/bot.json")
     }
 
     static var installPlist: URL {
