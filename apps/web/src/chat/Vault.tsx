@@ -411,6 +411,11 @@ type Open =
   | { kind: "item"; item: VaultItem }
   | null;
 
+/** A way into the Vault above its tabs: a card of the same size as its neighbour. */
+const DOOR =
+  "flex w-full min-w-0 items-center gap-3 rounded-xl border border-border-soft bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent/40";
+const DOOR_ICON = "grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-ink-2";
+
 /** The two tabs of the Vault: what it keeps, and what was done with it. */
 type Tab = "items" | "activity";
 
@@ -442,7 +447,44 @@ export function VaultSettings() {
   const activity = vault.data?.activity ?? [];
   return (
     <>
-      {/* The tabs, the way to add and the search stay in view while a long list scrolls. */}
+      {/* Two ways in, side by side and the same size; they scroll away with the list. */}
+      <div className="mb-1 grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => setOpen({ kind: "import" })} className={DOOR}>
+          <span className={DOOR_ICON}>
+            <Download className="size-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate font-medium text-[0.875rem]">
+              {t("vault.door.import")}
+            </span>
+            <span className="block truncate text-[0.75rem] text-ink-3">
+              {t("vault.door.importHint")}
+            </span>
+          </span>
+        </button>
+        <Menu
+          label={t("vault.door.add")}
+          items={[
+            { icon: <KeyRound />, label: t("vault.add.login"), onSelect: () => add("login") },
+            { icon: <CreditCard />, label: t("vault.add.card"), onSelect: () => add("card") },
+            { icon: <NotebookText />, label: t("vault.add.note"), onSelect: () => add("note") },
+          ]}
+          className={DOOR}
+        >
+          <span className={DOOR_ICON}>
+            <Plus className="size-4" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate font-medium text-[0.875rem]">
+              {t("vault.door.add")}
+            </span>
+            <span className="block truncate text-[0.75rem] text-ink-3">
+              {t("vault.door.addHint")}
+            </span>
+          </span>
+        </Menu>
+      </div>
+      {/* The tabs and the search stay in view while a long list scrolls. */}
       <div className="sticky -top-3 z-10 -mx-5 bg-card px-5 pt-3 pb-1">
         <div className="flex items-center gap-2">
           <div
@@ -471,25 +513,6 @@ export function VaultSettings() {
               </button>
             ))}
           </div>
-          <span className="flex-1" />
-          <Menu
-            label={t("vault.add")}
-            items={[
-              { icon: <KeyRound />, label: t("vault.add.login"), onSelect: () => add("login") },
-              { icon: <CreditCard />, label: t("vault.add.card"), onSelect: () => add("card") },
-              { icon: <NotebookText />, label: t("vault.add.note"), onSelect: () => add("note") },
-              null,
-              {
-                icon: <Download />,
-                label: t("vault.add.import"),
-                onSelect: () => setOpen({ kind: "import" }),
-              },
-            ]}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] max-sm:w-8 max-sm:justify-center max-sm:px-0 text-ink-2 ring-1 ring-border-soft transition hover:text-ink"
-          >
-            <Plus className="size-3.5" />
-            <span className="max-sm:sr-only">{t("vault.add")}</span>
-          </Menu>
         </div>
         {tab === "items" && items.length > 6 ? (
           <label className="mt-2 flex h-8 items-center gap-2 rounded-lg bg-paper-2 px-2.5 ring-1 ring-border-soft">
@@ -552,18 +575,6 @@ export function VaultSettings() {
             <p className="mt-3 text-[0.875rem] text-ink-2">
               {words ? t("vault.noMatch") : t("vault.empty")}
             </p>
-          ) : null}
-          {vault.data && !items.length ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setOpen({ kind: "import" })}>
-                <Download className="size-4" />
-                {t("vault.add.import")}
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => add("login")}>
-                <Plus className="size-4" />
-                {t("vault.form.new.login")}
-              </Button>
-            </div>
           ) : null}
           <p className="mt-4 text-[0.8125rem] text-ink-3 leading-relaxed">{t("vault.how")}</p>
         </>
