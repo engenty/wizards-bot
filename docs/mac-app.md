@@ -128,15 +128,23 @@ There is never a second home on 4747 and never a second home on the same data fo
 folder has one home key and one `home.db`.
 
 A home of `wizards bot install` keeps running as it is; its updates stay with `wizards bot
-update`. The app offers, in its settings and never on its own, "Den Bot Server mit der App
-aktualisieren". On a yes:
+update`. The app offers "Den Bot Server mit der App aktualisieren" in its settings. When that
+home is older than the app's (its version from `/health`, or from `bot.json` of
+`wizards bot install` for a home that does not say it there), the first screen offers it too:
+"Auf diesem Mac läuft ein älterer Bot Server", both versions, "Aktualisieren" and "So verwenden,
+wie er ist". The app also opens on that screen when it was paired with that home, until the
+person keeps it as it is for this version of the app. On a yes:
 
-1. It stops `com.engenty.wizards.bot` (`launchctl bootout`) and sets its plist aside as
+1. It refuses when its home is older than the one that last wrote the data (see
+   [What the home needs](#what-the-home-needs)): a newer `wizards bot install` stays. It also
+   refuses when `bot.json` names a data folder other than the one the app's home would use.
+2. It stops `com.engenty.wizards.bot` (`launchctl bootout`) and sets its plist aside as
    `com.engenty.wizards.bot.plist.off`, so the person can go back; `wizards bot uninstall`
    deletes it.
-2. It registers its own agent on the same data folder.
-3. It refuses when its home is older than the one that last wrote the data (see
-   [What the home needs](#what-the-home-needs)): a newer `wizards bot install` stays.
+3. With no home writing, it copies the data folder to `~/.engenty/wizards-bot-before-<version>`.
+   When the copy fails, it puts the plist back and starts that home again.
+4. It registers its own agent on the same data folder; the home moves `~/.wizards-bot` to
+   `~/.engenty/wizards-bot` on that start.
 
 The other direction is in the `wizards` command (engenty wizards' repo): `wizards bot install`
 asks `launchctl print gui/<uid>/bot.wizards.home` and, when the app's agent is there, says
