@@ -16,7 +16,9 @@ status. Codes a device handles: `unauthorized` (401: pair again), `already_answe
 
 ## Home and pairing
 
-`GET /health` → `{ "ok": true }`: the home runs. For a proxy, Coolify and a status page.
+`GET /health` → `{ "ok": true, "home": true, "version": "0.2.0" }`: the home runs, it is a Bot
+Server, and its version. For a proxy, Coolify, a status page and the Mac app, which tells a Bot
+Server from another program on port 4747 by it. Earlier homes answer `{ "ok": true }`.
 
 `GET /v1/home` → `HomeInfo`
 
@@ -1211,6 +1213,14 @@ in a terminal on the home's computer, e.g.:
 }
 ```
 
+A check of Ollama on the home's own computer that has no model, or only one too large for the
+computer's memory, offers one in `pull`: `{ "model": "qwen3:8b", "size": 5200000000 }`, the
+largest of the home's suggestions that leaves the computer room. `POST /v1/setup/pull` with
+`PullSetup` (`{ "model": "qwen3:8b" }`, only a model the setup offers) starts the pull and
+answers 202 with the `Setup` at once; its `pulling` says how far it is (`state` `pulling`,
+`done`, `failed` with Ollama's `error`; `done` and `total` in bytes). When the model is
+complete the home tests Ollama. A home on a server pulls nothing (400).
+
 Test calls cost tokens. The home makes them only when asked: `POST /v1/setup/test` with
 `TestSetup` (`{}` for all sources, `{ "source": "claude" }` for one) answers once the calls are
 done, with the new `Setup`. A call that runs already is not made twice. The web app asks once
@@ -1227,8 +1237,8 @@ answers; answering the card sets the gateway up and tests it. `POST /v1/setup/pa
 pairing code for the setup's own page and answers `{ address, code, link }` (`link` is what the
 QR holds); nothing goes into the chat.
 
-The event `setup.updated` carries the `Setup` when a test call starts and when it ends, and
-after a change.
+The event `setup.updated` carries the `Setup` when a test call starts and when it ends, after
+a change, and about once a second while a model is pulled.
 
 ## Events
 

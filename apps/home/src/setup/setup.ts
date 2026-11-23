@@ -1,13 +1,15 @@
 import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import type { Card, SetupCheck, Setup as SetupView } from "@wizards-bot/protocol";
+import type { Card, SetupCheck, SetupPulling, Setup as SetupView } from "@wizards-bot/protocol";
 import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
 import { ACCOUNT, GATEWAY_PRESETS } from "../models/models.ts";
+import { pullModel, SUGGESTED } from "../models/ollama.ts";
 import { CLIENTS, type Client, type SubscriptionClient } from "../models/subscription.ts";
 import type { NewCard } from "../store/store.ts";
 import {
   installed,
+  onThisComputer,
   type Probe,
   probeAccount,
   probeClient,
@@ -38,6 +40,9 @@ interface Kept extends Omit<Probe, "said" | "todo"> {
 type Check = Omit<SetupCheck, "said" | "todo"> & { said: Words | string; todo?: Words | string };
 
 const TESTS = "setup.tests";
+
+/** A pull the home does not make: Ollama is not on its computer, or the model is not offered. */
+export class PullRefused extends Error {}
 
 /** A gateway's first model when the person adds it from the setup; they may name another. */
 export const GATEWAY_MODELS: Record<string, string> = {
@@ -82,6 +87,11 @@ export class Setup {
   clients: Client[];
   /** How a gateway's test call reaches it; the network by default. */
   gatewayFetch: typeof fetch | undefined;
+  /** How a pull reaches Ollama; the network by default. */
+  ollamaFetch: typeof fetch | undefined;
+  /** The model the home pulls into Ollama, or pulled last, while it runs. */
+  private pulling: SetupPulling | undefined;
+  private pullRun: Promise<void> = Promise.resolve();
 
   constructor(home: Home) {
     this.home = home;
@@ -272,6 +282,60 @@ export class Setup {
     return this.view();
   }
 
+  // ── A model for Ollama ────────────────────────────────────────────────────
+
+  /**
+   * Pulls one of the models the setup offers into this computer's Ollama, on the person's yes,
+   * then tests Ollama. Answers at once; devices hear how far it is with `setup.updated`, about
+   * once a second.
+   */
+  async pull(model: string): Promise<SetupView> {
+    const { config } = this.home;
+    if (isHosted(config) || !onThisComputer(config.ollamaUrl)) {
+      throw new PullRefused("The Bot Server pulls models only into an Ollama on its own computer.");
+    }
+    if (!SUGGESTED.some((entry) => entry.model === model)) {
+      throw new PullRefused(`The setup does not offer ${model}.`);
+    }
+    if (this.pulling?.state === "pulling") return this.view();
+    this.pulling = { model, state: "pulling", done: 0, total: 0 };
+    let told = 0;
+    this.pullRun = pullModel(
+      config.ollamaUrl,
+      model,
+      (done, total) => {
+        this.pulling = { model, state: "pulling", done, total };
+        if (Date.now() - told > 1000) {
+          told = Date.now();
+          void this.changed().catch(() => {});
+        }
+      },
+      this.ollamaFetch,
+    )
+      .then(
+        async () => {
+          const total = this.pulling?.total ?? 0;
+          this.pulling = { model, state: "done", done: total, total };
+          await this.test("ollama");
+        },
+        (error: Error) => {
+          this.pulling = { model, state: "failed", done: 0, total: 0, error: error.message };
+        },
+      )
+      .finally(() =>
+        this.changed().then(
+          () => {},
+          () => {},
+        ),
+      );
+    return this.changed();
+  }
+
+  /** Resolves when the pull that runs, and the test call after it, are done. */
+  pulled(): Promise<void> {
+    return this.pullRun;
+  }
+
   /** Tells every device what the setup looks like now. */
   private async changed(): Promise<SetupView> {
     const setup = await this.view();
@@ -303,6 +367,7 @@ export class Setup {
       models,
       home: [await this.address(), this.data(), this.folders(), this.push()].map(shown),
       capabilities: this.capabilities(models).map(shown),
+      ...(this.pulling ? { pulling: this.pulling } : {}),
     };
   }
 
@@ -322,6 +387,7 @@ export class Setup {
             ...(last.todo ? { todo: last.todo } : {}),
             ...(last.command ? { command: last.command } : {}),
             ...(last.model ? { model: last.model } : {}),
+            ...(last.pull ? { pull: last.pull } : {}),
             at: last.at,
           }
         : { id, kind: "model", label, source: id, state: "untested", said: untested };
@@ -569,8 +635,8 @@ export class Setup {
           `Dein Bot Server legt seine Daten in einem temporären Ordner ab (${dir}). Der Computer leert ihn vielleicht.`,
         ),
         todo: w(
-          "Start the Bot Server with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.wizards-bot.",
-          "Starte den Bot Server mit WIZARDS_BOT_DATA auf einem Ordner, der bleibt, etwa ~/.wizards-bot.",
+          "Start the Bot Server with WIZARDS_BOT_DATA set to a folder that stays, such as ~/.engenty/wizards-bot.",
+          "Starte den Bot Server mit WIZARDS_BOT_DATA auf einem Ordner, der bleibt, etwa ~/.engenty/wizards-bot.",
         ),
       };
     }

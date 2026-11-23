@@ -137,7 +137,9 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
 2. **Local install.** Every GitHub release of `engenty/wizards-bot` carries
    `wizards-bot-<version>.tgz`: the home with the built web app and the workspace packages in it,
    and a `package.json` whose dependencies `npm install --omit=dev` installs with Node 24.11 or
-   newer. Its `bin` is `wizards-bot`. Data stays in `~/.wizards-bot`. `docs/install.md` says how.
+   newer. Its `bin` is `wizards-bot`. Data stays in `~/.engenty/wizards-bot`; the home moves a
+   `~/.wizards-bot` of an earlier Bot Server there on its first start. `docs/install.md` says
+   how.
 3. **A hosted home's settings.** The Manage-App starts it with:
    - `WIZARDS_BOT_URL=https://<address>.wizards.bot`
    - `WIZARDS_BOT_SETUP_CODE`: a pairing code in the home's format (`K7QM-2RXD`) that pairs the
@@ -171,4 +173,9 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
    - `wizards bot setup`: opens the setup of the local home and shows a pairing code. With
      `--link <address> <code>` it links this computer to a hosted home (`wizards-bot link`), so
      the hosted home uses this computer's models while it is on.
-   - `wizards bot status`, `wizards bot update`, `wizards bot uninstall` (keeps `~/.wizards-bot`).
+   - `wizards bot status`, `wizards bot update`, `wizards bot uninstall` (keeps
+     `~/.engenty/wizards-bot`).
+   - `~/.engenty/wizards/bot/bot.json` names the data folder (`"data"`):
+     `~/.engenty/wizards-bot`, or what `WIZARDS_BOT_DATA` says.
+   - When the Mac app runs the Bot Server (its LaunchAgent `bot.wizards.home`, docs/mac-app.md),
+     `install` installs nothing and `update` says the app updates it.

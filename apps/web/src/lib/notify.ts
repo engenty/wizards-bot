@@ -1,4 +1,5 @@
 import type { Event } from "@wizards-bot/protocol";
+import { inMacApp, toMac } from "./mac";
 
 /** What a notification says; `tag` is the card's or message's id, so one thing is told once. */
 interface Notice {
@@ -47,7 +48,14 @@ export function notify(notices: Notice[]) {
       continue;
     }
     told.add(notice.tag);
-    if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+    if (inMacApp()) {
+      // The app tells the Mac's notifications; it knows whether its window is in front.
+      void toMac({ type: "notify", ...notice });
+    } else if (
+      document.hidden &&
+      "Notification" in window &&
+      Notification.permission === "granted"
+    ) {
       const shown = new Notification(notice.title, {
         body: notice.body,
         tag: notice.tag,
@@ -63,7 +71,7 @@ export function notify(notices: Notice[]) {
 
 /** Asks once whether the page may notify; called from a tap, as browsers want it. */
 export function askToNotify() {
-  if ("Notification" in window && Notification.permission === "default") {
+  if (!inMacApp() && "Notification" in window && Notification.permission === "default") {
     void Notification.requestPermission();
   }
 }

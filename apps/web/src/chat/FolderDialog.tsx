@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { formatBytes } from "../lib/files";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
+import { pickFolderOnMac } from "../lib/mac";
 import { completions, separatorOf, trimmedPath } from "../lib/paths";
 import { Button, Dialog, Input } from "../ui";
 
@@ -100,6 +101,14 @@ export function FolderDialog({
   };
   const choose = () =>
     run(async () => {
+      const onMac = await pickFolderOnMac();
+      if (onMac !== undefined) {
+        if (onMac) {
+          setPath(onMac);
+          await review(onMac);
+        }
+        return;
+      }
       const wait = new AbortController();
       picking.current = wait;
       const picked = await api

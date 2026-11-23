@@ -42,7 +42,7 @@ When you connect an account or a service (a calendar, mail, Slack), your Bot Ser
 - **Calendar, reminders, contacts, camera, microphone, speech, local network:** in the system's Settings app, under wizards.bot.
 - **An agent's questions to the phone:** the agent's Data on the phone.
 - **This device:** Settings, then "Sign out". The device forgets the Bot Server and deletes its copy of your conversations and of what your agents asked it.
-- **Everything:** your data is on your Bot Server's data folder (`WIZARDS_BOT_DATA`, by default `~/.wizards-bot`). Deleting that folder deletes your agents, conversations, files and keys. What a model service already read is deleted under that company's terms.
+- **Everything:** your data is on your Bot Server's data folder (`WIZARDS_BOT_DATA`, by default `~/.engenty/wizards-bot`). Deleting that folder deletes your agents, conversations, files and keys. What a model service already read is deleted under that company's terms.
 
 The Bot Server keeps your data until you delete it. It deletes a photo for your avatar once it has read it, and a file a device sent for a hand-off stays with the conversation it belongs to.
 

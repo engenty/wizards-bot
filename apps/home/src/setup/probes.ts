@@ -8,7 +8,7 @@ import type { LanguageModel } from "ai";
 import { generateText } from "ai";
 import type { Account, Gateway } from "../models/models.ts";
 import { ACCOUNT, accountModel, clientEnv } from "../models/models.ts";
-import { MEMORY_SHARE, ollamaModels } from "../models/ollama.ts";
+import { MEMORY_SHARE, ollamaModels, suggestedModel } from "../models/ollama.ts";
 import type { Client } from "../models/subscription.ts";
 import {
   explainAccount,
@@ -30,6 +30,8 @@ export interface Probe extends Finding {
   state: ProbeState;
   /** The model that was asked. */
   model?: string;
+  /** A model the home can pull into this computer's Ollama itself. */
+  pull?: { model: string; size: number };
 }
 
 const PROMPT = "Answer with the single word ok.";
@@ -202,11 +204,6 @@ export function onThisComputer(url: string): boolean {
 
 const gb = (bytes: number) => `${Math.round(bytes / 1e9)} GB`;
 
-const PULL = w(
-  "Pull a model with tools, e.g. ollama pull qwen3:8b.",
-  "Lade ein Modell mit Werkzeugen, z. B. ollama pull qwen3:8b.",
-);
-
 /** A test call to the model the home would ask first on this computer's Ollama. */
 export async function probeOllama(
   baseUrl: string,
@@ -231,6 +228,9 @@ export async function probeOllama(
   const local = onThisComputer(baseUrl);
   const models = await ollamaModels(baseUrl, doFetch, local ? memory : undefined);
   const first = models[0];
+  // On this computer the home pulls a model itself, the largest that leaves the computer room.
+  const suggested = suggestedModel(local ? memory : Number.POSITIVE_INFINITY);
+  const pull = local ? { pull: suggested } : {};
   if (!first) {
     return {
       state: "problem",
@@ -238,8 +238,12 @@ export async function probeOllama(
         "Ollama runs, but it has no model to talk with.",
         "Ollama läuft, hat aber kein Modell zum Sprechen.",
       ),
-      todo: PULL,
-      command: "ollama pull qwen3:8b",
+      todo: w(
+        `Pull a model with tools, e.g. ollama pull ${suggested.model}.`,
+        `Lade ein Modell mit Werkzeugen, z. B. ollama pull ${suggested.model}.`,
+      ),
+      command: `ollama pull ${suggested.model}`,
+      ...pull,
     };
   }
   if (local && first.size > memory * MEMORY_SHARE) {
@@ -251,10 +255,11 @@ export async function probeOllama(
         `${first.id} braucht ${gb(first.size)}. Auf diesem Computer nimmt der Bot Server ein Modell bis ${gb(memory * MEMORY_SHARE)}, gut die Hälfte seiner ${gb(memory)} Arbeitsspeicher, damit der Computer flüssig bleibt.`,
       ),
       todo: w(
-        "Pull a smaller model with tools, e.g. ollama pull qwen3:8b.",
-        "Lade ein kleineres Modell mit Werkzeugen, z. B. ollama pull qwen3:8b.",
+        `Pull a smaller model with tools, e.g. ollama pull ${suggested.model}.`,
+        `Lade ein kleineres Modell mit Werkzeugen, z. B. ollama pull ${suggested.model}.`,
       ),
-      command: "ollama pull qwen3:8b",
+      command: `ollama pull ${suggested.model}`,
+      ...pull,
     };
   }
   try {
@@ -309,7 +314,16 @@ export async function probeOllama(
           `${first.id} answers, but takes no tools: an agent with it can talk, not act.`,
           `${first.id} antwortet, nimmt aber keine Werkzeuge: Ein Wizard damit kann reden, nicht handeln.`,
         ),
-    ...(first.tools ? {} : { todo: PULL }),
+    ...(first.tools
+      ? {}
+      : {
+          todo: w(
+            `Pull a model with tools, e.g. ollama pull ${suggested.model}.`,
+            `Lade ein Modell mit Werkzeugen, z. B. ollama pull ${suggested.model}.`,
+          ),
+          command: `ollama pull ${suggested.model}`,
+          ...pull,
+        }),
   };
 }
 

@@ -1,10 +1,20 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { Setup, SetupCheck } from "@wizards-bot/protocol";
-import { AlertTriangle, Check, Circle, CircleHelp, Copy, RotateCw, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Circle,
+  CircleHelp,
+  Copy,
+  Download,
+  RotateCw,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { lang, t } from "../lib/i18n";
 import { keys } from "../lib/keys";
+import { useSetup } from "../lib/queries";
 import { when } from "../lib/time";
 import { Button, cn, IconButton, Spinner } from "../ui";
 import { testable, testedAt, testing } from "./steps";
@@ -110,6 +120,7 @@ function CheckRow({
           <p className="mt-1 text-[0.8125rem] text-ink-3 leading-snug">{detail}</p>
         ) : null}
         {check.command && !fine ? <Command text={check.command} /> : null}
+        {check.pull && !fine ? <Pull offer={check.pull} /> : null}
         {onTest && check.source && testable(check) && check.state !== "ok" ? (
           <Button
             variant="ghost"
@@ -123,6 +134,56 @@ function CheckRow({
         ) : null}
       </div>
     </li>
+  );
+}
+
+const gb = (bytes: number) =>
+  `${new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`;
+
+/**
+ * A model the Bot Server pulls into Ollama on its own computer, on a click, with how far it is.
+ * When it is done the Bot Server tests Ollama again.
+ */
+function Pull({ offer }: { offer: NonNullable<SetupCheck["pull"]> }) {
+  const client = useQueryClient();
+  const { data: setup } = useSetup();
+  const [problem, setProblem] = useState<string | null>(null);
+  const pulling = setup?.pulling?.model === offer.model ? setup.pulling : undefined;
+  const start = () => {
+    setProblem(null);
+    api.post<Setup>("/v1/setup/pull", { model: offer.model }).then(
+      (next) => client.setQueryData(keys.setup(), next),
+      (err: Error) => setProblem(err.message),
+    );
+  };
+  if (pulling?.state === "pulling") {
+    const share = pulling.total ? Math.floor((pulling.done / pulling.total) * 100) : 0;
+    return (
+      <div className="mt-2 max-w-sm">
+        <p className="text-[0.8125rem] text-ink-2">
+          {t("setup.pull.loading", { model: offer.model, percent: share })}
+        </p>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-paper-2">
+          <div
+            className="h-full rounded-full bg-moss transition-[width]"
+            style={{ width: `${share}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1.5">
+      <Button variant="secondary" size="sm" onClick={start}>
+        <Download className="size-3.5" />
+        {t("setup.pull.button", { model: offer.model, size: gb(offer.size) })}
+      </Button>
+      {pulling?.state === "failed" || problem ? (
+        <p role="alert" className="mt-1 text-[0.8125rem] text-rose">
+          {t("setup.pull.failed", { why: problem ?? pulling?.error ?? "" })}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

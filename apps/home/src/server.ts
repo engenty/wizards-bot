@@ -16,6 +16,7 @@ import {
   ImportMessages,
   PairRequest,
   type PairResponse,
+  PullSetup,
   SaveDocument,
   SendMessage,
   SetupGateway,
@@ -26,13 +27,14 @@ import { type Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { LeavesHome, NoPictureModel, NotAPicture } from "./avatar/avatars.ts";
-import { tidyCode } from "./config.ts";
+import { tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
 import { FileRefused } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
 import type { Home } from "./home.ts";
 import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
+import { PullRefused } from "./setup/setup.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
 
 type Env = { Variables: { device: DeviceRecord } };
@@ -157,8 +159,9 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     });
   });
 
-  // For Coolify and the status page: the home runs. It says nothing else, to anyone.
-  app.get("/health", (c) => c.json({ ok: true }));
+  // For Coolify, the status page and the Mac app: the home runs, it is a Bot Server, and its
+  // version. It says nothing else, to anyone.
+  app.get("/health", (c) => c.json({ ok: true, home: true, version: VERSION }));
 
   app.get("/v1/home", (c) => c.json(home.info()));
 
@@ -758,6 +761,17 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   });
 
   app.post("/v1/setup/pairing", (c) => c.json(home.setup.pairing()));
+
+  // A model for Ollama on this computer, on the person's yes; it loads while the setup shows it.
+  app.post("/v1/setup/pull", async (c) => {
+    const { model } = PullSetup.parse(await c.req.json());
+    try {
+      return c.json(await home.setup.pull(model), 202);
+    } catch (error) {
+      if (error instanceof PullRefused) return fail(c, 400, "invalid", error.message);
+      throw error;
+    }
+  });
 
   // ── Events ────────────────────────────────────────────────────────────────
 

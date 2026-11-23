@@ -37,6 +37,7 @@ import {
   sidebarFits,
   split,
 } from "./lib/layout";
+import { toMac } from "./lib/mac";
 import { useLingering } from "./lib/motion";
 import { noticesOf, notify } from "./lib/notify";
 import { useAgents, useAvatar, useItems, useSetup } from "./lib/queries";
@@ -280,6 +281,7 @@ export function Home() {
   const waiting = items.data?.length ?? 0;
   useEffect(() => {
     document.title = waiting ? `(${waiting}) wizards.bot` : "wizards.bot";
+    void toMac({ type: "waiting", count: waiting });
   }, [waiting]);
 
   // What the agent wrote into the chat that is open and in front is read.

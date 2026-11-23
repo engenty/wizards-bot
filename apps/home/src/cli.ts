@@ -7,7 +7,7 @@ import { serve } from "@hono/node-server";
 import type { Event, PairResponse, Setup, SetupCheck } from "@wizards-bot/protocol";
 import qrcode from "qrcode-terminal";
 import { exportData, importData, MIN_PASSPHRASE } from "./backup.ts";
-import { isHosted, loadConfig, VERSION } from "./config.ts";
+import { claimData, extendPath, isHosted, loadConfig, moveData, VERSION } from "./config.ts";
 import { Home } from "./home.ts";
 import { Secrets } from "./identity.ts";
 import { LinkedComputer } from "./link/computer.ts";
@@ -21,6 +21,7 @@ const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
 
   wizards-bot start              Start the Bot Server on this computer.
   wizards-bot pair               Show a code and a QR to add a phone or a computer.
+                                With --json: the address, the code and the link as JSON.
   wizards-bot link <address> <code>
                                 Offer this computer's models (Ollama, Claude, Codex) to your
                                 Bot Server on another computer or server. Later: wizards-bot link
@@ -37,14 +38,20 @@ const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
                                 The passphrase is asked, or read from --passphrase-file <file>
                                 or WIZARDS_BOT_PASSPHRASE.
 
-  WIZARDS_BOT_DATA   where the Bot Server keeps its data (default ~/.wizards-bot)
+  WIZARDS_BOT_DATA   where the Bot Server keeps its data (default ~/.engenty/wizards-bot; an
+                     earlier ~/.wizards-bot moves there when the Bot Server starts)
   WIZARDS_BOT_PORT   the port it listens on (default 4747)
   WIZARDS_BOT_URL    its public address, when it has one (https://…)
   WIZARDS_BOT_SUBSCRIPTIONS   the signed-in apps it may use (default claude,codex)
+  WIZARDS_BOT_PATH   folders to look for claude, codex and ollama in, before PATH (also the
+                     file path in the data folder)
 `;
 
 const [command = "help", ...rest] = process.argv.slice(2);
+// A home that starts moves the data of an earlier one to the new default folder first.
+const moved = command === "start" && !process.env.WIZARDS_BOT_DATA ? moveData() : undefined;
 const config = loadConfig();
+extendPath(config.dataDir);
 
 function option(name: string): string | undefined {
   const index = rest.indexOf(`--${name}`);
@@ -54,6 +61,8 @@ function option(name: string): string | undefined {
 const openHome = (): Home => new Home(config);
 
 async function start(): Promise<void> {
+  if (moved) console.log(moved);
+  claimData(config.dataDir);
   const home = openHome();
   const app = createServer(home);
   const server = serve({ fetch: app.fetch, port: config.port, hostname: "0.0.0.0" });
@@ -101,6 +110,12 @@ function pair(): void {
   const home = openHome();
   const code = home.store.newPairingCode();
   const address = home.address();
+  if (rest.includes("--json")) {
+    const link = `wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`;
+    console.log(JSON.stringify({ address, code, link }));
+    home.close();
+    return;
+  }
   qrcode.generate(`wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`, {
     small: true,
   });
@@ -240,14 +255,33 @@ async function link(): Promise<void> {
     );
   const db = new Db(config.dataDir);
   const models = new Models(config, db, new Secrets(db, config.dataDir), hostname());
-  const computer = new LinkedComputer({ ...saved, models, log: (line) => console.log(line) });
-  computer.start();
-  console.log(`Linking this computer to ${saved.home}. Leave this running.`);
+  // Where the link stands, for the Mac app, which shows it: link-state.json beside link.json.
+  const home = saved.home;
+  const note = (state: string) =>
+    writeFileSync(
+      join(config.dataDir, "link-state.json"),
+      JSON.stringify({ state, home, at: new Date().toISOString() }),
+      { mode: 0o600 },
+    );
+  note("connecting");
   const stop = () => {
     computer.stop();
     db.close();
     process.exit(0);
   };
+  const computer = new LinkedComputer({
+    ...saved,
+    models,
+    log: (line) => console.log(line),
+    onState: (state) => {
+      note(state);
+      // A Bot Server that removed this computer will not take it back: the link ends, and a
+      // service manager that starts it again on a failure leaves it ended.
+      if (state === "refused") stop();
+    },
+  });
+  computer.start();
+  console.log(`Linking this computer to ${saved.home}. Leave this running.`);
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
 }
