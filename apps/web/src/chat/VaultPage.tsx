@@ -39,14 +39,14 @@ function Tile({
     <button
       type="button"
       onClick={onSelect}
-      className="flex items-start gap-3 rounded-2xl border border-border-soft bg-background p-4 text-left transition hover:bg-accent/60 active:scale-[0.99]"
+      className="flex min-h-24 items-center gap-4 rounded-2xl border border-border-soft bg-card p-4 text-left text-ink transition hover:border-ink-4 active:scale-[0.99] sm:p-5"
     >
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-ink-2 [&_svg]:size-[1.125rem]">
         {icon}
       </span>
       <span className="min-w-0">
         <span className="block font-medium text-[0.9375rem]">{title}</span>
-        <span className="mt-0.5 block text-[0.8125rem] text-ink-3 leading-snug">{hint}</span>
+        <span className="mt-1 block text-[0.8125rem] text-ink-3 leading-snug">{hint}</span>
       </span>
     </button>
   );
@@ -55,8 +55,8 @@ function Tile({
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: the control is the child
-    <label className="mt-3 block first:mt-0">
-      <span className="mb-1.5 block font-medium text-[0.875rem]">{label}</span>
+    <label className="mt-3.5 block first:mt-0">
+      <span className="mb-1 block font-medium text-[0.8125rem]">{label}</span>
       {children}
       {hint ? <span className="mt-1 block text-[0.75rem] text-ink-3">{hint}</span> : null}
     </label>
@@ -112,9 +112,10 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
   const title = item ? t("vault.form.edit", { name: item.label }) : t(`vault.form.new.${kind}`);
   return (
     <Dialog open onClose={onClose} title={title}>
-      <form onSubmit={save} className="px-5 pt-1 pb-5" autoComplete="off">
+      <form onSubmit={save} autoComplete="off">
         <Field label={t("vault.form.name")}>
           <Input
+            className="h-10"
             data-autofocus
             required
             value={values.label}
@@ -126,6 +127,7 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
           <>
             <Field label={t("vault.form.website")}>
               <Input
+                className="h-10"
                 required
                 value={values.origin}
                 onChange={set("origin")}
@@ -133,10 +135,16 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
               />
             </Field>
             <Field label={t("vault.form.username")}>
-              <Input value={values.username} onChange={set("username")} autoComplete="off" />
+              <Input
+                className="h-10"
+                value={values.username}
+                onChange={set("username")}
+                autoComplete="off"
+              />
             </Field>
             <Field label={t("vault.form.password")} hint={keep}>
               <Input
+                className="h-10"
                 type="password"
                 required={!editing}
                 value={values.password ?? ""}
@@ -149,6 +157,7 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
               hint={keep ?? t("vault.form.authenticatorHint")}
             >
               <Input
+                className="h-10"
                 type="password"
                 value={values.authenticator ?? ""}
                 onChange={set("authenticator")}
@@ -159,10 +168,16 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
         ) : kind === "card" ? (
           <>
             <Field label={t("vault.form.holder")}>
-              <Input required value={values.holder ?? ""} onChange={set("holder")} />
+              <Input
+                className="h-10"
+                required
+                value={values.holder ?? ""}
+                onChange={set("holder")}
+              />
             </Field>
             <Field label={t("vault.form.number")} hint={keep}>
               <Input
+                className="h-10"
                 type="password"
                 inputMode="numeric"
                 required={!editing}
@@ -173,6 +188,7 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
             </Field>
             <Field label={t("vault.form.expiry")}>
               <Input
+                className="h-10"
                 required
                 value={values.expiry ?? ""}
                 onChange={set("expiry")}
@@ -181,6 +197,7 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
             </Field>
             <Field label={t("vault.form.code")} hint={keep}>
               <Input
+                className="h-10"
                 type="password"
                 inputMode="numeric"
                 value={values.code ?? ""}
@@ -195,7 +212,7 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
               value={values.text ?? ""}
               onChange={set("text")}
               rows={6}
-              className="block w-full rounded-xl border border-border bg-card px-3 py-2 text-[0.9375rem] outline-none focus:border-ink-3"
+              className="block w-full rounded-lg border border-input bg-card px-3.5 py-2 text-[0.9375rem] outline-none transition focus:border-focus focus:ring-4 focus:ring-focus-glow"
             />
           </Field>
         )}
@@ -204,7 +221,7 @@ function ItemForm({ kind, item, onClose }: { kind: Kind; item?: VaultItem; onClo
             {problem}
           </p>
         ) : null}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>
@@ -239,7 +256,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
   };
   return (
     <Dialog open onClose={onClose} title={t("vault.import.title")}>
-      <div className="px-5 pt-1 pb-5">
+      <div>
         <p className="text-[0.9375rem] text-ink-2 leading-relaxed">{t("vault.import.text")}</p>
         <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-4 py-2 font-medium text-[0.875rem] text-primary-foreground">
           <Download className="size-4" />
@@ -270,7 +287,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
           </p>
         ) : null}
         <p className="mt-4 text-[0.8125rem] text-ink-3">{t("vault.import.delete")}</p>
-        <div className="mt-5 flex justify-end">
+        <div className="mt-6 flex justify-end">
           <Button variant={result ? "primary" : "ghost"} onClick={onClose}>
             {result ? t("vault.import.close") : t("common.cancel")}
           </Button>
@@ -332,7 +349,7 @@ function ItemDialog({
     );
   return (
     <Dialog open onClose={onClose} title={item.label}>
-      <div className="px-5 pt-1 pb-5">
+      <div>
         <p className="text-[0.875rem] text-ink-2">
           {t(`vault.kind.${item.kind}`)}
           {item.origin ? ` · ${item.origin}` : ""}
@@ -363,7 +380,7 @@ function ItemDialog({
           </p>
         ) : null}
         {asking ? (
-          <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+          <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
             <p className="min-w-48 flex-1 text-[0.875rem]">
               {t("vault.deleteAsk", { name: item.label })}
             </p>
@@ -375,7 +392,7 @@ function ItemDialog({
             </Button>
           </div>
         ) : (
-          <div className="mt-5 flex justify-end gap-2">
+          <div className="mt-6 flex justify-end gap-2">
             <Button variant="danger" onClick={() => setAsking(true)}>
               {t("vault.delete")}
             </Button>
@@ -393,13 +410,22 @@ function ItemDialog({
 
 function ActivityLine({ entry, agent }: { entry: VaultActivity; agent: string | undefined }) {
   return (
-    <li className="flex items-baseline gap-3 py-2 text-[0.8125rem]">
+    <li className="flex items-baseline gap-3 px-4 py-2.5 text-[0.8125rem]">
       <span className="w-36 shrink-0 text-ink-3">{new Date(entry.at).toLocaleString()}</span>
       <span className="min-w-0 flex-1">
-        <span className={cn("font-medium", entry.action === "refused" && "text-rose")}>
-          {t(`vault.act.${entry.action}`)}
-        </span>{" "}
-        {entry.label}
+        {entry.action === "import" ? (
+          // An import is logged with how many passwords it brought.
+          <span className="font-medium">
+            {t("vault.act.imported", { n: Number.parseInt(entry.label, 10) || 0 })}
+          </span>
+        ) : (
+          <>
+            <span className={cn("font-medium", entry.action === "refused" && "text-rose")}>
+              {t(`vault.act.${entry.action}`)}
+            </span>{" "}
+            {entry.label}
+          </>
+        )}
         {entry.origin ? <span className="text-ink-3"> · {new URL(entry.origin).host}</span> : null}
         <span className="text-ink-3"> · {agent ?? t("vault.you")}</span>
         {entry.reason ? <span className="block text-ink-3">{entry.reason}</span> : null}
@@ -431,7 +457,7 @@ export function VaultPage({ onAgents }: { onAgents?: () => void }) {
   const sections: Kind[] = ["login", "card", "note"];
   return (
     <div className="flex h-full min-w-0 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-3xl px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10 sm:px-8 sm:pt-10">
+      <div className="mx-auto w-full max-w-4xl px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10 sm:px-8 sm:pt-10">
         <header className="flex items-center gap-2">
           {onAgents ? (
             <IconButton label={t("agents.show")} onClick={onAgents} className="-ml-1.5">
@@ -471,7 +497,7 @@ export function VaultPage({ onAgents }: { onAgents?: () => void }) {
               : t("vault.summary.none")}
           </p>
         ) : null}
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(min(15rem,100%),1fr))] gap-3">
           <Tile
             icon={<Download />}
             title={t("vault.add.import")}
@@ -500,13 +526,13 @@ export function VaultPage({ onAgents }: { onAgents?: () => void }) {
               <h2 className="mb-2 font-medium text-[0.8125rem] text-ink-3">
                 {t(`vault.section.${kind}`)}
               </h2>
-              <ul className="divide-y divide-border-soft rounded-2xl border border-border-soft bg-background">
+              <ul className="divide-y divide-border-soft overflow-hidden rounded-2xl border border-border-soft bg-card">
                 {listed.map((item) => (
                   <li key={item.id}>
                     <button
                       type="button"
                       onClick={() => setOpen({ kind: "item", item })}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-accent/60"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-ink transition hover:bg-accent/60"
                     >
                       <Icon className="size-4 shrink-0 text-ink-3" />
                       <span className="min-w-0 flex-1">
@@ -534,9 +560,9 @@ export function VaultPage({ onAgents }: { onAgents?: () => void }) {
         })}
         <p className="mt-5 text-[0.8125rem] text-ink-3 leading-relaxed">{t("vault.how")}</p>
         <section className="mt-7">
-          <h2 className="mb-1 font-medium text-[0.8125rem] text-ink-3">{t("vault.activity")}</h2>
+          <h2 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("vault.activity")}</h2>
           {vault.data?.activity.length ? (
-            <ul className="divide-y divide-border-soft">
+            <ul className="divide-y divide-border-soft overflow-hidden rounded-2xl border border-border-soft bg-card">
               {vault.data.activity.map((entry) => (
                 <ActivityLine key={entry.id} entry={entry} agent={agentName(entry.agentId)} />
               ))}

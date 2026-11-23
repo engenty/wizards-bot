@@ -260,7 +260,7 @@ export const en = {
   "vault.add.import": "Import passwords",
   "vault.summary.none": "Your Bot Server keeps no passwords and no cards yet.",
   "vault.summary": "Passwords {logins} · Cards {cards} · Notes {notes}",
-  "vault.tile.import": "From Chrome, 1Password, Bitwarden or another manager",
+  "vault.tile.import": "From Chrome, 1Password or another manager",
   "vault.tile.login.title": "Add a password",
   "vault.tile.login": "Your agents sign in when a task needs it",
   "vault.tile.card.title": "Add a card",
@@ -323,6 +323,7 @@ export const en = {
   "vault.act.update": "Changed",
   "vault.act.delete": "Deleted",
   "vault.act.import": "Imported",
+  "vault.act.imported": "Imported {n} passwords",
   "vault.act.refused": "Refused",
   "vault.you": "you",
   "secrets.intro":
@@ -861,7 +862,7 @@ export const de: Record<Key, Line> = {
   "vault.add.import": "Passwörter importieren",
   "vault.summary.none": "Dein Bot Server hat noch keine Passwörter und keine Karten.",
   "vault.summary": "Passwörter {logins} · Karten {cards} · Notizen {notes}",
-  "vault.tile.import": "Aus Chrome, 1Password, Bitwarden oder einem anderen Manager",
+  "vault.tile.import": "Aus Chrome, 1Password oder einem anderen Manager",
   "vault.tile.login.title": "Passwort hinzufügen",
   "vault.tile.login": "Deine Agenten melden sich an, wenn eine Aufgabe es braucht",
   "vault.tile.card.title": "Karte hinzufügen",
@@ -924,6 +925,7 @@ export const de: Record<Key, Line> = {
   "vault.act.update": "Geändert:",
   "vault.act.delete": "Gelöscht:",
   "vault.act.import": "Importiert:",
+  "vault.act.imported": "{n} Passwörter importiert",
   "vault.act.refused": "Abgelehnt:",
   "vault.you": "du",
   "secrets.intro":

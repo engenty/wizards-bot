@@ -312,11 +312,13 @@ export function Dialog({
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           </div>
         ) : (
-          <div className="flex min-h-[inherit] flex-col p-5 sm:p-7">
+          <div className="flex min-h-[inherit] flex-col p-5 sm:p-6">
             {title ? (
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <h2 className="min-w-0 font-display font-semibold text-xl">{title}</h2>
-                <IconButton label={t("common.close")} onClick={onClose} className="-mt-1.5 -mr-2">
+              <div className="-mt-1 mb-4 flex items-center justify-between gap-3">
+                <h2 className="min-w-0 font-display font-semibold text-[1.1875rem] leading-tight">
+                  {title}
+                </h2>
+                <IconButton label={t("common.close")} onClick={onClose} className="-mr-2 size-8">
                   <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
                     <path
                       d="M4 4l8 8M12 4l-8 8"
