@@ -477,6 +477,20 @@ export const en = {
   "share.shareLink": "Share link",
   "share.takeBack": "Take back",
   "artifact.refused": "Your Bot Server sent this page without closing it off, so it is not shown.",
+  "plugins.title": "Plugins",
+  "plugins.lead":
+    "A plugin brings skills and tools for your agents. It is off until you switch it on. Put its folder here:",
+  "plugins.rights":
+    "Its tools run in a process of their own that reads only the plugin’s folder and gets none of the keys your Bot Server keeps. A tool that changes something asks you first.",
+  "plugins.none": "There is no plugin in the folder yet.",
+  "plugins.on": "{name} on",
+  "plugins.starting": "Starting",
+  "plugins.ready": "On",
+  "plugins.failed": "Did not start",
+  "plugins.skills": "Skills: {names}",
+  "plugins.tools": "Tools: {names}",
+  "plugins.asks": "asks first",
+  "plugins.notPlugins": "Not a plugin",
   "folders.title": "Folders",
   "folders.none": "No folder is connected yet. Connect one, and your agents read its files.",
   "folders.access": "What your agents may do in {name}",
@@ -1083,6 +1097,20 @@ export const de: Record<Key, Line> = {
   "share.takeBack": "Zurücknehmen",
   "artifact.refused":
     "Dein Bot Server hat diese Seite nicht abgeschottet geschickt. Sie wird deshalb nicht gezeigt.",
+  "plugins.title": "Plugins",
+  "plugins.lead":
+    "Ein Plugin bringt Skills und Werkzeuge für deine Agenten. Es ist aus, bis du es einschaltest. Lege seinen Ordner hierhin:",
+  "plugins.rights":
+    "Seine Werkzeuge laufen in einem eigenen Prozess, der nur den Ordner des Plugins liest und keinen der Schlüssel bekommt, die dein Bot Server aufbewahrt. Ein Werkzeug, das etwas ändert, fragt dich vorher.",
+  "plugins.none": "Noch liegt kein Plugin im Ordner.",
+  "plugins.on": "{name} an",
+  "plugins.starting": "Startet",
+  "plugins.ready": "An",
+  "plugins.failed": "Nicht gestartet",
+  "plugins.skills": "Skills: {names}",
+  "plugins.tools": "Werkzeuge: {names}",
+  "plugins.asks": "fragt vorher",
+  "plugins.notPlugins": "Kein Plugin",
   "folders.title": "Ordner",
   "folders.none":
     "Noch ist kein Ordner verbunden. Verbinde einen, dann lesen deine Agenten seine Dateien.",

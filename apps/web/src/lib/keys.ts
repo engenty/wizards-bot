@@ -24,6 +24,8 @@ export const keys = {
   secrets: () => ["secrets"] as const,
   /** The Vault: its logins, cards and notes without their secrets, and what was done with them. */
   vault: () => ["vault"] as const,
+  /** The plugins in the plugins folder, with whether each is on. */
+  plugins: () => ["plugins"] as const,
   /** The person's devices with what each keeps and offers its agents. */
   devices: () => ["devices"] as const,
   /** The files the person sent in a conversation. */

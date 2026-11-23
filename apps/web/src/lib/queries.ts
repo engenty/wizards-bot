@@ -13,6 +13,7 @@ import type {
   Folder,
   HomeInfo,
   Models,
+  PluginsView,
   PublishedLinks,
   SecretEntry,
   Setup,
@@ -185,6 +186,14 @@ export function useSecrets(enabled: boolean) {
     enabled,
     queryFn: ({ signal }) =>
       api.get<{ secrets: SecretEntry[] }>("/v1/secrets", signal).then((r) => r.secrets),
+  });
+}
+
+/** The plugins in the home's plugins folder. The home looks into the folder on every request. */
+export function usePlugins() {
+  return useQuery({
+    queryKey: keys.plugins(),
+    queryFn: ({ signal }) => api.get<PluginsView>("/v1/plugins", signal),
   });
 }
 

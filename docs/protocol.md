@@ -981,6 +981,33 @@ card, then the home enters the user name and the password into the fields the ag
 only when the page and each field are on the password's website. `vault_code` enters the
 authenticator's code the same way, for the password just used.
 
+## Plugins
+
+A plugin is a folder in the home's plugins folder (`<data folder>/plugins`) that brings skills
+and tools. It is off until the person switches it on (docs/plugins.md).
+
+`GET /v1/plugins` → `PluginsView`: the folder, each plugin with `on`, `state` (`off`,
+`starting`, `ready`, `failed` with `problem`), its skills and its tools (`readOnly` false: the
+person is asked before each use), and what looked like a plugin and is none. The home looks into
+the folder again on every request.
+
+`PATCH /v1/plugins/:id` with `{ "on": boolean }` → `PluginsView`, once the plugin's tools are
+ready or failed. 404 `not_found` for a plugin that is not in the folder.
+
+```json
+{
+  "id": "weather",
+  "name": "Weather",
+  "version": "0.1.0",
+  "on": true,
+  "state": "ready",
+  "skills": [{ "name": "forecast", "description": "Reads the weather for a place and a day." }],
+  "tools": [
+    { "name": "weather_forecast", "description": "The forecast for a place.", "readOnly": true }
+  ]
+}
+```
+
 ## Folders
 
 A folder of the home's computer can be connected, so that agents read its files, and change

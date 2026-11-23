@@ -1,5 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Folder, ModelService, ModelSource, Models, SecretEntry } from "@wizards-bot/protocol";
+import type {
+  Folder,
+  ModelService,
+  ModelSource,
+  Models,
+  Plugin,
+  PluginsView,
+  SecretEntry,
+} from "@wizards-bot/protocol";
 import {
   Activity,
   ChevronLeft,
@@ -9,6 +17,7 @@ import {
   KeyRound,
   LockKeyhole,
   Palette,
+  Puzzle,
   ShieldCheck,
   Sparkles,
   Unplug,
@@ -17,7 +26,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
-import { useFolders, useModels, useSecrets, useSetup } from "../lib/queries";
+import { useFolders, useModels, usePlugins, useSecrets, useSetup } from "../lib/queries";
 import { SetupStatus } from "../setup/Checks";
 import { LangSwitch, ThemeSwitch } from "../setup/Frame";
 import { Button, Chip, cn, Dialog, IconButton, Select } from "../ui";
@@ -167,6 +176,68 @@ export function SecretRow({
   );
 }
 
+/** A plugin: what it brings, and its switch. Switching it on starts its tools' process. */
+function PluginRow({ plugin, onProblem }: { plugin: Plugin; onProblem: (text: string) => void }) {
+  const client = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const toggle = (on: boolean) => {
+    setBusy(true);
+    api
+      .patch<PluginsView>(`/v1/plugins/${plugin.id}`, { on })
+      .then(
+        (view) => client.setQueryData(keys.plugins(), view),
+        (err: Error) => onProblem(err.message),
+      )
+      .finally(() => setBusy(false));
+  };
+  const names = (list: { name: string }[]) => list.map((each) => each.name).join(", ");
+  return (
+    <li className="py-2.5">
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-[0.9375rem]">
+          <span className="font-medium">{plugin.name}</span>
+          <span className="text-ink-3"> · {plugin.version}</span>
+        </p>
+        {plugin.on ? (
+          <Chip tone={plugin.state === "ready" ? "live" : "neutral"}>
+            {t(`plugins.${plugin.state === "off" ? "ready" : plugin.state}`)}
+          </Chip>
+        ) : null}
+        <input
+          type="checkbox"
+          role="switch"
+          aria-checked={plugin.on}
+          aria-label={t("plugins.on", { name: plugin.name })}
+          checked={plugin.on}
+          disabled={busy}
+          onChange={(event) => toggle(event.target.checked)}
+          className="size-4 shrink-0 cursor-pointer accent-ember"
+        />
+      </div>
+      {plugin.description ? (
+        <p className="mt-1 text-[0.8125rem] text-ink-2 leading-snug">{plugin.description}</p>
+      ) : null}
+      {plugin.problem ? (
+        <p className="mt-1 text-[0.75rem] text-rose leading-snug">{plugin.problem}</p>
+      ) : null}
+      {plugin.skills.length ? (
+        <p className="mt-1 text-[0.75rem] text-ink-3 leading-snug">
+          {t("plugins.skills", { names: names(plugin.skills) })}
+        </p>
+      ) : null}
+      {plugin.tools.length ? (
+        <p className="mt-0.5 text-[0.75rem] text-ink-3 leading-snug">
+          {t("plugins.tools", {
+            names: plugin.tools
+              .map((tool) => (tool.readOnly ? tool.name : `${tool.name} (${t("plugins.asks")})`))
+              .join(", "),
+          })}
+        </p>
+      ) : null}
+    </li>
+  );
+}
+
 /** The main agent, to hand a request from the settings to. */
 export interface Asker {
   name: string;
@@ -175,7 +246,7 @@ export interface Asker {
 }
 
 /** The pages of the settings. */
-type Page = "models" | "status" | "folders" | "vault" | "secrets" | "look" | "privacy";
+type Page = "models" | "status" | "folders" | "vault" | "secrets" | "plugins" | "look" | "privacy";
 
 /**
  * What the home has around the agents: the connected folders and the models. Who the person is
@@ -194,6 +265,7 @@ export function SettingsDialog({
 }) {
   const client = useQueryClient();
   const folders = useFolders();
+  const plugins = usePlugins();
   const models = useModels();
   const setup = useSetup();
   const [problem, setProblem] = useState<string | null>(null);
@@ -227,6 +299,7 @@ export function SettingsDialog({
     { id: "folders", icon: FolderIcon, label: t("folders.title") },
     { id: "vault", icon: LockKeyhole, label: t("vault.title") },
     { id: "secrets", icon: KeyRound, label: t("settings.secrets") },
+    { id: "plugins", icon: Puzzle, label: t("plugins.title") },
     { id: "look", icon: Palette, label: t("settings.look") },
     { id: "privacy", icon: ShieldCheck, label: t("settings.privacy") },
   ];
@@ -381,6 +454,43 @@ export function SettingsDialog({
                 {t("secrets.personKey")}
               </p>
             </Section>
+          ) : page === "plugins" ? (
+            <Section>
+              {plugins.data ? (
+                <>
+                  <p className="text-[0.8125rem] text-ink-2 leading-relaxed">{t("plugins.lead")}</p>
+                  <p className="mt-1 break-all font-mono text-[0.75rem] text-ink-3">
+                    {plugins.data.folder}
+                  </p>
+                  {plugins.data.plugins.length ? (
+                    <ul className="mt-2 divide-y divide-border-soft">
+                      {plugins.data.plugins.map((plugin) => (
+                        <PluginRow key={plugin.id} plugin={plugin} onProblem={setProblem} />
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-[0.875rem] text-ink-2">{t("plugins.none")}</p>
+                  )}
+                  <p className="mt-3 text-[0.8125rem] text-ink-3 leading-relaxed">
+                    {t("plugins.rights")}
+                  </p>
+                  {plugins.data.problems.length ? (
+                    <>
+                      <h4 className="mt-4 mb-1 font-medium text-[0.8125rem] text-ink-3">
+                        {t("plugins.notPlugins")}
+                      </h4>
+                      <ul className="flex flex-col gap-1">
+                        {plugins.data.problems.map((problem) => (
+                          <li key={problem.path} className="text-[0.75rem] text-ink-3 leading-snug">
+                            <span className="break-all">{problem.path}</span>: {problem.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </Section>
           ) : page === "look" ? (
             <Section>
               <div className="flex items-center justify-between gap-3 py-2">
@@ -413,9 +523,12 @@ export function SettingsDialog({
               </Button>
             </Section>
           )}
-          {(problem ?? folders.error ?? secrets.error) ? (
+          {(problem ?? folders.error ?? secrets.error ?? plugins.error) ? (
             <p role="alert" className="mt-3 text-[0.8125rem] text-rose">
-              {problem ?? folders.error?.message ?? secrets.error?.message}
+              {problem ??
+                folders.error?.message ??
+                secrets.error?.message ??
+                plugins.error?.message}
             </p>
           ) : null}
         </div>

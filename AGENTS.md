@@ -83,6 +83,7 @@ One word per thing, in code, comments and everything a person reads.
 | open cards that wait for the person                       | what needs you; items in code                                              | inbox, tasks, todos                                            |
 | Slack, email, WhatsApp, Signal                            | channel                                                                    | integration                                                    |
 | an account or app reached over MCP                        | connection                                                                 | integration, plugin                                            |
+| a folder of skills and tools in the plugins folder        | plugin; it is switched on and off                                          | extension, add-on, module                                      |
 | what a connection asks the person while a tool runs       | question; elicitation only as MCP's own name                               | prompt, input request                                          |
 | another person's home you connected to                    | contact                                                                    | peer (only as the folder name), friend                         |
 | a conversation of several people and agents               | room; who is in it are its members                                         | group chat (fine in copy), channel, thread                     |
@@ -128,6 +129,10 @@ no emoji, no "please".
   suspends the run in Mastra; older cards start a new turn through their handler
   (`home.onCard`). A message is never held back by a card: it ends the suspended run.
 - A tool of a connection that is not marked read-only asks first.
+- A plugin is off until the person switches it on. Its code runs in a process of its own
+  (`@engenty/plugins`): its folder, its data folder, no environment, no `Secrets`. Its tools
+  follow the rules of a connection's: not read-only asks first, its answer is data
+  (docs/plugins.md).
 - What a connection asks the person while one of its tools runs is a card (`connections/calls.ts`).
   The answer goes to that connection only: not into a message, a tool result or a prompt, and
   it is not kept with the card. A form that asks for a secret is refused.
