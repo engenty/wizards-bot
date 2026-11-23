@@ -4,6 +4,18 @@ All notable changes to wizards.bot. Generated from [Conventional Commits](https:
 by [git-cliff](https://git-cliff.org) via `pnpm release`. Pre-`1.0`: a **minor**
 bump is a notable or breaking change, **patch** is fixes and small features.
 
+## [0.1.4] - 2026-11-23
+
+- ADDED A password Vault with a browser for the agents and private sign-in (#21)
+- ADDED **[home]** Plugins from the data folder with their skills and tools, through @engenty/plugins (#19)
+- ADDED **[mac]** Offer to update an older Bot Server the app finds on this Mac (#22)
+- ADDED **[mac]** The wizards.bot Mac app (#13)
+- ADDED A new bot with its look, and smoother resizing (#20)
+- ADDED **[web]** A resizable list of Wizards, relative times and a tighter card (#18)
+- ADDED Search with ⌘K over Wizards, messages, documents and artifacts (#17)
+- ADDED **[web]** A Keys page in the settings lists what uses each secret, never a value (#16)
+- ADDED **[home]** Seal secrets with @engenty/vault, bound to their name, with a key check (#10)
+
 ## [0.1.3] - 2026-11-22
 
 - ADDED **[web]** The settings in two columns (#14)
