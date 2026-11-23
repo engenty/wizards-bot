@@ -157,6 +157,7 @@ export class Home {
       name: this.person(),
       handle: this.handle(),
       publicKey: this.identity.publicKey,
+      hosted: isHosted(this.config),
     };
   }
 

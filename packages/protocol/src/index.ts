@@ -785,6 +785,8 @@ export const HomeInfo = z.object({
   handle: z.string().optional(),
   /** Ed25519 public key, base64url. */
   publicKey: z.string(),
+  /** A hosted Bot Server at `<name>.wizards.bot`, run by engenty: its imprint and terms apply. */
+  hosted: z.boolean().optional(),
 });
 export type HomeInfo = z.infer<typeof HomeInfo>;
 

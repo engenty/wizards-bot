@@ -28,9 +28,13 @@ Server from another program on port 4747 by it. Earlier homes answer `{ "ok": tr
   "version": "0.1.0",
   "name": "Matthias",
   "handle": "matthias@me.example.com",
-  "publicKey": "…"
+  "publicKey": "…",
+  "hosted": false
 }
 ```
+
+`hosted` is true for a Bot Server at `<name>.wizards.bot`, which engenty runs: its pages show
+engenty's imprint, privacy policy and terms. A Bot Server on someone's own computer shows none.
 
 `POST /v1/pair` with `PairRequest` → `PairResponse`. The code comes from `wizards-bot pair` in a
 terminal or from a pairing card in the chat. It is 8 characters, valid for 10 minutes, used once.
