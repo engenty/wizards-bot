@@ -1,6 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { Agent, Card, FileRef, Message } from "@wizards-bot/protocol";
-import { ChevronLeft, FolderPlus, House, PanelLeft, PanelLeftClose, Paperclip } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FolderPlus,
+  House,
+  PanelLeft,
+  PanelLeftClose,
+  Paperclip,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { withConsent } from "../lib/consent";
@@ -176,10 +184,12 @@ export function Chat({
           type="button"
           title={t("agent.about", { name: agent.name })}
           onClick={onAgent}
-          className="flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 transition hover:bg-accent active:scale-[0.98]"
+          className="group flex min-w-0 items-center gap-2 rounded-full py-1 pr-2 pl-1 transition hover:bg-accent active:scale-[0.98]"
         >
           <Face key={agent.id} agent={agent} size={32} className="enter-pop" />
           <h1 className="truncate font-display font-semibold text-[1.0625rem]">{agent.name}</h1>
+          {/* On hover a chevron says the name opens one level down: the agent's page beside. */}
+          <ChevronRight className="size-4 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" />
         </button>
         <div className="flex min-w-0 items-center justify-end">
           {items.length ? (

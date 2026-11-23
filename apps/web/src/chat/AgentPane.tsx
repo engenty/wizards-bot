@@ -44,13 +44,11 @@ export function AgentPane({
       )}
       data-leaving={leaving || undefined}
     >
-      <header className="flex items-center gap-2 px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))]">
+      {/* The page names the agent below; the bar holds only the way out, at the right. */}
+      <header className="flex items-center justify-end px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))]">
         <IconButton label={t("common.close")} onClick={onClose}>
           <X className="size-4" />
         </IconButton>
-        <h2 className="min-w-0 flex-1 truncate font-display font-semibold text-[1.0625rem]">
-          {title}
-        </h2>
       </header>
       <div className="mx-auto min-h-0 w-full max-w-xl flex-1 overflow-y-auto px-6 pt-4 pb-8 sm:px-8">
         <div className="flex flex-col items-center gap-3 pb-1 text-center">
