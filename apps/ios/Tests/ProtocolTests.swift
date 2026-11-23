@@ -167,6 +167,7 @@ import Testing
         ["supportedInterfaces"],  // how an agent shows itself to outside agents
         ["kind", "said", "state"],  // a check of the home's setup
         ["homes", "seq"],  // a version of the person's record: the app makes and signs none yet
+        ["skills", "tools", "state"],  // a plugin of the home: the app lists none yet
     ]
 
     // MARK: Rooms
