@@ -82,9 +82,9 @@ export function AgentPane({
           <h3 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("agent.tasks")}</h3>
           {tasks?.length ? (
             <>
-              <ul className="enter-fade divide-y divide-border-soft">
+              <ul className="enter-fade divide-y divide-border-soft rounded-xl border border-border-soft bg-card px-4">
                 {tasks.map((task) => (
-                  <li key={task.id} className="flex items-start gap-3 py-2.5">
+                  <li key={task.id} className="flex items-start gap-3 py-3">
                     <TaskIcon rule={task.rule} paused={task.paused !== undefined} />
                     <div className="min-w-0 flex-1">
                       <p className="text-[0.9375rem] leading-snug" title={task.prompt}>
