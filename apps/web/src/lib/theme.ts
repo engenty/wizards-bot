@@ -1,6 +1,6 @@
 // From engenty wizards, apps/web/src/lib/theme.ts: light, branded and dark, picked by the person
 // and kept in this browser, and the colour the branded theme stands on. Without a pick it is
-// branded, on citron.
+// branded, on petrol.
 import { useSyncExternalStore } from "react";
 
 export type ThemeMode = "light" | "branded" | "dark";
@@ -30,7 +30,7 @@ export type BrandedGround = (typeof BRANDED_GROUNDS)[number]["ground"];
 const GROUNDS: readonly string[] = BRANDED_GROUNDS.map((option) => option.ground);
 /** The grounds the branded theme shows light on. */
 const LIGHT_GROUNDS: readonly BrandedGround[] = ["citron"];
-const DEFAULT_GROUND: BrandedGround = "citron";
+const DEFAULT_GROUND: BrandedGround = "petrol";
 
 function pickedGround(): BrandedGround {
   try {
