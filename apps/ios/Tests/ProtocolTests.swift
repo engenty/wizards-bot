@@ -141,6 +141,8 @@ import Testing
                 #expect(throws: Never.self) { try JSONDecoder().decode(Folder.self, from: data) }
             } else if keys.isSuperset(of: ["mime", "size"]), !keys.contains("type") {
                 #expect(throws: Never.self) { try JSONDecoder().decode(FileRef.self, from: data) }
+            } else if keys.isSuperset(of: ["kind", "setAt"]) {
+                #expect(throws: Never.self) { try JSONDecoder().decode(SecretEntry.self, from: data) }
             } else if keys.isSuperset(of: ["sources", "order"]) {
                 let models = try JSONDecoder().decode(Models.self, from: data)
                 #expect(!models.services.isEmpty, "The example of the models shows where what the person writes goes.")

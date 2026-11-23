@@ -11,7 +11,7 @@ import { Models } from "../models/models.ts";
 import { createServer } from "../server.ts";
 import { Db } from "../store/db.ts";
 import { FakeOllama } from "../test/fakes.ts";
-import { LinkedComputer } from "./computer.ts";
+import { LinkedComputer, type LinkState } from "./computer.ts";
 import { LinkHub } from "./hub.ts";
 
 describe("a home without models and a linked computer", () => {
@@ -20,6 +20,9 @@ describe("a home without models and a linked computer", () => {
   let server: ReturnType<typeof serve>;
   let computer: LinkedComputer;
   let computerDb: Db;
+  const states: LinkState[] = [];
+  let token = "";
+  let models: Models;
 
   before(async () => {
     await model.start();
@@ -35,16 +38,21 @@ describe("a home without models and a linked computer", () => {
     home.db.setMeta("morning.offer", "not_new");
     server = serve({ fetch: createServer(home).fetch, port, hostname: "127.0.0.1" });
     new LinkHub(home).attach(server as Server);
-    const { token } = home.store.addDevice({ name: "Ada's Mac", kind: "computer" });
+    ({ token } = home.store.addDevice({ name: "Ada's Mac", kind: "computer" }));
     const dataDir = mkdtempSync(join(tmpdir(), "wizards-bot-mac-"));
     computerDb = new Db(dataDir);
-    const models = new Models(
+    models = new Models(
       { dataDir, port: 0, publicUrl: undefined, ollamaUrl: model.url, subscriptions: [] },
       computerDb,
       new Secrets(computerDb, dataDir),
       "Ada's Mac",
     );
-    computer = new LinkedComputer({ home: `http://127.0.0.1:${port}`, token, models });
+    computer = new LinkedComputer({
+      home: `http://127.0.0.1:${port}`,
+      token,
+      models,
+      onState: (state) => states.push(state),
+    });
     computer.start();
     for (let n = 0; n < 100 && !home.models.sources().length; n++)
       await new Promise((r) => setTimeout(r, 20));
@@ -56,6 +64,10 @@ describe("a home without models and a linked computer", () => {
     model.stop();
     computerDb.close();
     home.close();
+  });
+
+  test("the computer says it is linked", () => {
+    assert.deepEqual(states, ["linked"]);
   });
 
   test("the home sees the computer's models", async () => {
@@ -100,5 +112,22 @@ describe("a home without models and a linked computer", () => {
     });
     const reply = home.store.messages(main.conversationId, { limit: 1 }).messages[0];
     assert.equal(reply?.state, "failed");
+  });
+
+  test("a computer the home removed is refused and stops", async () => {
+    const device = home.store.devices().find((d) => d.name === "Ada's Mac");
+    assert.ok(device);
+    home.store.removeDevice(device.id);
+    const refused: LinkState[] = [];
+    const again = new LinkedComputer({
+      home: `http://127.0.0.1:${(server.address() as { port: number }).port}`,
+      token,
+      models,
+      onState: (state) => refused.push(state),
+    });
+    again.start();
+    for (let n = 0; n < 100 && !refused.length; n++) await new Promise((r) => setTimeout(r, 20));
+    again.stop();
+    assert.deepEqual(refused, ["refused"]);
   });
 });

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Agent, Event, Message } from "@wizards-bot/protocol";
+import type { Agent, Event, Message, SearchHit } from "@wizards-bot/protocol";
 import {
   useCallback,
   useEffect,
@@ -17,6 +17,8 @@ import { ConsentDialog } from "./chat/ConsentDialog";
 import { DocumentPane } from "./chat/DocumentPane";
 import { FolderDialog } from "./chat/FolderDialog";
 import { ItemsDialog } from "./chat/ItemsDialog";
+import { NewBotDialog } from "./chat/NewBotDialog";
+import { SearchDialog } from "./chat/SearchDialog";
 import { type Asker, SettingsDialog } from "./chat/SettingsDialog";
 import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
 import { Engenty } from "./engenty/Engenty";
@@ -25,7 +27,17 @@ import { withConsent } from "./lib/consent";
 import { applyEvent } from "./lib/events";
 import { t } from "./lib/i18n";
 import { keys } from "./lib/keys";
-import { CHAT_MIN, PANE_MIN, sidebar, sidebarFits, split } from "./lib/layout";
+import {
+  CHAT_MIN,
+  PANE_MIN,
+  SIDEBAR,
+  SIDEBAR_MAX,
+  SIDEBAR_MIN,
+  sidebar,
+  sidebarFits,
+  split,
+} from "./lib/layout";
+import { toMac } from "./lib/mac";
 import { useLingering } from "./lib/motion";
 import { noticesOf, notify } from "./lib/notify";
 import { useAgents, useAvatar, useItems, useSetup } from "./lib/queries";
@@ -40,7 +52,7 @@ import { cn } from "./ui";
 const AGENT_KEY = "wizards.agent";
 
 /** The dialog that is open over the chat. */
-type Open = "settings" | "items" | "folder" | "avatar";
+type Open = "settings" | "items" | "folder" | "avatar" | "search" | "new";
 
 /** The agent whose chat was open last, kept per browser. */
 function lastAgent(): string | null {
@@ -78,56 +90,76 @@ function useWidth(ref: React.RefObject<HTMLElement | null>, key: unknown): numbe
 }
 
 /**
- * The line between the chat and what stands beside it. The person drags it, or moves it with
- * the arrow keys, to give the chat another width; a double click gives the width back to the
- * app.
+ * The line between two columns: the list and the chat, or the chat and what stands beside it.
+ * The person drags it (the whole page shows the resize cursor and selects no text meanwhile),
+ * or moves it with the arrow keys, Shift for larger steps; a double click gives the width back
+ * to the app. After engenty wizards' splitter (apps/web/src/studio/EditorPage.tsx).
  */
 function Divider({
   chat,
+  least = CHAT_MIN,
   most,
+  label = t("split.resize"),
   onChange,
   onReset,
+  onDragging,
 }: {
+  /** The width of the column at the line's left. */
   chat: number;
-  /** The widest the chat can get. */
+  /** The narrowest it can get. */
+  least?: number;
+  /** The widest it can get. */
   most: number;
+  label?: string;
   onChange: (chat: number) => void;
   onReset: () => void;
+  /** True while a drag goes on, so the columns follow without their easing. */
+  onDragging?: (dragging: boolean) => void;
 }) {
-  const drag = useRef<{ x: number; chat: number } | null>(null);
-  const end = () => {
-    drag.current = null;
+  const [dragging, setDragging] = useState(false);
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = chat;
+    const move = (ev: PointerEvent) => onChange(startWidth + ev.clientX - startX);
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      document.body.style.removeProperty("cursor");
+      document.body.style.removeProperty("user-select");
+      setDragging(false);
+      onDragging?.(false);
+    };
+    setDragging(true);
+    onDragging?.(true);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
   return (
     // biome-ignore lint/a11y/useSemanticElements: a line the person moves is a separator with a value, which <hr> is not
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label={t("split.resize")}
-      aria-valuemin={CHAT_MIN}
+      aria-label={label}
+      aria-valuemin={least}
       aria-valuemax={most}
-      aria-valuenow={chat}
+      aria-valuenow={Math.round(chat)}
       tabIndex={0}
-      style={{ left: chat - 4 }}
-      className="group absolute inset-y-0 z-10 w-2 cursor-col-resize touch-none outline-none"
-      onPointerDown={(e) => {
-        e.preventDefault();
-        e.currentTarget.setPointerCapture(e.pointerId);
-        drag.current = { x: e.clientX, chat };
-      }}
-      onPointerMove={(e) => {
-        if (drag.current) {
-          onChange(drag.current.chat + e.clientX - drag.current.x);
-        }
-      }}
-      onPointerUp={end}
-      onPointerCancel={end}
+      title={label}
+      style={{ left: chat - 6 }}
+      className="group absolute inset-y-0 z-10 w-3 cursor-col-resize touch-none outline-none"
+      onPointerDown={onPointerDown}
       onDoubleClick={onReset}
       onKeyDown={(e) => {
+        const step = e.shiftKey ? 64 : 16;
         const to = {
-          ArrowLeft: chat - 16,
-          ArrowRight: chat + 16,
-          Home: CHAT_MIN,
+          ArrowLeft: chat - step,
+          ArrowRight: chat + step,
+          Home: least,
           End: most,
         }[e.key];
         if (to !== undefined) {
@@ -138,7 +170,19 @@ function Divider({
         }
       }}
     >
-      <span className="-translate-x-1/2 absolute inset-y-0 left-1/2 w-0.5 rounded-full transition group-hover:bg-ember group-focus-visible:bg-ember group-active:bg-ember" />
+      {/* The line lights up under the pointer; the grip in its middle shows it can be moved. */}
+      <span
+        className={cn(
+          "-translate-x-1/2 absolute inset-y-0 left-1/2 w-px transition group-hover:bg-ember/60 group-focus-visible:bg-ember",
+          dragging && "bg-ember",
+        )}
+      />
+      <span
+        className={cn(
+          "-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 h-8 w-1 rounded-full bg-ink-4/25 transition-all group-hover:bg-ember/70 group-focus-visible:bg-ember",
+          dragging && "h-12 bg-ember",
+        )}
+      />
     </div>
   );
 }
@@ -179,9 +223,24 @@ export function Home() {
   // The list of agents: open where the window has room and the person did not close it.
   const windowWidth = useSyncExternalStore(onResize, () => window.innerWidth);
   const [collapsed, setCollapsed] = useStored("wizards.agents.closed", false);
+  // The open list's width, as the person dragged it; the app's own until then.
+  const [listChosen, setListChosen] = useStored<number | null>("wizards.agents.width", null);
+  const listWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, listChosen ?? SIDEBAR));
+  const [resizingList, setResizingList] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const pane = Boolean(documentId || artifactId || about);
   const side = sidebar(windowWidth, pane, collapsed);
+  // ⌘K (Ctrl+K) opens the search, wherever the focus is.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !(e.shiftKey || e.altKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setDialog((open) => (open === "search" ? null : "search"));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     if (side === "open") {
       setDrawer(false);
@@ -222,6 +281,7 @@ export function Home() {
   const waiting = items.data?.length ?? 0;
   useEffect(() => {
     document.title = waiting ? `(${waiting}) wizards.bot` : "wizards.bot";
+    void toMac({ type: "waiting", count: waiting });
   }, [waiting]);
 
   // What the agent wrote into the chat that is open and in front is read.
@@ -298,14 +358,21 @@ export function Home() {
   };
   // Where the list fits, it opens beside the chat and stays; where not, over the chat.
   const openList = () => (sidebarFits(windowWidth, pane) ? setCollapsed(false) : setDrawer(true));
-  const list = (rail: boolean, onToggle: () => void) => (
+  const list = (rail: boolean) => (
     <Sidebar
       agents={agents.data ?? []}
       current={agent}
       avatar={avatar.data ?? null}
       rail={rail}
       onPick={pick}
-      onToggle={onToggle}
+      onSearch={() => {
+        setDrawer(false);
+        setDialog("search");
+      }}
+      onNew={() => {
+        setDrawer(false);
+        setDialog("new");
+      }}
       onSettings={settings}
       onAvatar={() => {
         setDrawer(false);
@@ -319,23 +386,44 @@ export function Home() {
   const paneProps = { over: !beside, leaving: standing.leaving };
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       <div
         className={cn(
           "side-slot h-full shrink-0 overflow-hidden bg-paper",
           side === "none" ? "w-0" : "border-border-soft border-r",
-          side === "open" && "w-72",
           side === "rail" && "w-16",
         )}
+        // While the edge is dragged the list follows the pointer at once: the slot's easing
+        // (app.css, outside Tailwind's layers) is switched off right on the element.
+        style={
+          side === "open"
+            ? { width: listWidth, ...(resizingList ? { transition: "none" } : {}) }
+            : undefined
+        }
       >
         {side === "open" ? (
-          <div className="h-full w-72">{list(false, () => setCollapsed(true))}</div>
+          <div className="h-full" style={{ width: listWidth }}>
+            {list(false)}
+          </div>
         ) : side === "rail" ? (
-          list(true, openList)
+          list(true)
         ) : null}
       </div>
+      {side === "open" ? (
+        <Divider
+          chat={listWidth}
+          least={SIDEBAR_MIN}
+          most={SIDEBAR_MAX}
+          label={t("agents.resize")}
+          onChange={(width) =>
+            setListChosen(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(width))))
+          }
+          onReset={() => setListChosen(null)}
+          onDragging={setResizingList}
+        />
+      ) : null}
       <SidebarDrawer open={drawer} onClose={() => setDrawer(false)}>
-        {side === "open" ? null : list(false, () => setDrawer(false))}
+        {side === "open" ? null : list(false)}
       </SidebarDrawer>
       <div ref={main} className="relative flex h-full min-w-0 flex-1">
         <div className="h-full min-w-0 flex-1">
@@ -345,6 +433,7 @@ export function Home() {
             link={link}
             onAgents={side === "none" ? () => setDrawer(true) : undefined}
             onList={side === "rail" ? openList : undefined}
+            onHideList={side === "open" ? () => setCollapsed(true) : undefined}
             onAgent={() => {
               setDocumentId(null);
               setArtifactId(null);
@@ -418,6 +507,19 @@ export function Home() {
           </div>
         ) : null}
       </div>
+      <NewBotDialog open={dialog === "new"} onClose={() => setDialog(null)} asker={asker} />
+      <SearchDialog
+        open={dialog === "search"}
+        onClose={() => setDialog(null)}
+        agents={agents.data ?? []}
+        asker={asker}
+        onOpen={(hit: SearchHit) => {
+          const found = (agents.data ?? []).find((a) => a.id === hit.agentId);
+          if (found) pick(found);
+          if (hit.kind === "document") setDocumentId(hit.id);
+          if (hit.kind === "artifact") setArtifactId(hit.id);
+        }}
+      />
       <SettingsDialog
         open={dialog === "settings"}
         onFolder={() => {

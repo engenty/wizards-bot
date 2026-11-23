@@ -33,10 +33,12 @@ node apps/home/src/cli.ts start
   printf '#!/bin/sh\nexec node "%s/apps/home/src/cli.ts" "$@"\n' "$PWD" > ~/.local/bin/wizards-bot && chmod +x ~/.local/bin/wizards-bot
   ```
 
-- The data stays in `~/.wizards-bot` (`WIZARDS_BOT_DATA`), apart from the version: a new version
-  is a new folder, and the old one can go once the new one runs.
-- It listens on port 4747 (`WIZARDS_BOT_PORT`). `GET /health` answers `{ "ok": true }` once it
-  runs.
+- The data stays in `~/.engenty/wizards-bot` (`WIZARDS_BOT_DATA`), apart from the version: a new
+  version is a new folder, and the old one can go once the new one runs. Earlier Bot Servers
+  kept it in `~/.wizards-bot`; the first start of a newer one moves it over, in one rename, and
+  says so. When both folders are there it uses the new one and says the old one is still there.
+- It listens on port 4747 (`WIZARDS_BOT_PORT`). `GET /health` answers `{ "ok": true, "home": true,
+  "version": "…" }` once it runs.
 
 ## A tarball from this repository
 

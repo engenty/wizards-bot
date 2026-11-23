@@ -31,6 +31,21 @@ export const EngentyKind = z.enum([
 ]);
 export type EngentyKind = z.infer<typeof EngentyKind>;
 
+/** A colour a figure can wear instead of its own: the engenty cast's fills. */
+export const EngentyColor = z.enum([
+  "cobalt",
+  "amber",
+  "moss",
+  "rose",
+  "ember",
+  "teal",
+  "violet",
+  "magenta",
+  "citron",
+  "slate",
+]);
+export type EngentyColor = z.infer<typeof EngentyColor>;
+
 /** Where a message came in or went out. */
 export const Channel = z.enum(["app", "watch", "slack", "email", "whatsapp", "signal", "home"]);
 export type Channel = z.infer<typeof Channel>;
@@ -189,6 +204,24 @@ export const Part = z.discriminatedUnion("type", [
 ]);
 export type Part = z.infer<typeof Part>;
 
+/**
+ * One thing a search found (`GET /v1/search?q=`): a Wizard, a message of the person's own
+ * conversations, a document or an artifact. Conversations someone else has with an agent are
+ * not searched.
+ */
+export const SearchHit = z.object({
+  kind: z.enum(["agent", "message", "document", "artifact"]),
+  /** The agent, message, document or artifact. */
+  id: z.string(),
+  /** The Wizard whose conversation it is in, or the Wizard itself. */
+  agentId: z.string(),
+  title: z.string(),
+  /** A few words around what was found. */
+  snippet: z.string(),
+  at: z.string(),
+});
+export type SearchHit = z.infer<typeof SearchHit>;
+
 export const Message = z.object({
   id: z.string(),
   conversationId: z.string(),
@@ -248,6 +281,8 @@ export const Agent = z.object({
   id: z.string(),
   name: z.string(),
   kind: EngentyKind,
+  /** The colour its figure wears; without it, the figure's own. */
+  color: EngentyColor.optional(),
   about: z.string(),
   /**
    * `shared` agents live outside this home: in a contact's home, or as an outside agent.
@@ -840,8 +875,24 @@ export const SetupCheck = z.object({
   model: z.string().optional(),
   /** When the test call ran. */
   at: z.string().optional(),
+  /**
+   * A model the home can pull into Ollama on this computer itself, on the person's yes
+   * (`POST /v1/setup/pull`): the largest of its suggestions that fits the computer's memory.
+   */
+  pull: z.object({ model: z.string(), size: z.number() }).optional(),
 });
 export type SetupCheck = z.infer<typeof SetupCheck>;
+
+/** A model the home pulls into Ollama: how far it is, in bytes. */
+export const SetupPulling = z.object({
+  model: z.string(),
+  state: z.enum(["pulling", "done", "failed"]),
+  done: z.number(),
+  total: z.number(),
+  /** What Ollama said when it failed. */
+  error: z.string().optional(),
+});
+export type SetupPulling = z.infer<typeof SetupPulling>;
 
 export const Setup = z.object({
   /** The person went through the first start, or used the home before there was one. */
@@ -857,8 +908,14 @@ export const Setup = z.object({
   models: z.array(SetupCheck),
   home: z.array(SetupCheck),
   capabilities: z.array(SetupCheck),
+  /** The model the home pulls, or pulled last, while the home runs. */
+  pulling: SetupPulling.optional(),
 });
 export type Setup = z.infer<typeof Setup>;
+
+/** Pulls one of the models a check offers (`SetupCheck.pull`). */
+export const PullSetup = z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9._:/-]{0,80}$/) });
+export type PullSetup = z.infer<typeof PullSetup>;
 
 export const ChangeSetup = z.object({
   name: z.string().trim().min(1).max(80).optional(),

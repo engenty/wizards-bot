@@ -1,4 +1,4 @@
-import { EngentyKind } from "@wizards-bot/protocol";
+import { EngentyColor, EngentyKind } from "@wizards-bot/protocol";
 import { z } from "zod";
 import { GATEWAY_PRESETS } from "../models/models.ts";
 import { langOf, pairingCard } from "../setup/words.ts";
@@ -227,6 +227,9 @@ export function buildTools(context: TurnContext): Tool[] {
       input: z.object({
         name: z.string(),
         kind: EngentyKind.describe("Its figure."),
+        color: EngentyColor.optional().describe(
+          "The colour its figure wears, when the person chose one; else the figure's own.",
+        ),
         about: z.string().describe("One sentence: what it is for."),
         instructions: z.string().describe("Its task and how it works, addressed to it."),
       }),
@@ -239,11 +242,12 @@ export function buildTools(context: TurnContext): Tool[] {
     defineTool({
       name: "agent_update",
       description:
-        "Change an agent's name, figure, description or instructions. Use your own id to change yourself.",
+        "Change an agent's name, figure, colour, description or instructions. Use your own id to change yourself.",
       input: z.object({
         id: z.string(),
         name: z.string().optional(),
         kind: EngentyKind.optional(),
+        color: EngentyColor.optional(),
         about: z.string().optional(),
         instructions: z.string().optional(),
       }),

@@ -2,8 +2,9 @@ name: Release
 
 # A tag `v<version>` (pnpm release:tag) becomes a GitHub release whose notes are that version's
 # block of CHANGELOG.md, with the tarball a computer installs the home from
-# (wizards-bot-<version>.tgz, docs/install.md), and the image hosted homes run
-# (ghcr.io/engenty/wizards-bot:<version> and :latest, docs/vps.md).
+# (wizards-bot-<version>.tgz, docs/install.md), the image hosted homes run
+# (ghcr.io/engenty/wizards-bot:<version> and :latest, docs/vps.md), and the Mac app with its
+# update (docs/mac-app.md) once the repository has its signing secrets.
 on:
   push:
     tags: ["v*"]
@@ -74,6 +75,106 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" "dist/wizards-bot-$version.tgz" \
             --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+
+  # The Mac app: signed with the Developer ID, notarized, as a DMG to download and a ZIP with
+  # appcast.xml for Sparkle. Without the secrets below the release has no Mac app, and says so.
+  #   MAC_CERTIFICATE_P12        the Developer ID Application certificate with its key, base64
+  #   MAC_CERTIFICATE_PASSWORD   its password
+  #   APPLE_API_KEY_P8           an App Store Connect API key for notarytool, base64
+  #   APPLE_API_KEY_ID, APPLE_API_ISSUER
+  #   SPARKLE_PRIVATE_KEY        the EdDSA key updates are signed with (Sparkle's generate_keys -x)
+  #   SPARKLE_PUBLIC_KEY         its public half, a repository variable or a secret
+  mac:
+    needs: release
+    runs-on: macos-26
+    env:
+      MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
+    steps:
+      - name: The signing secrets are there
+        id: secrets
+        run: |
+          if [ -z "$MAC_CERTIFICATE_P12" ]; then
+            echo "::notice::No Developer ID certificate in the secrets: this release has no Mac app."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.secrets.outputs.skip != 'true'
+
+      - uses: pnpm/action-setup@v6
+        if: steps.secrets.outputs.skip != 'true'
+
+      - uses: actions/setup-node@v7
+        if: steps.secrets.outputs.skip != 'true'
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Install
+        if: steps.secrets.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: The certificate in a keychain of this run, and the notary key
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$MAC_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$MAC_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/certificate.p12"
+          identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
+          if [ -z "$identity" ]; then
+            echo "::error::The certificate is not a Developer ID Application certificate."
+            exit 1
+          fi
+          echo "MAC_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          if [ -n "$APPLE_API_KEY_P8" ]; then
+            echo "$APPLE_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+            echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
+          fi
+
+      - name: The app, the DMG and the update
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY || secrets.SPARKLE_PUBLIC_KEY }}
+        run: |
+          if [ -z "$APPLE_API_KEY_PATH" ] || [ -z "$APPLE_API_KEY_ID" ] || [ -z "$APPLE_API_ISSUER" ]; then
+            echo "::error::The notary key is missing (APPLE_API_KEY_P8, APPLE_API_KEY_ID, APPLE_API_ISSUER): macOS would refuse the app."
+            exit 1
+          fi
+          node scripts/pack-mac.mjs --dmg
+          spctl --assess --type execute --verbose dist/mac/wizards.app
+          xcrun stapler validate dist/mac/wizards-bot-mac-arm64.dmg
+
+      - name: Attach to the release
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files=(dist/mac/wizards-bot-mac-arm64.dmg)
+          if [ -f dist/mac/appcast.xml ]; then
+            files+=(dist/mac/wizards-bot-mac-arm64.zip dist/mac/appcast.xml)
+          else
+            echo "::warning::No SPARKLE_PRIVATE_KEY: the app of this release does not update itself."
+          fi
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+
+      - name: Forget the keychain
+        if: always() && steps.secrets.outputs.skip != 'true'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/notary.p8"
 
   image:
     runs-on: ubuntu-latest

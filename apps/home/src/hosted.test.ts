@@ -3,7 +3,7 @@ import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, test } from "node:test";
 import type { Setup } from "@wizards-bot/protocol";
-import { loadConfig } from "./config.ts";
+import { loadConfig, VERSION } from "./config.ts";
 import { accountName } from "./home.ts";
 import { type TestHome, testHome, textOf } from "./test/fakes.ts";
 
@@ -138,7 +138,7 @@ describe("a hosted home", () => {
   test("answers on /health without signing in", async () => {
     const response = await fetch(`${t.url}/health`);
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true });
+    assert.deepEqual(await response.json(), { ok: true, home: true, version: VERSION });
   });
 
   test("claims the gateway's key and its handle once, and keeps them", async () => {

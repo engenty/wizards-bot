@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: CC-BY-4.0
 // From engenty wizards, apps/web/src/engenty/engenty.tsx: the flat figure, without costumes.
-import type { EngentyKind } from "@wizards-bot/protocol";
-import { useEffect, useRef } from "react";
+import type { EngentyColor, EngentyKind } from "@wizards-bot/protocol";
+import { createContext, useContext, useEffect, useRef } from "react";
 import { ENGENTY_FILL } from "./colors";
 import { useEngentyGaze } from "./gaze";
+
+/** A colour the figure wears instead of its own (the bot's own colour), or none. */
+const Tint = createContext<string | null>(null);
+
+/** The body's fill: the figure's own, unless it wears another colour. */
+function useTint(own: string): string {
+  return useContext(Tint) ?? own;
+}
 
 interface EyeOpts {
   ex: number;
@@ -35,7 +43,7 @@ function Eye({ ex, ey, max, ink, r, blink = "5.2s" }: EyeOpts & { blink?: string
 function RoundBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.cobalt}>
+      <path fill={useTint(ENGENTY_FILL.cobalt)}>
         <animate
           attributeName="d"
           dur="3.6s"
@@ -43,10 +51,10 @@ function RoundBody() {
           values="M60 22 C65.2 22 71.2 24 75.8 26 C80.2 28 84 30.7 87 34 C90 37.3 92.2 41.3 93.8 46 C95.2 50.7 96 56.8 96 62 C96 67.2 95.2 72.7 93.8 77.1 C92.2 81.5 90 85.3 87 88.5 C84 91.7 80.2 94.2 75.8 96.1 C71.2 98 65.2 100 60 100 C54.8 100 48.8 98 44.2 96.1 C39.8 94.2 36 91.7 33 88.5 C30 85.3 27.8 81.5 26.2 77.1 C24.8 72.7 24 67.2 24 62 C24 56.8 24.8 50.7 26.2 46 C27.8 41.3 30 37.3 33 34 C36 30.7 39.8 28 44.2 26 C48.8 24 54.8 22 60 22 Z;M60 30 C65.7 29.9 72.4 27.8 77.1 28.2 C81.9 28.8 85.7 30.3 88.5 33 C91.3 35.7 93.2 39.4 94.1 44.2 C95 49.1 94.1 56.2 94 62 C93.9 67.8 94.5 74.4 93.4 79.1 C92.3 83.8 90.3 87.5 87.5 90.2 C84.7 93 81 94.8 76.4 95.6 C71.8 96.4 65.5 95 60 95 C54.5 95 48.2 96.4 43.6 95.6 C39 94.8 35.3 93 32.5 90.2 C29.7 87.5 27.7 83.8 26.6 79.1 C25.5 74.4 26.1 67.7 26 62 C25.9 56.3 25 49.7 25.9 45 C26.8 40.3 28.7 36.7 31.5 34 C34.3 31.3 38.1 29.7 42.9 29 C47.6 28.3 54.3 30.1 60 30 Z;M60 22 C65.2 22 71.2 24 75.8 26 C80.2 28 84 30.7 87 34 C90 37.3 92.2 41.3 93.8 46 C95.2 50.7 96 56.8 96 62 C96 67.2 95.2 72.7 93.8 77.1 C92.2 81.5 90 85.3 87 88.5 C84 91.7 80.2 94.2 75.8 96.1 C71.2 98 65.2 100 60 100 C54.8 100 48.8 98 44.2 96.1 C39.8 94.2 36 91.7 33 88.5 C30 85.3 27.8 81.5 26.2 77.1 C24.8 72.7 24 67.2 24 62 C24 56.8 24.8 50.7 26.2 46 C27.8 41.3 30 37.3 33 34 C36 30.7 39.8 28 44.2 26 C48.8 24 54.8 22 60 22 Z"
         />
       </path>
-      <circle cx="97" cy="34" fill={ENGENTY_FILL.cobalt} opacity="0.5" r="6">
+      <circle cx="97" cy="34" fill={useTint(ENGENTY_FILL.cobalt)} opacity="0.5" r="6">
         <animate attributeName="cy" dur="3.6s" repeatCount="indefinite" values="34;28;34" />
       </circle>
-      <circle cx="106" cy="24" fill={ENGENTY_FILL.cobalt} opacity="0.35" r="3.5">
+      <circle cx="106" cy="24" fill={useTint(ENGENTY_FILL.cobalt)} opacity="0.35" r="3.5">
         <animate
           attributeName="cy"
           begin="0.4s"
@@ -63,7 +71,7 @@ function RoundBody() {
 function DropBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.amber}>
+      <path fill={useTint(ENGENTY_FILL.amber)}>
         <animate
           attributeName="d"
           dur="4.4s"
@@ -86,7 +94,7 @@ function DropBody() {
 function DomeBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.moss}>
+      <path fill={useTint(ENGENTY_FILL.moss)}>
         <animate
           attributeName="d"
           dur="3s"
@@ -101,7 +109,7 @@ function DomeBody() {
         strokeLinecap="round"
         strokeWidth="2.4"
       />
-      <circle cx="60" cy="6" fill={ENGENTY_FILL.moss} r="3">
+      <circle cx="60" cy="6" fill={useTint(ENGENTY_FILL.moss)} r="3">
         <animate attributeName="cy" dur="3s" repeatCount="indefinite" values="8;3;8" />
       </circle>
       <Eye blink="4.6s" ex={60} ey={54} ink="oklch(16% 0.08 160)" max={3.4} r={8.5} />
@@ -112,7 +120,7 @@ function DomeBody() {
 function FlameBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.rose}>
+      <path fill={useTint(ENGENTY_FILL.rose)}>
         <animate
           attributeName="d"
           dur="2.6s"
@@ -144,7 +152,7 @@ function FlameBody() {
 function OvalBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.ember}>
+      <path fill={useTint(ENGENTY_FILL.ember)}>
         <animate
           attributeName="d"
           dur="4s"
@@ -178,7 +186,7 @@ function OvalBody() {
 function BeanBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.teal}>
+      <path fill={useTint(ENGENTY_FILL.teal)}>
         <animate
           attributeName="d"
           dur="3.8s"
@@ -186,7 +194,7 @@ function BeanBody() {
           values="M48 96 Q24 92 26 68 Q28 44 52 38 Q78 32 88 50 Q98 66 84 84 Q70 100 48 96 Z;M46 98 Q20 92 24 66 Q28 40 54 36 Q80 30 90 50 Q100 68 84 86 Q68 102 46 98 Z;M50 94 Q28 90 28 68 Q30 46 52 40 Q76 34 86 50 Q94 64 82 82 Q72 98 50 94 Z;M48 96 Q24 92 26 68 Q28 44 52 38 Q78 32 88 50 Q98 66 84 84 Q70 100 48 96 Z"
         />
       </path>
-      <circle cx="32" cy="94" fill={ENGENTY_FILL.teal} opacity="0.4" r="4">
+      <circle cx="32" cy="94" fill={useTint(ENGENTY_FILL.teal)} opacity="0.4" r="4">
         <animate attributeName="cx" dur="3.8s" repeatCount="indefinite" values="32;27;32" />
       </circle>
       <Eye blink="4.8s" ex={70} ey={58} ink="oklch(18% 0.08 200)" max={3.4} r={8} />
@@ -197,7 +205,7 @@ function BeanBody() {
 function PebbleBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.slate}>
+      <path fill={useTint(ENGENTY_FILL.slate)}>
         <animate
           attributeName="d"
           dur="4.6s"
@@ -218,7 +226,7 @@ function PebbleBody() {
 function SproutBody() {
   return (
     <>
-      <g fill={ENGENTY_FILL.citron}>
+      <g fill={useTint(ENGENTY_FILL.citron)}>
         <ellipse cx="48" cy="34" rx="6" ry="10">
           <animate attributeName="cy" dur="3.2s" repeatCount="indefinite" values="34;30;34" />
         </ellipse>
@@ -232,7 +240,7 @@ function SproutBody() {
           />
         </ellipse>
       </g>
-      <path fill={ENGENTY_FILL.citron}>
+      <path fill={useTint(ENGENTY_FILL.citron)}>
         <animate
           attributeName="d"
           dur="3.2s"
@@ -248,7 +256,7 @@ function SproutBody() {
 function TowerBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.violet}>
+      <path fill={useTint(ENGENTY_FILL.violet)}>
         <animate
           attributeName="d"
           dur="4s"
@@ -274,7 +282,7 @@ function TowerBody() {
 function WedgeBody() {
   return (
     <>
-      <path fill={ENGENTY_FILL.magenta}>
+      <path fill={useTint(ENGENTY_FILL.magenta)}>
         <animate
           attributeName="d"
           dur="2.9s"
@@ -361,12 +369,15 @@ function Body({ kind }: { kind: EngentyKind }) {
 export function Engenty({
   animated = true,
   kind = "round",
+  color,
   size = 160,
   className,
 }: {
   animated?: boolean;
   className?: string;
   kind?: EngentyKind;
+  /** A colour of the cast it wears instead of its own. */
+  color?: EngentyColor;
   /** Pixel width and height of the SVG. */
   size?: number;
 }) {
@@ -418,7 +429,9 @@ export function Engenty({
         />
       </ellipse>
       <g className="e-lean">
-        <Body kind={kind} />
+        <Tint.Provider value={color ? ENGENTY_FILL[color] : null}>
+          <Body kind={kind} />
+        </Tint.Provider>
       </g>
     </svg>
   );

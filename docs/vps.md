@@ -39,7 +39,7 @@ keeps the server or the backups. The passphrase is asked in the terminal, or rea
 `--passphrase-file <file>` or `WIZARDS_BOT_PASSPHRASE`.
 
 `wizards-bot import <file>` brings an export into an empty data folder: a new volume, or
-`~/.wizards-bot` on a computer that has no Bot Server yet. The Bot Server must not run meanwhile:
+`~/.engenty/wizards-bot` on a computer that has no Bot Server yet. The Bot Server must not run meanwhile:
 
 ```bash
 docker run --rm -it -v wizards-bot-new:/data -v "$PWD":/in ghcr.io/engenty/wizards-bot:latest wizards-bot import /in/home.export

@@ -16,7 +16,15 @@ export function Face({
   className?: string;
 }) {
   if (agent.origin !== "room") {
-    return <Engenty kind={agent.kind} size={size} animated={animated} className={className} />;
+    return (
+      <Engenty
+        kind={agent.kind}
+        color={agent.color}
+        size={size}
+        animated={animated}
+        className={className}
+      />
+    );
   }
   return (
     <span

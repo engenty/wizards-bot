@@ -15,12 +15,14 @@ import type {
   Document,
   DocumentMark,
   DocumentMeta,
+  EngentyColor,
   EngentyKind,
   Event,
   FileRef,
   Message,
   Part,
   Push,
+  SearchHit,
 } from "@wizards-bot/protocol";
 import type { Events } from "../events.ts";
 import { sha256 } from "../identity.ts";
@@ -35,6 +37,7 @@ interface AgentRow {
   id: string;
   name: string;
   kind: string;
+  color: string | null;
   about: string;
   instructions: string;
   memory: string;
@@ -183,6 +186,7 @@ export class Store {
   createAgent(input: {
     name: string;
     kind: EngentyKind;
+    color?: EngentyColor;
     about?: string;
     instructions?: string;
     main?: boolean;
@@ -194,10 +198,11 @@ export class Store {
     const at = now();
     this.db.transaction(() => {
       this.db.run(
-        "insert into agent (id, name, kind, about, instructions, origin, from_handle, remote, main, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "insert into agent (id, name, kind, color, about, instructions, origin, from_handle, remote, main, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         id,
         input.name,
         input.kind,
+        input.color ?? null,
         input.about ?? "",
         input.instructions ?? "",
         input.origin ?? "own",
@@ -236,6 +241,97 @@ export class Store {
     return row ? this.toAgent(row) : undefined;
   }
 
+  /**
+   * What the person finds in their Bot Server: Wizards by name and about, the text of messages in
+   * their own conversations, documents and artifacts by title and content. A conversation
+   * someone else has with an agent (a guest's) is never searched.
+   */
+  search(query: string, limit = 20): SearchHit[] {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const around = (text: string): string => {
+      const flat = text.replace(/\s+/g, " ").trim();
+      const at = flat.toLowerCase().indexOf(q);
+      if (at < 0) return flat.slice(0, 90);
+      const from = Math.max(0, at - 36);
+      return `${from > 0 ? "…" : ""}${flat.slice(from, at + q.length + 54)}${at + q.length + 54 < flat.length ? "…" : ""}`;
+    };
+    const hits: SearchHit[] = [];
+    for (const row of this.db.all<{ id: string; name: string; about: string; created_at: string }>(
+      "select id, name, about, created_at from agent where instr(lower(name), ?) > 0 or instr(lower(about), ?) > 0 order by main desc, created_at limit ?",
+      q,
+      q,
+      limit,
+    )) {
+      hits.push({
+        kind: "agent",
+        id: row.id,
+        agentId: row.id,
+        title: row.name,
+        snippet: around(row.about),
+        at: row.created_at,
+      });
+    }
+    const textOf = (parts: string): string =>
+      (JSON.parse(parts) as Part[])
+        .map((part) => (part.type === "text" ? part.text : ""))
+        .join(" ");
+    for (const row of this.db.all<{
+      id: string;
+      parts: string;
+      created_at: string;
+      agent: string;
+      name: string;
+    }>(
+      `select m.id, m.parts, m.created_at, c.agent_id as agent, a.name
+         from message m join conversation c on c.id = m.conversation_id join agent a on a.id = c.agent_id
+        where c.guest is null and instr(lower(m.parts), ?) > 0
+        order by m.seq desc limit ?`,
+      q,
+      limit * 3,
+    )) {
+      const text = textOf(row.parts);
+      if (!text.toLowerCase().includes(q)) continue;
+      hits.push({
+        kind: "message",
+        id: row.id,
+        agentId: row.agent,
+        title: row.name,
+        snippet: around(text),
+        at: row.created_at,
+      });
+      if (hits.filter((h) => h.kind === "message").length >= limit) break;
+    }
+    for (const kind of ["document", "artifact"] as const) {
+      for (const row of this.db.all<{
+        id: string;
+        title: string;
+        content: string;
+        updated_at: string;
+        agent: string;
+      }>(
+        `select d.id, d.title, d.content, d.updated_at, c.agent_id as agent
+           from ${kind} d join conversation c on c.id = d.conversation_id
+          where c.guest is null and (instr(lower(d.title), ?) > 0 or instr(lower(d.content), ?) > 0)
+          order by d.updated_at desc limit ?`,
+        q,
+        q,
+        limit,
+      )) {
+        const inTitle = row.title.toLowerCase().includes(q);
+        hits.push({
+          kind,
+          id: row.id,
+          agentId: row.agent,
+          title: row.title,
+          snippet: inTitle ? "" : around(row.content),
+          at: row.updated_at,
+        });
+      }
+    }
+    return hits;
+  }
+
   agents(): AgentRecord[] {
     return this.db
       .all<AgentRow>("select * from agent order by main desc, created_at")
@@ -244,15 +340,18 @@ export class Store {
 
   updateAgent(
     id: string,
-    patch: Partial<Pick<AgentRecord, "name" | "kind" | "about" | "instructions" | "memory">>,
+    patch: Partial<
+      Pick<AgentRecord, "name" | "kind" | "color" | "about" | "instructions" | "memory">
+    >,
   ): AgentRecord | undefined {
     const current = this.agent(id);
     if (!current) return undefined;
     const next = { ...current, ...patch };
     this.db.run(
-      "update agent set name = ?, kind = ?, about = ?, instructions = ?, memory = ? where id = ?",
+      "update agent set name = ?, kind = ?, color = ?, about = ?, instructions = ?, memory = ? where id = ?",
       next.name,
       next.kind,
+      next.color ?? null,
       next.about,
       next.instructions,
       next.memory,
@@ -312,6 +411,7 @@ export class Store {
       id: row.id,
       name: row.name,
       kind: row.kind as EngentyKind,
+      ...(row.color ? { color: row.color as EngentyColor } : {}),
       about: row.about,
       origin: row.origin as Agent["origin"],
       from: row.from_handle ?? undefined,

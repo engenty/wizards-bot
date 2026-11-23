@@ -177,6 +177,28 @@ export function Chip({
 }
 
 /**
+ * Whether the person last used a pointer rather than Tab: a dialog opened by a click gives the
+ * focus back to its button without the ring the browser would draw there; after Tab it stays.
+ */
+let byPointer = false;
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "pointerdown",
+    () => {
+      byPointer = true;
+    },
+    true,
+  );
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (e.key === "Tab") byPointer = false;
+    },
+    true,
+  );
+}
+
+/**
  * A centred modal on the native <dialog>; on a phone it fills the screen, with no gutter. Esc
  * and a click beside it close it. Its height does not jump while it is open: it keeps the
  * tallest height it has had, so a shorter step leaves it where it is.
@@ -194,7 +216,7 @@ export function Dialog({
   title?: ReactNode;
   children: ReactNode;
   /** `"full"`: nearly the whole window, for a file to look at. `"settings"`: room for two columns. */
-  wide?: "full" | "settings";
+  wide?: "full" | "settings" | "palette";
   /**
    * The children are the panel: the dialog itself draws no card, clips nothing and fills the
    * screen of a phone.
@@ -216,6 +238,9 @@ export function Dialog({
       el.querySelector<HTMLElement>("[data-autofocus]")?.focus();
     } else if (!open && el.open) {
       el.close();
+      if (byPointer) {
+        (document.activeElement as HTMLElement | null)?.blur();
+      }
     }
   }, [open]);
   // Open, the dialog never gets shorter than it has been, within what the window allows.
@@ -259,7 +284,9 @@ export function Dialog({
           ? "sm:max-w-7xl"
           : wide === "settings"
             ? "sm:h-[min(36rem,calc(100dvh-32px))] sm:max-w-3xl sm:overflow-hidden"
-            : "sm:max-w-md",
+            : wide === "palette"
+              ? "sm:max-w-2xl"
+              : "sm:max-w-md",
       )}
     >
       {shown && bare ? (
