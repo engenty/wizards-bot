@@ -151,3 +151,32 @@ import Testing
         #expect(body["kind"] == "computer")
     }
 }
+
+@Suite struct UpdateTests {
+    @Test func anOlderBotServerIsOffered() {
+        #expect(Version.offersUpdate(found: "0.1.1", carried: "0.1.3"))
+        #expect(Version.offersUpdate(found: "0.1.3-rc.1", carried: "0.2.0"))
+        #expect(Version.offersUpdate(found: "0.9.0", carried: "0.10.0"))
+    }
+
+    @Test func aNewerOrTheSameIsUsedAsItIs() {
+        #expect(!Version.offersUpdate(found: "0.1.3", carried: "0.1.3"))
+        #expect(!Version.offersUpdate(found: "0.2.0", carried: "0.1.3"))
+        #expect(!Version.offersUpdate(found: "0.10.0", carried: "0.9.0"))
+    }
+
+    @Test func oneThatSaysNoVersionIsOlder() {
+        #expect(Version.offersUpdate(found: nil, carried: "0.1.3"))
+    }
+
+    @Test func aBuildWithoutABotServerOffersNothing() {
+        #expect(!Version.offersUpdate(found: "0.1.1", carried: nil))
+        #expect(!Version.offersUpdate(found: nil, carried: nil))
+    }
+
+    @Test func whatWizardsBotInstallWrote() {
+        let file = Data(#"{"version":"0.1.1","bin":"apps/home/src/cli.ts","port":4747,"data":"/Users/ada/.wizards-bot"}"#.utf8)
+        #expect(InstalledBot.read(file) == InstalledBot(version: "0.1.1", data: "/Users/ada/.wizards-bot"))
+        #expect(InstalledBot.read(Data("not json".utf8)) == nil)
+    }
+}

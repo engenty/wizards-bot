@@ -37,6 +37,32 @@ final class LocalHome {
 
     var bundledVersion: String? { LocalPaths.version(in: .main) }
 
+    /// The Bot Server found on this Mac came with `wizards bot install` and is older than the
+    /// app's: the app offers to update it, which is to run its own on the same data.
+    var offersUpdate: Bool {
+        guard canStart, case let .runs(version, byInstall: true) = found else { return false }
+        return Version.offersUpdate(found: version, carried: bundledVersion)
+    }
+
+    /// What `wizards bot install` wrote about its Bot Server.
+    static var installed: InstalledBot? {
+        (try? Data(contentsOf: LocalPaths.installBot)).flatMap(InstalledBot.read)
+    }
+
+    /// Where the update keeps a copy of the data as it was: `~/.engenty/wizards-bot-before-0.1.3`,
+    /// numbered when that is taken.
+    var backup: URL {
+        let base = "wizards-bot-before-\(bundledVersion ?? "update")"
+        let folder = FileManager.default.homeDirectoryForCurrentUser.appending(path: ".engenty")
+        var candidate = folder.appending(path: base)
+        var number = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = folder.appending(path: "\(base)-\(number)")
+            number += 1
+        }
+        return candidate
+    }
+
     /// Looks at the Mac: the app's own Bot Server, one of `wizards bot install`, one by hand,
     /// another program on 4747, data in the data folder.
     func look() async {
@@ -44,7 +70,8 @@ final class LocalHome {
         let byInstall = FileManager.default.fileExists(atPath: LocalPaths.installPlist.path)
         switch await Health.check(Self.address, seconds: 2) {
         case let .home(version):
-            found = isOurs ? nil : .runs(version: version, byInstall: byInstall)
+            let known = version ?? (byInstall ? Self.installed?.version : nil)
+            found = isOurs ? nil : .runs(version: known, byInstall: byInstall)
         case .notHome:
             found = .portTaken(Self.listener() ?? String(localized: "another program"))
         case .unreachable:
@@ -123,33 +150,80 @@ final class LocalHome {
         try? await service.unregister()
     }
 
-    /// The app takes over the Bot Server of `wizards bot install`, on the person's word: that
-    /// LaunchAgent stops and its plist is set aside (`….plist.off`), the app's own starts on the
-    /// same data. Refused when the app's Bot Server is older than the one that last wrote it.
+    /// The app takes over the Bot Server of `wizards bot install`, on the person's word, which
+    /// also updates it to the app's version: that LaunchAgent stops and its plist is set aside
+    /// (`….plist.off`), a copy of the data is kept (`backup`), and the app's own starts on the same
+    /// data. Refused when the app's Bot Server is older than the one that last wrote the data, or
+    /// when the two would not use the same data folder.
     func takeOver() async -> Bool {
         problem = nil
-        let last = (try? String(contentsOf: LocalPaths.data.appending(path: "version"), encoding: .utf8))?
+        guard canStart else {
+            problem = String(localized: "This build of the app carries no Bot Server.")
+            return false
+        }
+        let data = LocalPaths.data
+        let last = (try? String(contentsOf: data.appending(path: "version"), encoding: .utf8))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if let last, let mine = bundledVersion, Version.older(mine, than: last) {
             problem = String(localized: "Your data was last used by Bot Server \(last), and the app carries \(mine). Update the app first.")
+            return false
+        }
+        if let theirs = Self.installed?.data,
+           URL(filePath: theirs).standardizedFileURL.resolvingSymlinksInPath().path
+           != data.standardizedFileURL.resolvingSymlinksInPath().path {
+            problem = String(localized: "That Bot Server keeps its data in \(theirs), and the app's would use \(LocalPaths.dataShown). Nothing was changed.")
             return false
         }
         busy = true
         step = String(localized: "Stopping the Bot Server of wizards bot install…")
         Self.launchctl(["bootout", "gui/\(getuid())/\(LocalPaths.installLabel)"])
         let plist = LocalPaths.installPlist
+        let aside = plist.appendingPathExtension("off")
         if FileManager.default.fileExists(atPath: plist.path) {
-            let aside = plist.appendingPathExtension("off")
             try? FileManager.default.removeItem(at: aside)
             try? FileManager.default.moveItem(at: plist, to: aside)
         }
+        var stopped = false
         for _ in 0 ..< 20 {
-            if case .unreachable = await Health.check(Self.address, seconds: 1) { break }
+            if case .unreachable = await Health.check(Self.address, seconds: 1) {
+                stopped = true
+                break
+            }
             try? await Task.sleep(for: .milliseconds(500))
+        }
+        guard stopped else {
+            restoreInstall(aside)
+            busy = false
+            problem = String(localized: "The Bot Server of wizards bot install did not stop. Nothing was changed.")
+            return false
+        }
+        // The copy is made while no Bot Server writes, so its databases are whole.
+        if FileManager.default.fileExists(atPath: data.path) {
+            let copy = backup
+            step = String(localized: "Keeping a copy of your data…")
+            do {
+                try FileManager.default.copyItem(at: data, to: copy)
+            } catch {
+                try? FileManager.default.removeItem(at: copy)
+                restoreInstall(aside)
+                busy = false
+                problem = String(localized: "The copy of your data was not made (\(error.localizedDescription)). The Bot Server of wizards bot install runs again; nothing was changed.")
+                return false
+            }
         }
         busy = false
         found = nil
         return await start()
+    }
+
+    /// Puts the LaunchAgent of `wizards bot install` back and starts it, when taking over stopped
+    /// before anything changed.
+    private func restoreInstall(_ aside: URL) {
+        let plist = LocalPaths.installPlist
+        if !FileManager.default.fileExists(atPath: plist.path), FileManager.default.fileExists(atPath: aside.path) {
+            try? FileManager.default.moveItem(at: aside, to: plist)
+        }
+        Self.launchctl(["bootstrap", "gui/\(getuid())", plist.path])
     }
 
     /// Removes the app's Bot Server from this Mac: macOS forgets the LaunchAgent, and the data

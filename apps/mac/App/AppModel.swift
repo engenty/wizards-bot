@@ -58,8 +58,18 @@ final class AppModel {
             screen = .first
             return
         }
+        // The Bot Server this Mac had before is older than the app's: the first screen offers to
+        // update it, until the person chose to keep it for this version of the app.
+        if isLocal(home), local.offersUpdate,
+           UserDefaults.standard.string(forKey: Self.keptKey) != local.bundledVersion {
+            screen = .first
+            return
+        }
         await reach(home, code: nil)
     }
+
+    /// The app's version for which the person kept the older Bot Server as it is.
+    private static let keptKey = "keptOlderBotServer"
 
     /// The address is this Mac's own Bot Server.
     func isLocal(_ home: URL) -> Bool {
@@ -91,8 +101,10 @@ final class AppModel {
         }
     }
 
-    /// "Use it": the Bot Server that was on this Mac before the app.
+    /// "Use it": the Bot Server that was on this Mac before the app. An older one is not offered
+    /// for an update again until the app carries a newer one.
     func useFound() async {
+        if local.offersUpdate { UserDefaults.standard.set(local.bundledVersion, forKey: Self.keptKey) }
         if local.found == .installed {
             local.busy = true
             let started = await local.startInstalled()

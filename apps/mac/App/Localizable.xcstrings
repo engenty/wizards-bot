@@ -71,6 +71,16 @@
         }
       }
     },
+    "An older Bot Server runs on this Mac.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf diesem Mac läuft ein älterer Bot Server."
+          }
+        }
+      }
+    },
     "At least %lld characters.": {
       "localizations": {
         "de": {
@@ -271,12 +281,42 @@
         }
       }
     },
+    "It is older than the app's, which is version %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er ist älter als der Bot Server der App, Version %@."
+          }
+        }
+      }
+    },
+    "It is version %@, the app carries %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er hat Version %1$@, die App bringt %2$@ mit."
+          }
+        }
+      }
+    },
     "It stops and no longer starts with your Mac. Your agents, conversations and paired phones are in %@; kept there, a Bot Server started later finds them again.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Er hält an und startet nicht mehr mit deinem Mac. Deine Wizards, Gespräche und verbundenen Telefone liegen in %@; bleiben sie dort, findet ein später gestarteter Bot Server sie wieder."
+          }
+        }
+      }
+    },
+    "Keeping a copy of your data…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Kopie deiner Daten wird angelegt …"
           }
         }
       }
@@ -671,6 +711,16 @@
         }
       }
     },
+    "That Bot Server keeps its data in %@, and the app's would use %@. Nothing was changed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Bot Server hat seine Daten in %1$@, der der App würde %2$@ verwenden. Es wurde nichts geändert."
+          }
+        }
+      }
+    },
     "That is not an address. It looks like ada.wizards.bot or macmini.local.": {
       "localizations": {
         "de": {
@@ -731,12 +781,22 @@
         }
       }
     },
-    "The Bot Server of wizards bot install stops, and the app's starts on the same data. Its LaunchAgent is set aside, not deleted.": {
+    "The Bot Server of wizards bot install did not stop. Nothing was changed.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Bot Server von wizards bot install hält an, und der der App startet mit denselben Daten. Sein LaunchAgent wird beiseitegelegt, nicht gelöscht."
+            "value": "Der Bot Server von wizards bot install hat nicht angehalten. Es wurde nichts geändert."
+          }
+        }
+      }
+    },
+    "The Bot Server of wizards bot install stops, a copy of its data is kept in %@, and the app's starts on the same data. Its LaunchAgent is set aside, not deleted.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server von wizards bot install hält an, eine Kopie seiner Daten bleibt in %@, und der der App startet mit denselben Daten. Sein LaunchAgent wird beiseitegelegt, nicht gelöscht."
           }
         }
       }
@@ -831,6 +891,16 @@
         }
       }
     },
+    "The copy of your data was not made (%@). The Bot Server of wizards bot install runs again; nothing was changed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Kopie deiner Daten wurde nicht angelegt (%@). Der Bot Server von wizards bot install läuft wieder; es wurde nichts geändert."
+          }
+        }
+      }
+    },
     "There is no such address. Check how it is written.": {
       "localizations": {
         "de": {
@@ -911,6 +981,16 @@
         }
       }
     },
+    "Update it": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisieren"
+          }
+        }
+      }
+    },
     "Update the Bot Server with the app…": {
       "localizations": {
         "de": {
@@ -931,12 +1011,32 @@
         }
       }
     },
+    "Updating stops it, keeps a copy of its data in %@ and starts the app's Bot Server on the same data. Your agents, conversations and paired devices stay.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Aktualisieren hält er an, eine Kopie seiner Daten bleibt in %@, und der Bot Server der App startet mit denselben Daten. Deine Wizards, Gespräche und verbundenen Geräte bleiben."
+          }
+        }
+      }
+    },
     "Use it": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Verwenden"
+          }
+        }
+      }
+    },
+    "Use it as it is": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So verwenden, wie er ist"
           }
         }
       }

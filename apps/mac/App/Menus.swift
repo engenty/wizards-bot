@@ -9,11 +9,26 @@ struct FoundView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "checkmark.circle")
+            Image(systemName: model.local.offersUpdate ? "arrow.up.circle" : "checkmark.circle")
                 .font(.title2)
-                .foregroundStyle(.green)
+                .foregroundStyle(model.local.offersUpdate ? Color.accentColor : .green)
             VStack(alignment: .leading, spacing: 6) {
                 switch found {
+                case let .runs(version, _) where model.local.offersUpdate:
+                    let mine = model.local.bundledVersion ?? ""
+                    Text("An older Bot Server runs on this Mac.").font(.headline)
+                    if let version {
+                        Text("It is version \(version), the app carries \(mine).")
+                    } else {
+                        Text("It is older than the app's, which is version \(mine).")
+                    }
+                    Text("Updating stops it, keeps a copy of its data in \(LocalPaths.shown(model.local.backup)) and starts the app's Bot Server on the same data. Your agents, conversations and paired devices stay.")
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack {
+                        Button("Update it") { Task { await model.takeOver() } }
+                        Button("Use it as it is") { Task { await model.useFound() } }
+                    }
                 case .runs:
                     Text("A Bot Server already runs on this Mac.").font(.headline)
                     Text("The app uses it as it is and starts no second one.")
@@ -178,7 +193,7 @@ struct SettingsView: View {
         .confirmationDialog("Let the app run your Bot Server?", isPresented: $takingOver) {
             Button("Let the app run it") { Task { await model.takeOver() } }
         } message: {
-            Text("The Bot Server of wizards bot install stops, and the app's starts on the same data. Its LaunchAgent is set aside, not deleted.")
+            Text("The Bot Server of wizards bot install stops, a copy of its data is kept in \(LocalPaths.shown(model.local.backup)), and the app's starts on the same data. Its LaunchAgent is set aside, not deleted.")
         }
     }
 }
