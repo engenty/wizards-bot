@@ -239,7 +239,7 @@ export function SettingsDialog({
         <IconButton
           label={t("common.back")}
           onClick={() => setInside(false)}
-          className="-ml-3 size-8 sm:hidden"
+          className="size-8 sm:hidden coarse:size-9"
         >
           <ChevronLeft className="size-4" />
         </IconButton>
