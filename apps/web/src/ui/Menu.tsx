@@ -9,8 +9,9 @@ export interface MenuItem {
 
 /**
  * A small menu at its button: above it when the button is in the lower half of the window, as the
- * composer's + is, below it otherwise, as the person's card at the top of the list is. A click
- * beside it or Escape closes it. `head` is shown above the items, e.g. who is signed in.
+ * composer's + is, below it otherwise, as the person's card at the top of the list is; it ends at
+ * the button's right edge when the button stands in the right half. A click beside it or Escape
+ * closes it. `head` is shown above the items, e.g. who is signed in.
  */
 export function Menu({
   label,
@@ -28,7 +29,12 @@ export function Menu({
   /** What the button shows. */
   children: ReactNode;
 }) {
-  const [at, setAt] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+  const [at, setAt] = useState<{
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+  } | null>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -61,10 +67,18 @@ export function Menu({
     const rect = opener.current?.getBoundingClientRect();
     if (at || !rect) {
       setAt(null);
-    } else if (rect.top + rect.height / 2 < window.innerHeight / 2) {
-      setAt({ top: rect.bottom + 8, left: rect.left });
     } else {
-      setAt({ bottom: window.innerHeight - rect.top + 8, left: rect.left });
+      // Below a button in the upper half, above one in the lower half; lined up with the button's
+      // left edge, or with its right edge when the button stands in the right half.
+      const vertical =
+        rect.top + rect.height / 2 < window.innerHeight / 2
+          ? { top: rect.bottom + 8 }
+          : { bottom: window.innerHeight - rect.top + 8 };
+      const horizontal =
+        rect.left + rect.width / 2 > window.innerWidth / 2
+          ? { right: Math.max(8, window.innerWidth - rect.right) }
+          : { left: Math.max(8, rect.left) };
+      setAt({ ...vertical, ...horizontal });
     }
   };
   return (
@@ -86,7 +100,7 @@ export function Menu({
           ref={panel}
           role="menu"
           aria-label={label}
-          style={{ top: at.top, bottom: at.bottom, left: Math.max(8, at.left) }}
+          style={{ top: at.top, bottom: at.bottom, left: at.left, right: at.right }}
           className="enter-pop fixed z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xl bg-card p-1 shadow-overlay ring-1 ring-border"
         >
           {head ? <div className="px-3 pt-2 pb-1.5">{head}</div> : null}

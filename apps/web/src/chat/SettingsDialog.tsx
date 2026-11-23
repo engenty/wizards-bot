@@ -132,7 +132,7 @@ function ServiceRow({
  * chat: the button hands the main agent the request, and the agent asks for a new key in a card
  * or removes what uses it.
  */
-function SecretRow({
+export function SecretRow({
   secret,
   asker,
   onProblem,

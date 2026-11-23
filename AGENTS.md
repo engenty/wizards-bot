@@ -118,6 +118,12 @@ no emoji, no "please".
   and not a flag.
 - A secret goes from a card's `secret` field into `Secrets` and from there to the code that
   needs it. It never enters a message, a tool result or a prompt.
+- The Vault (`vault/`) keeps the person's passwords, cards and notes; the person adds, imports,
+  shows and changes them on the Vault page, the one page that takes a secret. An agent signs in
+  with a saved password only through `vault_sign_in` and `vault_code`, after the person said
+  yes on a card: it sees the name, the website and two letters of the user name, and the home
+  types the password and the code into the page itself, on that website only. Every browser
+  answer goes through the Vault's redactor; no tool runs the model's JavaScript on a page.
 - A tool that waits for the person makes a card and stops. New tools ask with `call.ask`, which
   suspends the run in Mastra; older cards start a new turn through their handler
   (`home.onCard`). A message is never held back by a card: it ends the suspended run.

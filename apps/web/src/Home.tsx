@@ -21,6 +21,7 @@ import { NewBotDialog } from "./chat/NewBotDialog";
 import { SearchDialog } from "./chat/SearchDialog";
 import { type Asker, SettingsDialog } from "./chat/SettingsDialog";
 import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
+import { VaultPage } from "./chat/VaultPage";
 import { Engenty } from "./engenty/Engenty";
 import { api } from "./lib/api";
 import { withConsent } from "./lib/consent";
@@ -205,6 +206,8 @@ export function Home() {
   // agent: one of the three stands beside the chat.
   const [artifactId, setArtifactId] = useState<string | null>(null);
   const [about, setAbout] = useState(false);
+  /** The Vault in the main column instead of the chat. */
+  const [vault, setVault] = useState(false);
   const [dialog, setDialog] = useState<Open | null>(null);
   /** The chat the folder dialog was opened from; none from the settings. */
   const [folderFrom, setFolderFrom] = useState<string>();
@@ -328,6 +331,7 @@ export function Home() {
     setDocumentId(null);
     setArtifactId(null);
     setAbout(false);
+    setVault(false);
     setDialog(null);
     setDrawer(false);
   };
@@ -374,6 +378,14 @@ export function Home() {
         setDialog("new");
       }}
       onSettings={settings}
+      vault={vault}
+      onVault={() => {
+        setDrawer(false);
+        setDocumentId(null);
+        setArtifactId(null);
+        setAbout(false);
+        setVault(true);
+      }}
       onAvatar={() => {
         setDrawer(false);
         setDialog("avatar");
@@ -427,35 +439,39 @@ export function Home() {
       </SidebarDrawer>
       <div ref={main} className="relative flex h-full min-w-0 flex-1">
         <div className="h-full min-w-0 flex-1">
-          <Chat
-            agent={agent}
-            items={items.data ?? []}
-            link={link}
-            onAgents={side === "none" ? () => setDrawer(true) : undefined}
-            onList={side === "rail" ? openList : undefined}
-            onHideList={side === "open" ? () => setCollapsed(true) : undefined}
-            onAgent={() => {
-              setDocumentId(null);
-              setArtifactId(null);
-              setAbout((open) => !open);
-            }}
-            unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
-            onItems={() => setDialog("items")}
-            onDocument={(id) => {
-              setArtifactId(null);
-              setAbout(false);
-              setDocumentId(id);
-            }}
-            onArtifact={(id) => {
-              setDocumentId(null);
-              setAbout(false);
-              setArtifactId(id);
-            }}
-            onFolder={() => {
-              setFolderFrom(agent.conversationId);
-              setDialog("folder");
-            }}
-          />
+          {vault ? (
+            <VaultPage onAgents={side === "none" ? () => setDrawer(true) : undefined} />
+          ) : (
+            <Chat
+              agent={agent}
+              items={items.data ?? []}
+              link={link}
+              onAgents={side === "none" ? () => setDrawer(true) : undefined}
+              onList={side === "rail" ? openList : undefined}
+              onHideList={side === "open" ? () => setCollapsed(true) : undefined}
+              onAgent={() => {
+                setDocumentId(null);
+                setArtifactId(null);
+                setAbout((open) => !open);
+              }}
+              unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
+              onItems={() => setDialog("items")}
+              onDocument={(id) => {
+                setArtifactId(null);
+                setAbout(false);
+                setDocumentId(id);
+              }}
+              onArtifact={(id) => {
+                setDocumentId(null);
+                setAbout(false);
+                setArtifactId(id);
+              }}
+              onFolder={() => {
+                setFolderFrom(agent.conversationId);
+                setDialog("folder");
+              }}
+            />
+          )}
         </div>
         {beside && !standing.leaving ? (
           <Divider

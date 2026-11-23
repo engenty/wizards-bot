@@ -152,6 +152,9 @@ export function applyEvent(client: QueryClient, event: Event) {
     case "models.updated":
       client.setQueryData<Models>(keys.models(), event.models);
       return;
+    case "vault.updated":
+      client.setQueryData(keys.vault(), event.vault);
+      return;
     case "folders.updated":
       client.setQueryData<Folder[]>(keys.folders(), event.folders);
       return;

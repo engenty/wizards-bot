@@ -17,6 +17,7 @@ import type {
   SecretEntry,
   Setup,
   SharedKind,
+  VaultView,
 } from "@wizards-bot/protocol";
 import { useEffect, useState } from "react";
 import { api } from "./api";
@@ -166,6 +167,14 @@ export function useFolders() {
     queryKey: keys.folders(),
     queryFn: ({ signal }) =>
       api.get<{ folders: Folder[] }>("/v1/folders", signal).then((r) => r.folders),
+  });
+}
+
+/** The Vault: its logins, cards and notes without their secrets, and what was done with them. */
+export function useVault() {
+  return useQuery({
+    queryKey: keys.vault(),
+    queryFn: ({ signal }) => api.get<VaultView>("/v1/vault", signal),
   });
 }
 

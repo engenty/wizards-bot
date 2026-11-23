@@ -1,6 +1,6 @@
 import { DEFAULT_AVATAR } from "@wizards-bot/avatar";
 import type { Agent, Avatar } from "@wizards-bot/protocol";
-import { LogOut, Plus, Search, Settings, Smile } from "lucide-react";
+import { KeyRound, LogOut, Plus, Search, Settings, Smile } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { lang, t } from "../lib/i18n";
 import { useHome } from "../lib/queries";
@@ -165,6 +165,8 @@ export function Sidebar({
   onSearch,
   onNew,
   onSettings,
+  vault,
+  onVault,
   onAvatar,
   onSignOut,
 }: {
@@ -179,6 +181,9 @@ export function Sidebar({
   /** Asks the main Wizard for a new bot. */
   onNew: () => void;
   onSettings: () => void;
+  /** Whether the Vault is open in the main column. */
+  vault?: boolean;
+  onVault: () => void;
   onAvatar: () => void;
   onSignOut: () => void;
 }) {
@@ -219,6 +224,31 @@ export function Sidebar({
       <Settings className="size-[1.125rem]" />
     </IconButton>
   );
+  // The apps of the home stand at the foot of the list, above the settings: the Vault first.
+  const vaultEntry = rail ? (
+    <IconButton
+      label={t("vault.title")}
+      onClick={onVault}
+      className={cn(vault && "bg-accent text-ink")}
+    >
+      <KeyRound className="size-[1.125rem]" />
+    </IconButton>
+  ) : (
+    <button
+      type="button"
+      aria-current={vault ? "page" : undefined}
+      onClick={onVault}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-[0.9375rem] transition active:scale-[0.985]",
+        vault ? "bg-accent font-medium" : "text-ink-2 hover:bg-accent/60",
+      )}
+    >
+      <span className="grid w-10 shrink-0 place-items-center text-ink-3">
+        <KeyRound className="size-[1.125rem]" />
+      </span>
+      {t("vault.title")}
+    </button>
+  );
   if (rail) {
     return (
       <nav
@@ -247,6 +277,7 @@ export function Sidebar({
             />
           ))}
         </ul>
+        {vaultEntry}
         {gear}
       </nav>
     );
@@ -287,7 +318,8 @@ export function Sidebar({
           />
         ))}
       </ul>
-      <div className="flex px-2 pt-1.5">{gear}</div>
+      <div className="px-2 pt-1.5">{vaultEntry}</div>
+      <div className="flex px-2 pt-1">{gear}</div>
     </nav>
   );
 }

@@ -84,6 +84,19 @@ export class Secrets {
     });
   }
 
+  /**
+   * Seals a value another part of the home keeps itself (a login of the Vault), bound to where
+   * it belongs: the same value under another binding doesn't open.
+   */
+  seal(where: string[], value: string): string {
+    return seal(this.ring, ["wizards-bot", ...where], value);
+  }
+
+  /** Opens what `seal` sealed under the same binding; throws when it doesn't open. */
+  unseal(where: string[], sealed: string): string {
+    return unseal(this.ring, ["wizards-bot", ...where], sealed);
+  }
+
   set(name: string, value: string): void {
     this.db.run(
       "insert into secret (name, value, updated_at) values (?, ?, ?) on conflict(name) do update set value = excluded.value, updated_at = excluded.updated_at",
