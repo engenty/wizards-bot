@@ -20,8 +20,11 @@ describe("a home", () => {
     const info = (await (await fetch(`${t.url}/v1/home`)).json()) as {
       name: string;
       handle: string;
+      hosted: boolean;
     };
     assert.equal(info.name, "Ada");
+    // On a person's own computer: no operator's imprint or terms on its pages.
+    assert.equal(info.hosted, false);
     assert.match(info.handle, /^ada@127\.0\.0\.1:\d+$/);
     assert.equal((await fetch(`${t.url}/v1/agents`)).status, 401);
   });

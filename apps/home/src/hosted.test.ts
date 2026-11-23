@@ -148,6 +148,7 @@ describe("a hosted home", () => {
     assert.deepEqual(t.home.models.account(), { gatewayUrl: manage.url });
     assert.equal(t.home.models.accountKey(), KEY);
     assert.equal(t.home.handle(), "ada@wizards.bot");
+    assert.equal(t.home.info().hosted, true);
     // The key is a secret: not in the meta the home keeps in the clear.
     const meta = t.home.db.all<{ value: string }>("select value from meta");
     assert.ok(!meta.some((row) => row.value.includes(KEY)));

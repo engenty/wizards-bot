@@ -540,6 +540,8 @@ nonisolated struct HomeInfo: Codable, Hashable, Sendable {
     var handle: String?
     /// Ed25519 public key, base64url.
     var publicKey: String
+    /// A hosted Bot Server at `<name>.wizards.bot`, run by engenty.
+    var hosted: Bool?
 }
 
 nonisolated enum PushEnvironment: OpenEnum {
