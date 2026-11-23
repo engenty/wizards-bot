@@ -2,15 +2,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Folder, ModelService, ModelSource, Models, SecretEntry } from "@wizards-bot/protocol";
 import {
   Activity,
+  ChevronLeft,
+  ChevronRight,
   Folder as FolderIcon,
   FolderPlus,
   KeyRound,
+  LockKeyhole,
   Palette,
   ShieldCheck,
   Sparkles,
   Unplug,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
@@ -19,14 +22,11 @@ import { SetupStatus } from "../setup/Checks";
 import { LangSwitch, ThemeSwitch } from "../setup/Frame";
 import { Button, Chip, cn, Dialog, IconButton, Select } from "../ui";
 import { PrivacyDialog, serviceLine } from "./ConsentDialog";
+import { VaultSettings } from "./Vault";
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="mt-6 first:mt-0">
-      <h3 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{title}</h3>
-      {children}
-    </section>
-  );
+/** A page of the settings. Its name is in the list of pages (on a phone, in the bar above). */
+function Section({ children }: { children: ReactNode }) {
+  return <section>{children}</section>;
 }
 
 /** A connected folder: its name and path, what the agents may do in it, and the way out. */
@@ -175,7 +175,7 @@ export interface Asker {
 }
 
 /** The pages of the settings. */
-type Page = "models" | "status" | "folders" | "secrets" | "look" | "privacy";
+type Page = "models" | "status" | "folders" | "vault" | "secrets" | "look" | "privacy";
 
 /**
  * What the home has around the agents: the connected folders and the models. Who the person is
@@ -199,6 +199,12 @@ export function SettingsDialog({
   const [problem, setProblem] = useState<string | null>(null);
   const [reads, setReads] = useState(false);
   const [page, setPage] = useState<Page>("models");
+  /** On a phone: whether a page is open, one level below the list of pages. */
+  const [inside, setInside] = useState(false);
+  // Opened again, a phone starts at the list of pages.
+  useEffect(() => {
+    if (open) setInside(false);
+  }, [open]);
   const secrets = useSecrets(open && page === "secrets");
   const current = models.data?.current;
   const setModels = (view: Models) => client.setQueryData(keys.models(), view);
@@ -219,39 +225,71 @@ export function SettingsDialog({
     { id: "models", icon: Sparkles, label: t("models.title") },
     { id: "status", icon: Activity, label: t("status.title") },
     { id: "folders", icon: FolderIcon, label: t("folders.title") },
+    { id: "vault", icon: LockKeyhole, label: t("vault.title") },
     { id: "secrets", icon: KeyRound, label: t("settings.secrets") },
     { id: "look", icon: Palette, label: t("settings.look") },
     { id: "privacy", icon: ShieldCheck, label: t("settings.privacy") },
   ];
+  const here = pages.find((p) => p.id === page);
+  // On a phone the settings are a menu: a page slides in one level down, with the way back and
+  // its name in the bar; beside it, from the width of a tablet, the list stays at the left.
+  const title = (
+    <span className="flex min-w-0 items-center gap-1">
+      {inside ? (
+        <IconButton
+          label={t("common.back")}
+          onClick={() => setInside(false)}
+          className="-ml-3 size-8 sm:hidden"
+        >
+          <ChevronLeft className="size-4" />
+        </IconButton>
+      ) : null}
+      <span className={cn("truncate", inside && "max-sm:hidden")}>{t("settings.title")}</span>
+      {inside ? <span className="truncate sm:hidden">{here?.label}</span> : null}
+    </span>
+  );
   return (
-    <Dialog open={open} onClose={onClose} title={t("settings.title")} wide="settings">
-      {/* Two columns: the pages at the left, the page at the right; on a phone the pages are a
-          row of tabs above it. */}
+    <Dialog open={open} onClose={onClose} title={title} wide="settings">
       <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
         <nav
           aria-label={t("settings.title")}
-          className="flex shrink-0 gap-0.5 overflow-x-auto p-2 sm:w-48 sm:flex-col sm:overflow-visible"
+          className={cn(
+            "flex shrink-0 flex-col gap-0.5 overflow-y-auto p-2 sm:w-48",
+            inside ? "max-sm:hidden" : "enter-back max-sm:flex-1",
+          )}
         >
           {pages.map(({ id, icon: Icon, label }) => (
             <button
               key={id}
               type="button"
               aria-current={page === id ? "page" : undefined}
-              onClick={() => setPage(id)}
+              onClick={() => {
+                setPage(id);
+                setInside(true);
+              }}
               className={cn(
-                "flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[0.875rem] transition",
-                page === id ? "bg-accent font-medium text-ink" : "text-ink-2 hover:bg-accent/60",
+                "flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[0.875rem] transition max-sm:py-2.5 max-sm:text-[0.9375rem]",
+                page === id
+                  ? "text-ink sm:bg-accent sm:font-medium"
+                  : "text-ink-2 hover:bg-accent/60",
               )}
             >
               <Icon className="size-4 shrink-0 text-ink-3" />
-              {label}
+              <span className="flex-1">{label}</span>
+              <ChevronRight className="size-4 shrink-0 text-ink-4 sm:hidden" />
             </button>
           ))}
         </nav>
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-3">
+        <div
+          key={page}
+          className={cn(
+            "min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-3",
+            inside ? "enter-deeper" : "max-sm:hidden",
+          )}
+        >
           {page === "models" ? (
             models.data?.sources.length ? (
-              <Section title={t("models.title")}>
+              <Section>
                 <fieldset className="flex flex-col gap-1">
                   <legend className="sr-only">{t("models.choose")}</legend>
                   {models.data.sources.map((source) => {
@@ -291,12 +329,12 @@ export function SettingsDialog({
             ) : null
           ) : page === "status" ? (
             setup.data ? (
-              <Section title={t("status.title")}>
+              <Section>
                 <SetupStatus setup={setup.data} />
               </Section>
             ) : null
           ) : page === "folders" ? (
-            <Section title={t("folders.title")}>
+            <Section>
               {folders.data?.length ? (
                 <ul className="divide-y divide-border-soft">
                   {folders.data.map((folder) => (
@@ -311,8 +349,12 @@ export function SettingsDialog({
                 {t("composer.folder")}
               </Button>
             </Section>
+          ) : page === "vault" ? (
+            <Section>
+              <VaultSettings />
+            </Section>
           ) : page === "secrets" ? (
-            <Section title={t("settings.secrets")}>
+            <Section>
               <p className="mb-2 text-[0.8125rem] text-ink-2 leading-relaxed">
                 {t("secrets.intro")}
               </p>
@@ -340,7 +382,7 @@ export function SettingsDialog({
               </p>
             </Section>
           ) : page === "look" ? (
-            <Section title={t("settings.look")}>
+            <Section>
               <div className="flex items-center justify-between gap-3 py-2">
                 <span className="text-[0.875rem]">{t("theme.label")}</span>
                 <ThemeSwitch />
@@ -351,7 +393,7 @@ export function SettingsDialog({
               </div>
             </Section>
           ) : (
-            <Section title={t("consent.title")}>
+            <Section>
               {models.data?.services?.length ? (
                 <ul className="divide-y divide-border-soft">
                   {models.data.services.map((service) => (

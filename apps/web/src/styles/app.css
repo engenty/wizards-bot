@@ -267,6 +267,31 @@ dialog.media-sheet::backdrop {
     animation: enter-pop 240ms var(--ease-settle) backwards;
   }
 
+  /* One level down in a menu on a phone: the page comes in from the right; back, from the left.
+     From the width of a tablet the list and the page stand side by side and nothing slides. */
+  @keyframes enter-deeper {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+  @media (width < 40rem) {
+    .enter-deeper {
+      animation: enter-deeper 240ms var(--ease-settle) backwards;
+    }
+  }
+  @keyframes enter-back {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+  }
+  @media (width < 40rem) {
+    .enter-back {
+      animation: enter-back 240ms var(--ease-settle) backwards;
+    }
+  }
+
   /* The list of agents changes its width. */
   .side-slot {
     transition: width 240ms var(--ease-settle);

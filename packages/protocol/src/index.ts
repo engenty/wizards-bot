@@ -589,7 +589,7 @@ export const VaultView = z.object({
 });
 export type VaultView = z.infer<typeof VaultView>;
 
-/** A new or changed item, as the Vault page sends it. Empty secret fields keep what is kept. */
+/** A new or changed item, as the Vault page of the settings sends it. Empty secret fields keep what is kept. */
 export const VaultInput = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("login"),

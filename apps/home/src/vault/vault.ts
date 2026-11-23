@@ -24,7 +24,7 @@ import { newId, now } from "../ids.ts";
 
 // The Vault: the person's website logins (with an authenticator key, when they have one),
 // payment cards and notes. Each is sealed with the home's key from `Secrets`, bound to its
-// record and what it is. The person adds, imports, reveals and changes them on the Vault page.
+// record and what it is. The person adds, imports, reveals and changes them on the Vault page of the settings.
 // An agent uses a login only through `vault_sign_in` and `vault_code`: it sees the login's
 // name, its website and two letters of the user name; the home types the password and the
 // code into the page itself, on the login's own website only, after the person said yes on a

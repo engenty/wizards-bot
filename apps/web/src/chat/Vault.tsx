@@ -6,13 +6,21 @@ import type {
   VaultItem,
   VaultSecret,
 } from "@wizards-bot/protocol";
-import { ChevronLeft, CreditCard, Download, KeyRound, NotebookText, Plus } from "lucide-react";
+import {
+  ChevronRight,
+  CreditCard,
+  Download,
+  KeyRound,
+  NotebookText,
+  Plus,
+  Search,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { useAgents, useVault } from "../lib/queries";
-import { Button, cn, Dialog, IconButton, Input } from "../ui";
+import { Button, cn, Dialog, Input } from "../ui";
 import { Menu } from "../ui/Menu";
 
 type Kind = VaultItem["kind"];
@@ -22,35 +30,6 @@ const ICONS: Record<Kind, typeof KeyRound> = {
   card: CreditCard,
   note: NotebookText,
 };
-
-/** One way to add something on the Vault, as a tile. */
-function Tile({
-  icon,
-  title,
-  hint,
-  onSelect,
-}: {
-  icon: ReactNode;
-  title: string;
-  hint: string;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="flex min-h-24 items-center gap-4 rounded-2xl border border-border-soft bg-card p-4 text-left text-ink transition hover:border-ink-4 active:scale-[0.99] sm:p-5"
-    >
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-ink-2 [&_svg]:size-[1.125rem]">
-        {icon}
-      </span>
-      <span className="min-w-0">
-        <span className="block font-medium text-[0.9375rem]">{title}</span>
-        <span className="mt-1 block text-[0.8125rem] text-ink-3 leading-snug">{hint}</span>
-      </span>
-    </button>
-  );
-}
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -408,27 +387,27 @@ function ItemDialog({
   );
 }
 
+/** One use of the Vault, on one line: when, what, which item and who. */
 function ActivityLine({ entry, agent }: { entry: VaultActivity; agent: string | undefined }) {
   return (
-    <li className="flex items-baseline gap-3 px-4 py-2.5 text-[0.8125rem]">
-      <span className="w-36 shrink-0 text-ink-3">{new Date(entry.at).toLocaleString()}</span>
+    <li className="flex items-baseline gap-3 py-1.5 text-[0.8125rem]">
+      <span className="w-28 shrink-0 text-ink-3 tabular-nums">
+        {new Date(entry.at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+      </span>
       <span className="min-w-0 flex-1">
         {entry.action === "import" ? (
           // An import is logged with how many passwords it brought.
-          <span className="font-medium">
-            {t("vault.act.imported", { n: Number.parseInt(entry.label, 10) || 0 })}
-          </span>
+          t("vault.act.imported", { n: Number.parseInt(entry.label, 10) || 0 })
         ) : (
           <>
-            <span className={cn("font-medium", entry.action === "refused" && "text-rose")}>
+            <span className={cn(entry.action === "refused" && "text-rose")}>
               {t(`vault.act.${entry.action}`)}
             </span>{" "}
-            {entry.label}
+            <span className="font-medium">{entry.label}</span>
           </>
         )}
-        {entry.origin ? <span className="text-ink-3"> · {new URL(entry.origin).host}</span> : null}
         <span className="text-ink-3"> · {agent ?? t("vault.you")}</span>
-        {entry.reason ? <span className="block text-ink-3">{entry.reason}</span> : null}
+        {entry.reason ? <span className="block truncate text-ink-3">{entry.reason}</span> : null}
       </span>
     </li>
   );
@@ -440,33 +419,71 @@ type Open =
   | { kind: "item"; item: VaultItem }
   | null;
 
+const KINDS: Kind[] = ["login", "card", "note"];
+
+/** What a row says under its name: the website and the user name, or the card's holder. */
+function line(item: VaultItem) {
+  return [item.origin ? new URL(item.origin).host : null, item.detail].filter(Boolean).join(" · ");
+}
+
 /**
- * The Vault: the person's website logins, payment cards and notes, sealed on the Bot Server. The
- * person adds, imports, shows and changes them here; the agents sign in with a login only
- * after the person said yes in the chat, and never see its password.
+ * The Vault, as a page of the settings: the person's passwords (with their authenticator keys),
+ * payment cards and notes, sealed with the Bot Server's key. A tab for each kind, a search once a
+ * list is long, and the activity folded away. The agents sign in with a password only after the
+ * person said yes in the chat, and never see it.
  */
-export function VaultPage({ onAgents }: { onAgents?: () => void }) {
+export function VaultSettings() {
   const vault = useVault();
   const agents = useAgents();
   const [open, setOpen] = useState<Open>(null);
+  const [kind, setKind] = useState<Kind>("login");
+  const [query, setQuery] = useState("");
+  const [log, setLog] = useState(false);
   const items = vault.data?.items ?? [];
-  const count = (kind: Kind) => items.filter((i) => i.kind === kind).length;
+  const ofKind = items.filter((i) => i.kind === kind);
+  const words = query.trim().toLowerCase();
+  const listed = words
+    ? ofKind.filter((i) => `${i.label} ${line(i)}`.toLowerCase().includes(words))
+    : ofKind;
   const agentName = (id: string | null) =>
     id ? (agents.data?.find((a) => a.id === id)?.name ?? "—") : undefined;
   const add = (itemKind: Kind) => setOpen({ kind: "form", itemKind });
-  const sections: Kind[] = ["login", "card", "note"];
+  const activity = vault.data?.activity ?? [];
   return (
-    <div className="flex h-full min-w-0 flex-col overflow-y-auto">
-      <div className="mx-auto w-full max-w-4xl px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-10 sm:px-8 sm:pt-10">
-        <header className="flex items-center gap-2">
-          {onAgents ? (
-            <IconButton label={t("agents.show")} onClick={onAgents} className="-ml-1.5">
-              <ChevronLeft className="size-5" />
-            </IconButton>
-          ) : null}
-          <h1 className="min-w-0 flex-1 font-display font-semibold text-[1.75rem] leading-tight">
-            {t("vault.title")}
-          </h1>
+    <>
+      {/* The tabs, the way to add and the search stay in view while a long list scrolls. */}
+      <div className="sticky -top-3 z-10 -mx-5 bg-card px-5 pt-3 pb-1">
+        <div className="flex items-center gap-2">
+          <div
+            role="tablist"
+            aria-label={t("vault.title")}
+            className="inline-flex min-w-0 items-center overflow-x-auto rounded-full bg-paper-2 p-0.5 ring-1 ring-border-soft"
+          >
+            {KINDS.map((one) => (
+              <button
+                key={one}
+                type="button"
+                role="tab"
+                aria-selected={one === kind}
+                onClick={() => {
+                  setKind(one);
+                  setQuery("");
+                }}
+                className={cn(
+                  "h-7 shrink-0 rounded-full px-3 text-[0.8125rem] transition",
+                  one === kind
+                    ? "bg-card font-medium text-ink shadow-sm"
+                    : "text-ink-3 hover:text-ink",
+                )}
+              >
+                {t(`vault.tab.${one}`)}
+                <span className="ml-1.5 text-ink-4 tabular-nums">
+                  {items.filter((i) => i.kind === one).length}
+                </span>
+              </button>
+            ))}
+          </div>
+          <span className="flex-1" />
           <Menu
             label={t("vault.add")}
             items={[
@@ -480,103 +497,103 @@ export function VaultPage({ onAgents }: { onAgents?: () => void }) {
                 onSelect: () => setOpen({ kind: "import" }),
               },
             ]}
-            className="flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 font-medium text-[0.875rem] text-primary-foreground transition hover:brightness-[1.06]"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[0.8125rem] max-sm:w-8 max-sm:justify-center max-sm:px-0 text-ink-2 ring-1 ring-border-soft transition hover:text-ink"
           >
-            <Plus className="size-4" />
-            {t("vault.add")}
+            <Plus className="size-3.5" />
+            <span className="max-sm:sr-only">{t("vault.add")}</span>
           </Menu>
-        </header>
-        {vault.data ? (
-          <p className="mt-4 text-[1.125rem] text-ink-2">
-            {items.length
-              ? t("vault.summary", {
-                  logins: count("login"),
-                  cards: count("card"),
-                  notes: count("note"),
-                })
-              : t("vault.summary.none")}
-          </p>
-        ) : null}
-        <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(min(15rem,100%),1fr))] gap-3">
-          <Tile
-            icon={<Download />}
-            title={t("vault.add.import")}
-            hint={t("vault.tile.import")}
-            onSelect={() => setOpen({ kind: "import" })}
-          />
-          <Tile
-            icon={<KeyRound />}
-            title={t("vault.tile.login.title")}
-            hint={t("vault.tile.login")}
-            onSelect={() => add("login")}
-          />
-          <Tile
-            icon={<CreditCard />}
-            title={t("vault.tile.card.title")}
-            hint={t("vault.tile.card")}
-            onSelect={() => add("card")}
-          />
         </div>
-        {sections.map((kind) => {
-          const listed = items.filter((i) => i.kind === kind);
-          if (!listed.length) return null;
-          const Icon = ICONS[kind];
-          return (
-            <section key={kind} className="mt-7">
-              <h2 className="mb-2 font-medium text-[0.8125rem] text-ink-3">
-                {t(`vault.section.${kind}`)}
-              </h2>
-              <ul className="divide-y divide-border-soft overflow-hidden rounded-2xl border border-border-soft bg-card">
-                {listed.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => setOpen({ kind: "item", item })}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-ink transition hover:bg-accent/60"
-                    >
-                      <Icon className="size-4 shrink-0 text-ink-3" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-[0.9375rem]">
-                          {item.label}
-                        </span>
-                        <span className="block truncate text-[0.8125rem] text-ink-3">
-                          {[item.origin ? new URL(item.origin).host : null, item.detail]
-                            .filter(Boolean)
-                            .join(" · ")}
-                          {item.authenticator ? ` · ${t("vault.authenticator")}` : ""}
-                        </span>
-                      </span>
-                      {item.readable ? null : (
-                        <span className="shrink-0 text-[0.75rem] text-rose">
-                          {t("vault.unreadable")}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-        <p className="mt-5 text-[0.8125rem] text-ink-3 leading-relaxed">{t("vault.how")}</p>
-        <section className="mt-7">
-          <h2 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("vault.activity")}</h2>
-          {vault.data?.activity.length ? (
-            <ul className="divide-y divide-border-soft overflow-hidden rounded-2xl border border-border-soft bg-card">
-              {vault.data.activity.map((entry) => (
+        {ofKind.length > 6 ? (
+          <label className="mt-2 flex h-8 items-center gap-2 rounded-lg bg-paper-2 px-2.5 ring-1 ring-border-soft">
+            <Search className="size-3.5 shrink-0 text-ink-3" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("vault.search")}
+              aria-label={t("vault.search")}
+              className="min-w-0 flex-1 bg-transparent text-[0.8125rem] outline-none placeholder:text-ink-4"
+            />
+          </label>
+        ) : null}
+      </div>
+      {listed.length ? (
+        <ul className="mt-1 divide-y divide-border-soft">
+          {listed.map((item) => {
+            const Icon = ICONS[item.kind];
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpen({ kind: "item", item })}
+                  className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-2 text-left transition hover:bg-accent/60"
+                >
+                  <Icon className="size-4 shrink-0 text-ink-3" />
+                  <span className="min-w-0 flex-1 truncate text-[0.875rem]">
+                    <span className="font-medium">{item.label}</span>
+                    {line(item) ? <span className="text-ink-3"> · {line(item)}</span> : null}
+                  </span>
+                  {item.authenticator ? (
+                    <span className="shrink-0 text-[0.75rem] text-ink-3">
+                      {t("vault.authenticator")}
+                    </span>
+                  ) : null}
+                  {item.readable ? null : (
+                    <span className="shrink-0 text-[0.75rem] text-rose">
+                      {t("vault.unreadable")}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : vault.data ? (
+        <p className="mt-3 text-[0.875rem] text-ink-2">
+          {words ? t("vault.noMatch") : t(`vault.empty.${kind}`)}
+        </p>
+      ) : null}
+      {vault.data && !words && !ofKind.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {kind === "login" ? (
+            <Button variant="secondary" size="sm" onClick={() => setOpen({ kind: "import" })}>
+              <Download className="size-4" />
+              {t("vault.add.import")}
+            </Button>
+          ) : null}
+          <Button variant="secondary" size="sm" onClick={() => add(kind)}>
+            <Plus className="size-4" />
+            {t(`vault.form.new.${kind}`)}
+          </Button>
+        </div>
+      ) : null}
+      <p className="mt-4 text-[0.8125rem] text-ink-3 leading-relaxed">{t("vault.how")}</p>
+      {activity.length ? (
+        <div className="mt-4">
+          <button
+            type="button"
+            aria-expanded={log}
+            onClick={() => setLog((shown) => !shown)}
+            className="flex items-center gap-1 font-medium text-[0.8125rem] text-ink-3 transition hover:text-ink"
+          >
+            <ChevronRight className={cn("size-3.5 transition-transform", log && "rotate-90")} />
+            {t("vault.activity")}
+            <span className="font-normal text-ink-4 tabular-nums">{activity.length}</span>
+          </button>
+          {log ? (
+            <ul className="mt-1 max-h-60 divide-y divide-border-soft overflow-y-auto">
+              {activity.map((entry) => (
                 <ActivityLine key={entry.id} entry={entry} agent={agentName(entry.agentId)} />
               ))}
             </ul>
-          ) : (
-            <p className="text-[0.8125rem] text-ink-3">{t("vault.activity.none")}</p>
-          )}
-        </section>
-        {vault.error ? (
-          <p role="alert" className="mt-3 text-[0.8125rem] text-rose">
-            {vault.error.message}
-          </p>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
+      {vault.error ? (
+        <p role="alert" className="mt-3 text-[0.8125rem] text-rose">
+          {vault.error.message}
+        </p>
+      ) : null}
       {open?.kind === "form" ? (
         <ItemForm kind={open.itemKind} item={open.item} onClose={() => setOpen(null)} />
       ) : open?.kind === "import" ? (
@@ -588,6 +605,6 @@ export function VaultPage({ onAgents }: { onAgents?: () => void }) {
           onClose={() => setOpen(null)}
         />
       ) : null}
-    </div>
+    </>
   );
 }

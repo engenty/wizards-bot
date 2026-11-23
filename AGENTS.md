@@ -119,7 +119,7 @@ no emoji, no "please".
 - A secret goes from a card's `secret` field into `Secrets` and from there to the code that
   needs it. It never enters a message, a tool result or a prompt.
 - The Vault (`vault/`) keeps the person's passwords, cards and notes; the person adds, imports,
-  shows and changes them on the Vault page, the one page that takes a secret. An agent signs in
+  shows and changes them on the Vault page of the settings, the one page that takes a secret. An agent signs in
   with a saved password only through `vault_sign_in` and `vault_code`, after the person said
   yes on a card: it sees the name, the website and two letters of the user name, and the home
   types the password and the code into the page itself, on that website only. Every browser
