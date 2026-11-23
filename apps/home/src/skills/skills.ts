@@ -39,6 +39,8 @@ export interface Skill {
   files: string[];
   /** Matches a message that names what the skill is for. */
   words: RegExp | undefined;
+  /** The plugin that brought it; none for the home's own. */
+  plugin?: string;
 }
 
 const list = (value: unknown): string[] =>
@@ -94,16 +96,33 @@ export function readSkills(dir: string): Skill[] {
 }
 
 export class Skills {
-  private readonly skills: Skill[];
+  /** The home's own skills. */
+  private readonly own: Skill[];
   /** Per conversation: the loaded skills and how many more messages each stays for. */
   private readonly loaded = new Map<string, Map<string, number>>();
-  /** The skill each skill tool belongs to, by the tool's name. */
-  private readonly owners = new Map<string, string>();
+  /** The skills each skill tool belongs to, by the tool's name: it is shown while one is loaded. */
+  private readonly owners = new Map<string, string[]>();
+
+  private readonly home: Home;
 
   constructor(home: Home, dir = dirname(fileURLToPath(import.meta.url))) {
-    this.skills = readSkills(dir);
+    this.home = home;
+    this.own = readSkills(dir);
     home.addTools((context) => this.tools(context));
     registerDocumentCards(home);
+  }
+
+  /** The names of the home's own skills, which a plugin's may not take. */
+  ownNames(): string[] {
+    return this.own.map((skill) => skill.name);
+  }
+
+  /** The home's own skills and those of the plugins that are on. */
+  private get skills(): Skill[] {
+    const fromPlugins = this.home.plugins?.skills() ?? [];
+    return fromPlugins.length
+      ? [...this.own, ...fromPlugins].sort((a, b) => a.name.localeCompare(b.name))
+      : this.own;
   }
 
   list(): Skill[] {
@@ -150,8 +169,8 @@ export class Skills {
 
   /** Whether a model sees a tool now: a skill's tool only while the skill is loaded. */
   shows(conversationId: string, tool: string): boolean {
-    const owner = this.owners.get(tool);
-    return !owner || this.isLoaded(conversationId, owner);
+    const owners = this.owners.get(tool);
+    return !owners?.length || owners.some((owner) => this.isLoaded(conversationId, owner));
   }
 
   /**
@@ -176,19 +195,31 @@ export class Skills {
   private tools(context: TurnContext): Tool[] {
     const { conversationId } = context;
     const brought: Tool[] = [];
-    for (const skill of this.skills) {
-      for (const tool of TOOLS[skill.name]?.(context) ?? []) {
-        this.owners.set(tool.name, skill.name);
-        brought.push({
-          ...tool,
-          // Using a skill's tool keeps the skill loaded.
-          run: (input, call) => {
-            this.load(conversationId, skill.name);
-            return tool.run(input, call);
-          },
-        });
-      }
+    const bring = (tool: Tool, skills: string[]) => {
+      this.owners.set(tool.name, skills);
+      brought.push(
+        skills.length
+          ? {
+              ...tool,
+              // Using a skill's tool keeps its skills loaded.
+              run: (input, call) => {
+                for (const skill of skills) this.load(conversationId, skill);
+                return tool.run(input, call);
+              },
+            }
+          : tool,
+      );
+    };
+    for (const skill of this.own) {
+      for (const tool of TOOLS[skill.name]?.(context) ?? []) bring(tool, [skill.name]);
     }
+    // A plugin's tools come with its skills; a plugin without skills has them always.
+    const fromPlugins = this.home.plugins?.tools(context) ?? [];
+    for (const { tool, skills } of fromPlugins) bring(tool, skills);
+    const toolsOf = (skill: string): string[] => [
+      ...(TOOLS[skill]?.(context) ?? []).map((tool) => tool.name),
+      ...fromPlugins.filter((each) => each.skills.includes(skill)).map((each) => each.tool.name),
+    ];
     return [
       defineTool({
         name: "skill_load",
@@ -200,7 +231,7 @@ export class Skills {
           const skill = this.load(conversationId, input.name);
           if (!skill)
             return `There is no skill ${input.name}. Skills: ${this.skills.map((each) => each.name).join(", ")}.`;
-          const names = (TOOLS[skill.name]?.(context) ?? []).map((tool) => `\`${tool.name}\``);
+          const names = toolsOf(skill.name).map((name) => `\`${name}\``);
           return `${skill.instructions}${names.length ? `\n\nIts tools are yours from your next step on: ${names.join(", ")}.` : ""}`;
         },
       }),

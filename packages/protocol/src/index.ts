@@ -546,6 +546,37 @@ export const SecretEntry = z.object({
 });
 export type SecretEntry = z.infer<typeof SecretEntry>;
 
+// ── Plugins ─────────────────────────────────────────────────────────────────
+
+/**
+ * A plugin in the home's plugins folder: skills and tools the person's own agents get while it
+ * is on. Its tools run in a process of their own, with fewer rights than the home.
+ */
+export const Plugin = z.object({
+  id: z.string(),
+  name: z.string(),
+  version: z.string(),
+  description: z.string().optional(),
+  /** Switched on by the person. A plugin found in the folder is off until then. */
+  on: z.boolean(),
+  /** `starting`, `ready`: its tools' process; `failed`: see `problem`. */
+  state: z.enum(["off", "starting", "ready", "failed"]),
+  problem: z.string().optional(),
+  skills: z.array(z.object({ name: z.string(), description: z.string() })),
+  /** `readOnly` false: the person is asked before each use. */
+  tools: z.array(z.object({ name: z.string(), description: z.string(), readOnly: z.boolean() })),
+});
+export type Plugin = z.infer<typeof Plugin>;
+
+export const PluginsView = z.object({
+  /** Where the home looks for plugins. */
+  folder: z.string(),
+  plugins: z.array(Plugin),
+  /** What looked like a plugin and is none, with why. */
+  problems: z.array(z.object({ path: z.string(), message: z.string() })),
+});
+export type PluginsView = z.infer<typeof PluginsView>;
+
 // ── Folders ─────────────────────────────────────────────────────────────────
 
 /**

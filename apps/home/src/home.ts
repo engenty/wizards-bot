@@ -23,6 +23,7 @@ import { Models } from "./models/models.ts";
 import { Notifier } from "./notify/notifier.ts";
 import { Peers } from "./peers/peers.ts";
 import { keyDomain } from "./peers/person.ts";
+import { Plugins } from "./plugins/plugins.ts";
 import { Setup } from "./setup/setup.ts";
 import { Sharing } from "./sharing/sharing.ts";
 import { Skills } from "./skills/skills.ts";
@@ -53,6 +54,7 @@ export class Home {
   readonly files: Files;
   readonly folders: Folders;
   readonly skills: Skills;
+  readonly plugins: Plugins;
   readonly artifacts: Artifacts;
   readonly sharing: Sharing;
   readonly avatars: Avatars;
@@ -95,6 +97,7 @@ export class Home {
     this.folders = new Folders(this);
     this.handoffs = new Handoffs(this);
     this.skills = new Skills(this);
+    this.plugins = new Plugins(this, () => this.skills.ownNames());
     this.artifacts = new Artifacts(this);
     this.sharing = new Sharing(this);
     this.avatars = new Avatars(this);
@@ -262,6 +265,7 @@ export class Home {
     this.channels.stop();
     this.notifier.close();
     this.connections.close();
+    this.plugins.close();
     this.mastra.close();
     this.db.close();
   }

@@ -587,6 +587,17 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       : notFound(c, "mark"),
   );
 
+  // ── Plugins ───────────────────────────────────────────────────────────────
+
+  app.get("/v1/plugins", (c) => c.json(home.plugins.view()));
+
+  app.patch("/v1/plugins/:id", async (c) => {
+    const { on } = z.object({ on: z.boolean() }).parse(await c.req.json());
+    return (await home.plugins.setOn(c.req.param("id"), on))
+      ? c.json(home.plugins.view())
+      : notFound(c, "plugin");
+  });
+
   // ── Folders ───────────────────────────────────────────────────────────────
 
   const folderProblem = (c: Context, error: unknown) => {

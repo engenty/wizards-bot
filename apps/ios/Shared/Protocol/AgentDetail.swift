@@ -190,6 +190,54 @@ nonisolated struct FileRef: Codable, Hashable, Sendable, Identifiable {
     var size: Int
 }
 
+// MARK: - Plugins
+
+nonisolated enum PluginState: OpenEnum {
+    case off, starting, ready, failed
+    case unknown(String)
+
+    static let known: [String: PluginState] = [
+        "off": .off, "starting": .starting, "ready": .ready, "failed": .failed,
+    ]
+    var unknownValue: String? { if case .unknown(let raw) = self { raw } else { nil } }
+}
+
+/// A plugin in the home's plugins folder: skills and tools the person's own agents get while it
+/// is on. Its tools run in a process of their own, with fewer rights than the home.
+nonisolated struct Plugin: Codable, Hashable, Sendable, Identifiable {
+    struct Skill: Codable, Hashable, Sendable {
+        var name: String
+        var description: String
+    }
+    struct Tool: Codable, Hashable, Sendable {
+        var name: String
+        var description: String
+        /// False: the person is asked before each use.
+        var readOnly: Bool
+    }
+    var id: String
+    var name: String
+    var version: String
+    var description: String?
+    /// Switched on by the person. A plugin found in the folder is off until then.
+    var on: Bool
+    var state: PluginState
+    var problem: String?
+    var skills: [Skill]
+    var tools: [Tool]
+}
+
+/// `GET /v1/plugins`: where the home looks, the plugins, and what looked like one and is none.
+nonisolated struct PluginsView: Codable, Hashable, Sendable {
+    struct Problem: Codable, Hashable, Sendable {
+        var path: String
+        var message: String
+    }
+    var folder: String
+    var plugins: [Plugin]
+    var problems: [Problem]
+}
+
 // MARK: - Folders
 
 nonisolated enum FolderAccess: OpenEnum {
