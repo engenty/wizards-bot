@@ -302,7 +302,7 @@ export function Messages({
         fromEnd.current = el.scrollHeight - el.scrollTop;
         atEnd.current = fromEnd.current - el.clientHeight < 80;
       }}
-      className="min-h-0 flex-1 overflow-y-auto"
+      className="scroll-soft min-h-0 flex-1 overflow-y-auto"
     >
       <div
         ref={content}

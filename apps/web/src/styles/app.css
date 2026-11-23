@@ -27,6 +27,12 @@ body {
   height: 100dvh;
 }
 
+/* A long column that scrolls: a thin, quiet bar instead of the system's wide one. */
+.scroll-soft {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 /* iOS zooms the page into any field typed in below 16 px, and does not zoom back out. */
 @media (pointer: coarse) {
   input:not([type="checkbox"], [type="radio"]),

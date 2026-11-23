@@ -177,7 +177,7 @@ export function Chat({
               <IconButton
                 label={t("agents.show")}
                 onClick={onAgents}
-                className="relative -ml-1.5 bg-card/90 shadow-sm ring-1 ring-border-soft backdrop-blur hover:bg-card"
+                className="relative -ml-1.5 bg-card/60 shadow-[0_1px_3px_oklch(0%_0_0/0.08)] ring-1 ring-border-soft/60 backdrop-blur-md transition-[background-color,box-shadow] duration-200 hover:bg-card"
               >
                 <ChevronLeft className="size-5" />
                 {unread ? (
@@ -190,12 +190,13 @@ export function Chat({
             type="button"
             title={t("agent.about", { name: agent.name })}
             onClick={onAgent}
-            className="group flex min-w-0 items-center gap-2 rounded-full bg-card/90 py-1 pr-2.5 pl-1 shadow-sm ring-1 ring-border-soft backdrop-blur transition hover:bg-card active:scale-[0.98]"
+            className="group flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 active:scale-[0.98] bg-card/60 shadow-[0_1px_3px_oklch(0%_0_0/0.08)] ring-1 ring-border-soft/60 backdrop-blur-md transition-[background-color,box-shadow] duration-200 hover:bg-card"
           >
             <Face key={agent.id} agent={agent} size={32} className="enter-pop" />
             <h1 className="truncate font-display font-semibold text-[1.0625rem]">{agent.name}</h1>
-            {/* On hover a chevron says the name opens one level down: the agent's page beside. */}
-            <ChevronRight className="size-4 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" />
+            {/* On hover a chevron makes room for itself: the name opens one level down, the agent's
+              page beside. */}
+            <ChevronRight className="-ml-2 w-0 shrink-0 text-ink-3 opacity-0 transition-[width,margin,opacity] duration-200 group-hover:ml-0 group-hover:w-4 group-hover:opacity-100 h-4" />
           </button>
           <div className="flex min-w-0 items-center justify-end">
             {items.length ? (
@@ -214,7 +215,7 @@ export function Chat({
         {link === "away" ? (
           <p
             role="status"
-            className="mx-auto flex w-fit max-w-[46rem] items-center gap-2 rounded-full bg-card/90 px-3 py-1 text-[0.8125rem] text-ink-3 shadow-sm ring-1 ring-border-soft backdrop-blur"
+            className="mx-auto flex w-fit max-w-[46rem] items-center gap-2 rounded-full bg-card/60 px-3 py-1 text-[0.8125rem] text-ink-3 shadow-[0_1px_3px_oklch(0%_0_0/0.08)] ring-1 ring-border-soft/60 backdrop-blur-md"
           >
             <House className="size-4 shrink-0" />
             {t("home.away")}

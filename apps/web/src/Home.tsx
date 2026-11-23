@@ -426,7 +426,8 @@ export function Home() {
         {side === "open" ? null : list(false)}
       </SidebarDrawer>
       <div ref={main} className="relative flex h-full min-w-0 flex-1">
-        <div className="h-full min-w-0 flex-1">
+        {/* The chat on a lighter ground than the list beside it. */}
+        <div className="h-full min-w-0 flex-1 bg-card">
           <Chat
             agent={agent}
             items={items.data ?? []}
