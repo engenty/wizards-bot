@@ -33,8 +33,8 @@ importers:
         specifier: ^4.45.0
         version: 4.45.0(ai@7.0.163(zod@4.6.7))(zod@4.6.7)
       '@engenty/plugins':
-        specifier: link:../../../engenty-wizards-plugins/packages/plugins
-        version: link:../../../engenty-wizards-plugins/packages/plugins
+        specifier: 0.20.4
+        version: 0.20.4(zod@4.6.7)
       '@engenty/vault':
         specifier: 0.20.2
         version: 0.20.2
@@ -404,6 +404,11 @@ packages:
 
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
+
+  '@engenty/plugins@0.20.4':
+    resolution: {integrity: sha512-530FgMgTdEeD7NEFl0AA8HXvAEwrMzxnXLMBG5QHVABatX0pk8e7vaARzAMQC43opTuezt4yjJwZ9kxXK5s/Aw==}
+    peerDependencies:
+      zod: ^4.1.0
 
   '@engenty/vault@0.20.2':
     resolution: {integrity: sha512-p7wSsxeuO4dEMOGMyVw+0JSqZN/fzWokKZmreNgbTB2zQUJogNpsCQPGwbckne8rVOg+YG6GxfSrGvx6cW0hZA==}
@@ -3222,6 +3227,10 @@ snapshots:
     dependencies:
       tslib: 2.9.1
     optional: true
+
+  '@engenty/plugins@0.20.4(zod@4.6.7)':
+    dependencies:
+      zod: 4.6.7
 
   '@engenty/vault@0.20.2': {}
 
