@@ -188,7 +188,7 @@ export function AgentData({
         </IconButton>
       </div>
       {folders.data?.length || elsewhere.length || files.length ? (
-        <ul className="enter-fade divide-y divide-border-soft">
+        <ul className="enter-fade divide-y divide-border-soft rounded-xl border border-border-soft bg-card px-4">
           {(folders.data ?? []).map((folder) => (
             <FolderLine key={folder.id} folder={folder} onProblem={setProblem} />
           ))}
@@ -208,7 +208,7 @@ export function AgentData({
         </p>
       ) : null}
       {asks.length ? (
-        <ul className="enter-fade mt-3 divide-y divide-border-soft">
+        <ul className="enter-fade mt-3 divide-y divide-border-soft rounded-xl border border-border-soft bg-card px-4">
           {asks.map(({ device, may }) => (
             <li key={device} className={line} title={t("agent.askNote", { device })}>
               <Smartphone className={icon} />

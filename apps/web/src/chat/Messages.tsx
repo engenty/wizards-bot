@@ -302,12 +302,13 @@ export function Messages({
         fromEnd.current = el.scrollHeight - el.scrollTop;
         atEnd.current = fromEnd.current - el.clientHeight < 80;
       }}
-      className="min-h-0 flex-1 overflow-y-auto"
+      className="scroll-soft min-h-0 flex-1 overflow-y-auto"
     >
       <div
         ref={content}
         className={cn(
-          "mx-auto flex w-full max-w-[46rem] flex-col gap-5 px-4 pt-2 pb-6 sm:px-5",
+          // Room at the top for the bar that lies over the messages.
+          "mx-auto flex w-full max-w-[46rem] flex-col gap-5 px-4 pt-16 pb-6 sm:px-5",
           thread?.messages.length === 0 && "h-full justify-center",
         )}
       >

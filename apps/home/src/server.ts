@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CsvRefused, OriginRefused } from "@engenty/vault";
 import type { Event } from "@wizards-bot/protocol";
 import {
   AddMark,
@@ -22,6 +23,7 @@ import {
   SetupGateway,
   TestSetup,
   UpdateDevice,
+  VaultInput,
 } from "@wizards-bot/protocol";
 import { type Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
@@ -36,6 +38,7 @@ import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
 import { PullRefused } from "./setup/setup.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
+import { VaultRefused } from "./vault/vault.ts";
 
 type Env = { Variables: { device: DeviceRecord } };
 
@@ -610,6 +613,60 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   };
 
   app.get("/v1/secrets", (c) => c.json({ secrets: secretEntries(home) }));
+
+  // ── Vault ───────────────────────────────────────────────────────────────────
+
+  const vaultProblem = (c: Context, error: unknown) => {
+    if (
+      error instanceof VaultRefused ||
+      error instanceof OriginRefused ||
+      error instanceof CsvRefused
+    )
+      return fail(c, 400, "invalid", error.message);
+    if (error instanceof z.ZodError) return fail(c, 400, "invalid", "That is not a Vault item.");
+    throw error;
+  };
+
+  app.get("/v1/vault", (c) => c.json(home.vault.view()));
+
+  app.post("/v1/vault", async (c) => {
+    try {
+      return c.json(home.vault.save(VaultInput.parse(await c.req.json())));
+    } catch (error) {
+      return vaultProblem(c, error);
+    }
+  });
+
+  app.put("/v1/vault/:id", async (c) => {
+    try {
+      return c.json(home.vault.save(VaultInput.parse(await c.req.json()), c.req.param("id")));
+    } catch (error) {
+      return vaultProblem(c, error);
+    }
+  });
+
+  app.delete("/v1/vault/:id", (c) =>
+    home.vault.remove(c.req.param("id")) ? c.json({ ok: true }) : notFound(c, "Vault item"),
+  );
+
+  // A reveal answers the person's own device, never a model; it is in the activity.
+  app.post("/v1/vault/:id/reveal", (c) => {
+    try {
+      return c.json(home.vault.reveal(c.req.param("id")));
+    } catch (error) {
+      return vaultProblem(c, error);
+    }
+  });
+
+  // The text of a password manager's CSV export; the browser reads the file, the home parses it.
+  app.post("/v1/vault/import", async (c) => {
+    try {
+      const { csv } = z.object({ csv: z.string().max(5_000_000) }).parse(await c.req.json());
+      return c.json(home.vault.import(csv));
+    } catch (error) {
+      return vaultProblem(c, error);
+    }
+  });
 
   app.get("/v1/folders", (c) => c.json({ folders: home.folders.list() }));
 

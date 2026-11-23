@@ -292,7 +292,10 @@ export function Sidebar({
   );
 }
 
-/** The open list of agents over the chat, from the left edge: where the window has no room beside it. */
+/**
+ * The open list of agents over the chat, from the left edge: where the window has no room beside
+ * it. On a phone it fills the screen, one level above the chat, which leads back to it.
+ */
 export function SidebarDrawer({
   open,
   onClose,
@@ -322,7 +325,7 @@ export function SidebarDrawer({
           onClose();
         }
       }}
-      className="drawer m-0 h-dvh max-h-none w-[min(20rem,calc(100%-3rem))] max-w-none bg-paper p-0 text-ink shadow-overlay backdrop:bg-[oklch(20%_0.01_60/0.28)] backdrop:backdrop-blur-[2px]"
+      className="drawer m-0 h-dvh max-h-none w-[min(20rem,calc(100%-3rem))] max-w-none bg-paper max-sm:w-full max-sm:shadow-none p-0 text-ink shadow-overlay backdrop:bg-[oklch(20%_0.01_60/0.28)] backdrop:backdrop-blur-[2px]"
     >
       {children}
     </dialog>

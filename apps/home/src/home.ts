@@ -8,6 +8,7 @@ import { buildTools, registerCardHandlers } from "./agent/tools.ts";
 import { type Trigger, type TurnContext, Turns } from "./agent/turns.ts";
 import { Artifacts } from "./artifacts/artifacts.ts";
 import { Avatars } from "./avatar/avatars.ts";
+import { Browser } from "./browser/browser.ts";
 import { type ChannelAdapter, Channels } from "./channels/channels.ts";
 import { ADAPTERS } from "./channels/index.ts";
 import { type Config, isHosted, VERSION } from "./config.ts";
@@ -30,6 +31,7 @@ import { Skills } from "./skills/skills.ts";
 import { Db } from "./store/db.ts";
 import { Store } from "./store/store.ts";
 import { Tasks } from "./tasks/tasks.ts";
+import { Vault } from "./vault/vault.ts";
 
 /** Field values as the person typed them, secrets included. */
 export type CardValues = Record<string, string | string[]>;
@@ -63,6 +65,8 @@ export class Home {
   readonly mcp = new McpTurns();
   readonly notifier: Notifier;
   readonly connections: Connections;
+  readonly browser: Browser;
+  readonly vault: Vault;
   readonly peers: Peers;
   readonly channels: Channels;
   readonly tasks: Tasks;
@@ -92,6 +96,8 @@ export class Home {
     registerCardHandlers(this);
     this.notifier = new Notifier(this);
     this.connections = new Connections(this);
+    this.browser = new Browser(this);
+    this.vault = new Vault(this);
     this.peers = new Peers(this);
     this.tasks = new Tasks(this);
     this.folders = new Folders(this);
@@ -265,6 +271,7 @@ export class Home {
     this.channels.stop();
     this.notifier.close();
     this.connections.close();
+    void this.browser.stop();
     this.plugins.close();
     this.mastra.close();
     this.db.close();

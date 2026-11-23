@@ -169,6 +169,7 @@ function Palette({
         <Search className="size-[18px] shrink-0 text-ink-3" />
         <input
           ref={input}
+          data-autofocus
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

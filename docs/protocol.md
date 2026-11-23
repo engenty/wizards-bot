@@ -961,6 +961,26 @@ agent's tools.
 }
 ```
 
+## Vault
+
+The person's passwords (website logins, with an authenticator key when they have one), payment
+cards and notes, sealed on the home. A device lists them without their secrets and shows one
+only when the person asks; every showing, change and use is in the activity.
+
+`GET /v1/vault` → `VaultView` (`items`, `activity`). `POST /v1/vault` with `VaultInput` (`kind`
+`login`, `card` or `note`) → `VaultItem`. `PUT /v1/vault/:id` with `VaultInput` changes it; an
+empty secret field keeps what is kept. `DELETE /v1/vault/:id` deletes it. `POST
+/v1/vault/:id/reveal` → `VaultSecret`: the password and the authenticator's current code (never
+its key), the card's number and code, the note's text. `POST /v1/vault/import` with `{ "csv":
+"…" }`, the text of a CSV export of Chrome, 1Password, Bitwarden or another password manager →
+`VaultImported`. A website is kept as its origin; a password fits pages of that origin and of its
+`www` or root twin. The event `vault.updated` carries the `VaultView` after each change.
+
+An agent signs in with `vault_sign_in` on the page open in its browser: the person says yes on a
+card, then the home enters the user name and the password into the fields the agent named,
+only when the page and each field are on the password's website. `vault_code` enters the
+authenticator's code the same way, for the password just used.
+
 ## Plugins
 
 A plugin is a folder in the home's plugins folder (`<data folder>/plugins`) that brings skills

@@ -233,9 +233,14 @@ export function Dialog({
     }
     if (open && !el.open) {
       el.showModal();
-      // A modal dialog focuses its first control (the close button); a field marked
-      // `data-autofocus` is where typing starts instead.
-      el.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+      // A field marked `data-autofocus` is where typing starts. Otherwise the dialog holds the
+      // focus itself, so no control opens with a ring around it; Tab goes to the first one.
+      const start = el.querySelector<HTMLElement>("[data-autofocus]");
+      if (start) {
+        start.focus();
+      } else {
+        el.focus();
+      }
     } else if (!open && el.open) {
       el.close();
       if (byPointer) {
@@ -267,6 +272,7 @@ export function Dialog({
     // biome-ignore lint/a11y/useKeyWithClickEvents: Esc closes a dialog; a click beside it is the pointer's way
     <dialog
       ref={ref}
+      tabIndex={-1}
       onClose={onClose}
       onClick={(e) => {
         if (e.target === ref.current) {
@@ -274,7 +280,7 @@ export function Dialog({
         }
       }}
       className={cn(
-        "sheet m-auto p-0 text-ink backdrop:bg-[oklch(20%_0.01_60/0.28)] backdrop:backdrop-blur-[2px]",
+        "sheet m-auto p-0 text-ink outline-none backdrop:bg-[oklch(20%_0.01_60/0.28)] backdrop:backdrop-blur-[2px]",
         // A phone: the whole screen, no gutter, clear of the notch and the home indicator.
         "max-sm:m-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none",
         bare
@@ -312,11 +318,13 @@ export function Dialog({
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>
           </div>
         ) : (
-          <div className="flex min-h-[inherit] flex-col p-5 sm:p-7">
+          <div className="flex min-h-[inherit] flex-col p-5 sm:p-6">
             {title ? (
-              <div className="mb-5 flex items-start justify-between gap-3">
-                <h2 className="min-w-0 font-display font-semibold text-xl">{title}</h2>
-                <IconButton label={t("common.close")} onClick={onClose} className="-mt-1.5 -mr-2">
+              <div className="-mt-1 mb-4 flex items-center justify-between gap-3">
+                <h2 className="min-w-0 font-display font-semibold text-[1.1875rem] leading-tight">
+                  {title}
+                </h2>
+                <IconButton label={t("common.close")} onClick={onClose} className="-mr-2 size-8">
                   <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
                     <path
                       d="M4 4l8 8M12 4l-8 8"

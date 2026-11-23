@@ -27,6 +27,12 @@ body {
   height: 100dvh;
 }
 
+/* A long column that scrolls: a thin, quiet bar instead of the system's wide one. */
+.scroll-soft {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 /* iOS zooms the page into any field typed in below 16 px, and does not zoom back out. */
 @media (pointer: coarse) {
   input:not([type="checkbox"], [type="radio"]),
@@ -265,6 +271,31 @@ dialog.media-sheet::backdrop {
   }
   .enter-pop {
     animation: enter-pop 240ms var(--ease-settle) backwards;
+  }
+
+  /* One level down in a menu on a phone: the page comes in from the right; back, from the left.
+     From the width of a tablet the list and the page stand side by side and nothing slides. */
+  @keyframes enter-deeper {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+  }
+  @media (width < 40rem) {
+    .enter-deeper {
+      animation: enter-deeper 240ms var(--ease-settle) backwards;
+    }
+  }
+  @keyframes enter-back {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+  }
+  @media (width < 40rem) {
+    .enter-back {
+      animation: enter-back 240ms var(--ease-settle) backwards;
+    }
   }
 
   /* The list of agents changes its width. */

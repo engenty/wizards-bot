@@ -44,13 +44,11 @@ export function AgentPane({
       )}
       data-leaving={leaving || undefined}
     >
-      <header className="flex items-center gap-2 px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))]">
+      {/* The page names the agent below; the bar holds only the way out, at the right. */}
+      <header className="flex items-center justify-end px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))]">
         <IconButton label={t("common.close")} onClick={onClose}>
           <X className="size-4" />
         </IconButton>
-        <h2 className="min-w-0 flex-1 truncate font-display font-semibold text-[1.0625rem]">
-          {title}
-        </h2>
       </header>
       <div className="mx-auto min-h-0 w-full max-w-xl flex-1 overflow-y-auto px-6 pt-4 pb-8 sm:px-8">
         <div className="flex flex-col items-center gap-3 pb-1 text-center">
@@ -84,9 +82,9 @@ export function AgentPane({
           <h3 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("agent.tasks")}</h3>
           {tasks?.length ? (
             <>
-              <ul className="enter-fade divide-y divide-border-soft">
+              <ul className="enter-fade divide-y divide-border-soft rounded-xl border border-border-soft bg-card px-4">
                 {tasks.map((task) => (
-                  <li key={task.id} className="flex items-start gap-3 py-2.5">
+                  <li key={task.id} className="flex items-start gap-3 py-3">
                     <TaskIcon rule={task.rule} paused={task.paused !== undefined} />
                     <div className="min-w-0 flex-1">
                       <p className="text-[0.9375rem] leading-snug" title={task.prompt}>

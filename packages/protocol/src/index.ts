@@ -546,6 +546,97 @@ export const SecretEntry = z.object({
 });
 export type SecretEntry = z.infer<typeof SecretEntry>;
 
+// ── Vault ───────────────────────────────────────────────────────────────────
+
+/**
+ * What the Vault keeps: website logins, payment cards and notes, sealed on the home. A device
+ * sees each one's name and what it is; the password, the card number and the note only when the
+ * person reveals them. A model sees the name, the website and two letters of the user name.
+ */
+export const VaultItem = z.object({
+  id: z.string(),
+  kind: z.enum(["login", "card", "note"]),
+  label: z.string(),
+  /** A login's website: protocol, host and port. */
+  origin: z.string().optional(),
+  /** A login's user name, a card's brand, last four digits and expiry. */
+  detail: z.string(),
+  /** A login that also holds an authenticator key. */
+  authenticator: z.boolean().optional(),
+  /** Whether the home can open it with its key. */
+  readable: z.boolean(),
+  updatedAt: z.string(),
+});
+export type VaultItem = z.infer<typeof VaultItem>;
+
+/** What the home did with an item: a sign-in, a code, a reveal, a change. */
+export const VaultActivity = z.object({
+  id: z.string(),
+  itemId: z.string().nullable(),
+  label: z.string(),
+  action: z.enum(["sign_in", "code", "reveal", "create", "update", "delete", "import", "refused"]),
+  origin: z.string().nullable(),
+  /** The agent that used it; null for the person on a device. */
+  agentId: z.string().nullable(),
+  reason: z.string().nullable(),
+  at: z.string(),
+});
+export type VaultActivity = z.infer<typeof VaultActivity>;
+
+export const VaultView = z.object({
+  items: z.array(VaultItem),
+  activity: z.array(VaultActivity),
+});
+export type VaultView = z.infer<typeof VaultView>;
+
+/** A new or changed item, as the Vault page of the settings sends it. Empty secret fields keep what is kept. */
+export const VaultInput = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("login"),
+    label: z.string().max(120),
+    origin: z.string().max(2048),
+    username: z.string().max(500),
+    password: z.string().max(4096).optional(),
+    authenticator: z.string().max(2048).optional(),
+  }),
+  z.object({
+    kind: z.literal("card"),
+    label: z.string().max(120),
+    holder: z.string().max(200),
+    number: z.string().max(40).optional(),
+    expiry: z.string().max(10),
+    code: z.string().max(8).optional(),
+  }),
+  z.object({
+    kind: z.literal("note"),
+    label: z.string().max(120),
+    text: z.string().max(20_000).optional(),
+  }),
+]);
+export type VaultInput = z.infer<typeof VaultInput>;
+
+/** What a reveal shows the person: the item's secret fields. */
+export const VaultSecret = z.object({
+  username: z.string().optional(),
+  password: z.string().optional(),
+  /** The authenticator's current code, never its key. */
+  code: z.string().optional(),
+  holder: z.string().optional(),
+  number: z.string().optional(),
+  expiry: z.string().optional(),
+  cardCode: z.string().optional(),
+  text: z.string().optional(),
+});
+export type VaultSecret = z.infer<typeof VaultSecret>;
+
+export const VaultImported = z.object({
+  added: z.number(),
+  updated: z.number(),
+  unreadable: z.number(),
+  badKeys: z.number(),
+});
+export type VaultImported = z.infer<typeof VaultImported>;
+
 // ── Plugins ─────────────────────────────────────────────────────────────────
 
 /**
@@ -954,6 +1045,7 @@ export const Event = z.discriminatedUnion("type", [
   z.object({ type: z.literal("document.updated"), document: DocumentMeta }),
   z.object({ type: z.literal("artifact.updated"), artifact: ArtifactMeta }),
   z.object({ type: z.literal("models.updated"), models: Models }),
+  z.object({ type: z.literal("vault.updated"), vault: VaultView }),
   z.object({ type: z.literal("folders.updated"), folders: z.array(Folder) }),
   z.object({ type: z.literal("avatar.updated"), avatar: Avatar.nullable() }),
   /** The person's devices with what each offers, after a device said what it offers. */

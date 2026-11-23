@@ -1,6 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { Agent, Card, FileRef, Message } from "@wizards-bot/protocol";
-import { ChevronLeft, FolderPlus, House, PanelLeft, PanelLeftClose, Paperclip } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FolderPlus,
+  House,
+  PanelLeft,
+  PanelLeftClose,
+  Paperclip,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { withConsent } from "../lib/consent";
@@ -159,51 +167,61 @@ export function Chat({
           )}
         </IconButton>
       ) : null}
-      {/* Three parts, as in the iOS app: the way back at the left, the Wizard in the middle,
-          what needs the person at the right. */}
-      <header className="mx-auto grid w-full max-w-[46rem] grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-2.5 sm:px-4">
-        <div className="flex min-w-0 items-center">
-          {onAgents ? (
-            <IconButton label={t("agents.show")} onClick={onAgents} className="relative -ml-1.5">
-              <ChevronLeft className="size-5" />
-              {unread ? (
-                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-ember ring-2 ring-background" />
-              ) : null}
-            </IconButton>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          title={t("agent.about", { name: agent.name })}
-          onClick={onAgent}
-          className="flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 transition hover:bg-accent active:scale-[0.98]"
-        >
-          <Face key={agent.id} agent={agent} size={32} className="enter-pop" />
-          <h1 className="truncate font-display font-semibold text-[1.0625rem]">{agent.name}</h1>
-        </button>
-        <div className="flex min-w-0 items-center justify-end">
-          {items.length ? (
-            <button
-              type="button"
-              aria-haspopup="dialog"
-              onClick={onItems}
-              className="enter-pop inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-ember-tint px-3 font-medium text-[0.8125rem] text-ember-strong transition hover:brightness-[0.97] active:scale-95 coarse:h-11"
-            >
-              <span className="size-1.5 rounded-full bg-ember" />
-              {t("needs.count", { n: items.length })}
-            </button>
-          ) : null}
-        </div>
-      </header>
-      {link === "away" ? (
-        <p
-          role="status"
-          className="mx-auto flex w-full max-w-[46rem] items-center gap-2 px-4 pb-2 text-[0.8125rem] text-ink-3 sm:px-5"
-        >
-          <House className="size-4 shrink-0" />
-          {t("home.away")}
-        </p>
-      ) : null}
+      {/* The bar lies over the messages and lets them show through; only its buttons stand on a
+          ground of their own. Three parts, as in the iOS app: the way back at the left, the
+          Wizard in the middle, what needs the person at the right. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10">
+        <header className="mx-auto grid w-full max-w-[46rem] grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-2.5 sm:px-4 [&_button]:pointer-events-auto">
+          <div className="flex min-w-0 items-center">
+            {onAgents ? (
+              <IconButton
+                label={t("agents.show")}
+                onClick={onAgents}
+                className="relative -ml-1.5 bg-card/60 shadow-[0_1px_3px_oklch(0%_0_0/0.08)] ring-1 ring-border-soft/60 backdrop-blur-md transition-[background-color,box-shadow] duration-200 hover:bg-card"
+              >
+                <ChevronLeft className="size-5" />
+                {unread ? (
+                  <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-ember ring-2 ring-background" />
+                ) : null}
+              </IconButton>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            title={t("agent.about", { name: agent.name })}
+            onClick={onAgent}
+            className="group flex min-w-0 items-center gap-2 rounded-full py-1 pr-3 pl-1 active:scale-[0.98] bg-card/60 shadow-[0_1px_3px_oklch(0%_0_0/0.08)] ring-1 ring-border-soft/60 backdrop-blur-md transition-[background-color,box-shadow] duration-200 hover:bg-card"
+          >
+            <Face key={agent.id} agent={agent} size={32} className="enter-pop" />
+            <h1 className="truncate font-display font-semibold text-[1.0625rem]">{agent.name}</h1>
+            {/* On hover a chevron makes room for itself: the name opens one level down, the agent's
+              page beside. */}
+            <ChevronRight className="-ml-2 w-0 shrink-0 text-ink-3 opacity-0 transition-[width,margin,opacity] duration-200 group-hover:ml-0 group-hover:w-4 group-hover:opacity-100 h-4" />
+          </button>
+          <div className="flex min-w-0 items-center justify-end">
+            {items.length ? (
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                onClick={onItems}
+                className="enter-pop inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-ember-tint px-3 font-medium text-[0.8125rem] text-ember-strong transition hover:brightness-[0.97] active:scale-95 coarse:h-11"
+              >
+                <span className="size-1.5 rounded-full bg-ember" />
+                {t("needs.count", { n: items.length })}
+              </button>
+            ) : null}
+          </div>
+        </header>
+        {link === "away" ? (
+          <p
+            role="status"
+            className="mx-auto flex w-fit max-w-[46rem] items-center gap-2 rounded-full bg-card/60 px-3 py-1 text-[0.8125rem] text-ink-3 shadow-[0_1px_3px_oklch(0%_0_0/0.08)] ring-1 ring-border-soft/60 backdrop-blur-md"
+          >
+            <House className="size-4 shrink-0" />
+            {t("home.away")}
+          </p>
+        ) : null}
+      </div>
       <Messages
         thread={thread.data}
         agent={agent}

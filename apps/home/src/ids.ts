@@ -27,7 +27,9 @@ export type IdPrefix =
   | "mrk"
   | "hnd"
   | "rom"
-  | "inv";
+  | "inv"
+  | "vlt"
+  | "vac";
 
 export const newId = (prefix: IdPrefix): string => `${prefix}_${random(16)}`;
 

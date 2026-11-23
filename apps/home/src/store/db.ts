@@ -4,6 +4,13 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 const SCHEMA = `
 create table if not exists meta (key text primary key, value text not null);
 create table if not exists secret (name text primary key, value blob not null, updated_at text not null);
+create table if not exists vault_item (
+  id text primary key, kind text not null, label text not null, origin text, hint text not null default '',
+  sealed text not null, created_at text not null, updated_at text not null);
+create table if not exists vault_activity (
+  id text primary key, item_id text, label text not null, action text not null, origin text,
+  agent_id text, reason text, at text not null);
+create index if not exists vault_activity_at on vault_activity(at);
 create table if not exists device (
   id text primary key, name text not null, kind text not null, token_hash text not null unique,
   push text, quiet text, created_at text not null, seen_at text not null);
