@@ -724,6 +724,86 @@ export const UpdateFolder = z.object({
 });
 export type UpdateFolder = z.infer<typeof UpdateFolder>;
 
+/** A file or folder inside a connected folder, as the file browser lists it. */
+export const FolderEntry = z.object({
+  name: z.string(),
+  /** Its path inside the connected folder, with `/`. */
+  path: z.string(),
+  kind: z.enum(["file", "folder"]),
+  /** Bytes; for a folder 0. */
+  size: z.number(),
+  changedAt: z.string(),
+});
+export type FolderEntry = z.infer<typeof FolderEntry>;
+
+/**
+ * `GET /v1/folders/:id/entries?path=`: what a place in a connected folder holds. Exactly what
+ * the agents reach: nothing hidden, no file with keys or passwords by its name, no link.
+ */
+export const FolderEntries = z.object({
+  folder: Folder,
+  /** The place inside the folder, `""` for the folder itself. */
+  path: z.string(),
+  /** The place one up; null at the folder itself. */
+  parent: z.string().nullable(),
+  entries: z.array(FolderEntry),
+  /** There are more entries than were listed. */
+  more: z.boolean(),
+});
+export type FolderEntries = z.infer<typeof FolderEntries>;
+
+/** One change in a connected folder, kept so it can be taken back. */
+export const FolderChange = z.object({
+  action: z.enum(["make", "write", "replace", "edit", "copy", "move", "delete"]),
+  path: z.string(),
+  /** A move's or a copy's source: its folder and its path there. */
+  fromFolder: z.string().optional(),
+  from: z.string().optional(),
+  bytes: z.number().optional(),
+  /** The old version or the deleted file went to the Trash. */
+  kept: z.boolean().optional(),
+  /** It was taken back. */
+  undone: z.boolean().optional(),
+  at: z.string(),
+});
+export type FolderChange = z.infer<typeof FolderChange>;
+
+/**
+ * What one turn of an agent, or the person in the file browser, did in a connected folder:
+ * how many files it read and each change. `GET /v1/folders/:id/activity`, newest first.
+ */
+export const FolderActivity = z.object({
+  id: z.string(),
+  folderId: z.string(),
+  /** The agent; none when the person did it in the file browser. */
+  agentId: z.string().optional(),
+  agentName: z.string().optional(),
+  conversationId: z.string().optional(),
+  read: z.number(),
+  changes: z.array(FolderChange),
+  at: z.string(),
+});
+export type FolderActivity = z.infer<typeof FolderActivity>;
+
+/** `POST /v1/folders/:id/undo`: takes back one change of a turn. */
+export const UndoFolderChange = z.object({
+  activityId: z.string(),
+  index: z.number().int().min(0),
+});
+export type UndoFolderChange = z.infer<typeof UndoFolderChange>;
+
+/**
+ * What the person does in the file browser, in a folder connected for changes: a new folder
+ * (`make`), a file dropped in (`PUT /v1/folders/:id/file?path=` with its bytes), a new name or
+ * place (`move`), and to the Trash (`trash`).
+ */
+export const FolderEdit = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("make"), path: z.string().min(1) }),
+  z.object({ action: z.literal("move"), from: z.string().min(1), to: z.string().min(1) }),
+  z.object({ action: z.literal("trash"), paths: z.array(z.string().min(1)).min(1).max(200) }),
+]);
+export type FolderEdit = z.infer<typeof FolderEdit>;
+
 /** What a folder holds, shown before it is connected. Counting stops at `FOLDER_PREVIEW_LIMIT` files. */
 export const FolderPreview = z.object({
   path: z.string(),
@@ -1124,6 +1204,8 @@ export const Event = z.discriminatedUnion("type", [
   z.object({ type: z.literal("models.updated"), models: Models }),
   z.object({ type: z.literal("vault.updated"), vault: VaultView }),
   z.object({ type: z.literal("folders.updated"), folders: z.array(Folder) }),
+  /** An agent or the person read or changed something in a connected folder. */
+  z.object({ type: z.literal("folder.activity"), folderId: z.string() }),
   z.object({ type: z.literal("avatar.updated"), avatar: Avatar.nullable() }),
   /** The person's devices with what each offers, after a device said what it offers. */
   z.object({ type: z.literal("devices.updated"), devices: z.array(Device) }),

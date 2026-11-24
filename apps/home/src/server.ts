@@ -1,6 +1,15 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import {
+  closeSync,
+  createReadStream,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  statSync,
+} from "node:fs";
 import { join, normalize } from "node:path";
+import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { CsvRefused, OriginRefused } from "@engenty/vault";
 import type { Event } from "@wizards-bot/protocol";
@@ -14,6 +23,7 @@ import {
   ConnectFolder,
   DeviceResources,
   FILE_LIMIT,
+  FolderEdit,
   ImportMessages,
   MakeFolder,
   PairRequest,
@@ -24,6 +34,7 @@ import {
   SetupGateway,
   SwitchAddress,
   TestSetup,
+  UndoFolderChange,
   UpdateDevice,
   UpdateFolder,
   VaultInput,
@@ -34,7 +45,7 @@ import { z } from "zod";
 import { LeavesHome, NoPictureModel, NotAPicture } from "./avatar/avatars.ts";
 import { tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
-import { FileRefused } from "./files/check.ts";
+import { FileRefused, isText, sniff } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
 import type { Home } from "./home.ts";
 import { agree, takeBack } from "./models/services.ts";
@@ -110,6 +121,12 @@ const quote = (text: string) =>
     .split("\n")
     .map((line) => `> ${line}`)
     .join("\n");
+
+/** The largest file the person drops into a connected folder in the file browser. */
+const DROPPED_BYTES = 200 * 1024 * 1024;
+
+/** The place a path inside a folder is in, `""` at the folder itself. */
+const parentOf = (path: string): string => path.split("/").slice(0, -1).join("/");
 
 export function createServer(home: Home, options: { webDir?: string } = {}): Hono<Env> {
   const webDir = normalize(options.webDir ?? WEB_DIST);
@@ -741,6 +758,94 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   app.delete("/v1/folders/:id", (c) => {
     home.folders.disconnect(c.req.param("id"));
     return c.body(null, 204);
+  });
+  // The file browser: what a connected folder holds, its files, and what agents did in it. It
+  // reaches what the agents reach, through the same checks.
+
+  app.get("/v1/folders/:id/entries", (c) => {
+    const folder = home.folders.byId(c.req.param("id"));
+    if (!folder) return notFound(c, "folder");
+    try {
+      return c.json(home.folders.entries(folder, c.req.query("path") ?? ""));
+    } catch (error) {
+      return folderProblem(c, error);
+    }
+  });
+
+  app.get("/v1/folders/:id/file", (c) => {
+    const folder = home.folders.byId(c.req.param("id"));
+    if (!folder) return notFound(c, "folder");
+    let file: ReturnType<Home["folders"]["fileOf"]>;
+    try {
+      file = home.folders.fileOf(folder, c.req.query("path") ?? "");
+    } catch (error) {
+      return folderProblem(c, error);
+    }
+    const head = Buffer.alloc(Math.min(file.size, 64 * 1024));
+    const fd = openSync(file.full, "r");
+    try {
+      readSync(fd, head, 0, head.length, 0);
+    } finally {
+      closeSync(fd);
+    }
+    const mime =
+      sniff(head) ?? (isText(head) ? "text/plain; charset=utf-8" : "application/octet-stream");
+    const shown =
+      c.req.query("download") === undefined && /^(image\/|application\/pdf|text\/plain)/.test(mime);
+    const stream = Readable.toWeb(createReadStream(file.full)) as ReadableStream<Uint8Array>;
+    return c.body(stream, 200, {
+      "content-type": mime,
+      "content-length": String(file.size),
+      "content-disposition": `${shown ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.name)}`,
+      "cache-control": "private, no-cache",
+      // A file is shown as a picture, a PDF or text, or saved. It never runs as a page of the home.
+      "content-security-policy": "sandbox; default-src 'none'",
+      "x-content-type-options": "nosniff",
+    });
+  });
+
+  app.put("/v1/folders/:id/file", async (c) => {
+    const folder = home.folders.byId(c.req.param("id"));
+    if (!folder) return notFound(c, "folder");
+    const path = c.req.query("path") ?? "";
+    if (Number(c.req.header("content-length") ?? 0) > DROPPED_BYTES)
+      return fail(c, 413, "too_large", "This file is too large to put here.");
+    try {
+      const bytes = new Uint8Array(await c.req.arrayBuffer());
+      if (bytes.byteLength > DROPPED_BYTES)
+        return fail(c, 413, "too_large", "This file is too large to put here.");
+      await home.folders.put(folder, path, bytes);
+      return c.json(home.folders.entries(folder, parentOf(path)));
+    } catch (error) {
+      return folderProblem(c, error);
+    }
+  });
+
+  app.post("/v1/folders/:id/edit", async (c) => {
+    const folder = home.folders.byId(c.req.param("id"));
+    if (!folder) return notFound(c, "folder");
+    const edit = FolderEdit.parse(await c.req.json());
+    try {
+      await home.folders.edit(folder, edit);
+      return c.body(null, 204);
+    } catch (error) {
+      return folderProblem(c, error);
+    }
+  });
+
+  app.get("/v1/folders/:id/activity", (c) => {
+    if (!home.folders.byId(c.req.param("id"))) return notFound(c, "folder");
+    return c.json({ activity: home.folders.activity(c.req.param("id")) });
+  });
+
+  app.post("/v1/folders/:id/undo", async (c) => {
+    const { activityId, index } = UndoFolderChange.parse(await c.req.json());
+    try {
+      home.folders.undo(c.req.param("id"), activityId, index);
+      return c.json({ activity: home.folders.activity(c.req.param("id")) });
+    } catch (error) {
+      return folderProblem(c, error);
+    }
   });
 
   // ── The person's avatar ───────────────────────────────────────────────────

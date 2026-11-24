@@ -274,7 +274,8 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
         folders.noted(context, target, {
           action: "copy",
           path: input.to,
-          from: `${source.name}/${input.from}`,
+          fromFolder: source.id,
+          from: input.from,
           bytes: size.bytes,
         });
         return `${input.from} is copied to ${input.to} in ${target.name}.`;
@@ -459,7 +460,8 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
           folders.noted(context, target, {
             action: "move",
             path: move.to,
-            from: `${source.name}/${move.from}`,
+            fromFolder: source.id,
+            from: move.from,
           });
         }
         const [first] = input.moves;
