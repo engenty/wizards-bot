@@ -4,6 +4,7 @@ import { pageOpens } from "../lib/artifact";
 import { t } from "../lib/i18n";
 import { useArtifact } from "../lib/queries";
 import { cn, IconButton, Spinner } from "../ui";
+import { useHostMessages } from "./AppView";
 import { ShareButton } from "./ShareDialog";
 
 /**
@@ -42,6 +43,10 @@ export function ArtifactPane({
       setShown({ version: current.version, page: current.page });
     }
   }, [current, shown, refused]);
+
+  // A connection's view asks for its links through its host.
+  const [on] = useState(() => ({}));
+  useHostMessages(frame, on);
 
   // The page prints itself: the home gave it the layout for paper.
   const print = () => frame.current?.contentWindow?.postMessage({ type: "artifact.print" }, "*");

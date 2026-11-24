@@ -1,3 +1,4 @@
+import { gzipSync } from "node:zlib";
 import type { Context, Hono } from "hono";
 import { z } from "zod";
 import type { Home } from "../home.ts";
@@ -14,8 +15,11 @@ import type { Connection, ConnectionTool } from "./connections.ts";
  * for this one call: what it was, the same connection's tools, a message as the person.
  */
 
-/** The largest view the home keeps. A bundled view (React and all) is a few MB. */
-const VIEW_LIMIT = 8 * 1024 * 1024;
+/**
+ * The largest view the home keeps. A view bundles its app in one file: the studio's flow widget
+ * is 11 MB (7 MB packed).
+ */
+const VIEW_LIMIT = 16 * 1024 * 1024;
 const SUMMARY_LIMIT = 600;
 
 /** What an app artifact keeps of its call. */
@@ -33,6 +37,7 @@ export interface AppCall {
 
 interface View {
   html: string;
+  gzip: Buffer;
   csp: { connectDomains?: string[]; resourceDomains?: string[] };
 }
 
@@ -137,8 +142,28 @@ export class Apps {
     return JSON.parse(artifact.content) as AppCall;
   }
 
-  /** The view's HTML and policy, read from its server once per address. */
-  private async read(call: AppCall): Promise<View> {
+  /**
+   * The view's HTML and policy. A server names a new address for each build of its view, so an
+   * address the server no longer knows sends the home to read the connection's tools again
+   * and take the tool's view as it is now.
+   */
+  private async read(call: AppCall, artifactId: string): Promise<View> {
+    try {
+      return await this.readAt(call);
+    } catch (error) {
+      const fresh = await this.home.connections
+        .refreshTools(call.connectionId)
+        .catch(() => undefined);
+      const uri = fresh?.find((tool) => tool.name === call.tool)?.view;
+      if (!uri || uri === call.uri) throw error;
+      const moved = { ...call, uri };
+      this.home.artifacts.setAppContent(artifactId, moved);
+      return this.readAt(moved);
+    }
+  }
+
+  /** The view at one address, read from its server once. */
+  private async readAt(call: AppCall): Promise<View> {
     const key = `${call.connectionId}\n${call.uri}`;
     const known = this.views.get(key);
     if (known) return known;
@@ -155,7 +180,7 @@ export class Apps {
       content?.text ?? (content?.blob ? Buffer.from(content.blob, "base64").toString("utf8") : "");
     if (!html) throw new Error("The view is empty.");
     if (Buffer.byteLength(html) > VIEW_LIMIT) throw new Error("The view is too large.");
-    const view = { html, csp: content?._meta?.ui?.csp ?? {} };
+    const view = { html, gzip: gzipSync(html), csp: content?._meta?.ui?.csp ?? {} };
     this.views.set(key, view);
     return view;
   }
@@ -165,14 +190,20 @@ export class Apps {
     const call = this.call(artifact.id);
     try {
       if (!call) throw new Error("no call");
-      const view = await this.read(call);
-      return c.body(view.html, 200, {
+      const view = await this.read(call, artifact.id);
+      const headers = {
         "content-type": "text/html; charset=utf-8",
         "content-security-policy": viewPolicy(view.csp),
         "cache-control": "private, no-store",
         "x-content-type-options": "nosniff",
         "referrer-policy": "no-referrer",
-      });
+        vary: "accept-encoding",
+      };
+      // A view carries its whole app, so it travels packed where the browser takes that.
+      if (!/\bgzip\b/.test(c.req.header("accept-encoding") ?? "")) {
+        return c.body(view.html, 200, headers);
+      }
+      return c.body(new Uint8Array(view.gzip), 200, { ...headers, "content-encoding": "gzip" });
     } catch {
       return c.html("<p>The view could not be loaded from its service.</p>", 502, {
         "content-security-policy": "sandbox; default-src 'none'",
