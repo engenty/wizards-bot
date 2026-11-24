@@ -37,6 +37,8 @@ process.stdin.on("end", () => {
 `,
   );
   chmodSync(file, 0o755);
+  // The sign-in is decided once per client id; the home's own start decided it for the real client.
+  forgetEnv(base.id);
   return {
     ...base,
     bin: file,
