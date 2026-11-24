@@ -117,9 +117,22 @@ if (!expected || expected !== actual) {
 }
 const node = join(stage, "node");
 mkdirSync(join(node, "bin"), { recursive: true });
-run("tar", ["-xJf", nodeArchive, "-C", stage, `${nodeName}/bin/node`, `${nodeName}/LICENSE`]);
+// npm beside Node: the agents' shell installs its engine with it on first use (apps/home/src/shell).
+run("tar", [
+  "-xJf",
+  nodeArchive,
+  "-C",
+  stage,
+  `${nodeName}/bin/node`,
+  `${nodeName}/LICENSE`,
+  `${nodeName}/lib/node_modules/npm`,
+]);
 cpSync(join(stage, nodeName, "bin/node"), join(node, "bin/node"));
 cpSync(join(stage, nodeName, "LICENSE"), join(node, "LICENSE"));
+cpSync(join(stage, nodeName, "lib/node_modules/npm"), join(node, "lib/node_modules/npm"), {
+  recursive: true,
+  verbatimSymlinks: true,
+});
 rmSync(join(stage, nodeName), { recursive: true });
 
 // ── The shell ───────────────────────────────────────────────────────────────────────────────
@@ -175,7 +188,10 @@ const sign = (path, extra = []) =>
     ...extra,
     path,
   ]);
-const machO = findMachO(join(app, "Contents/Resources/bot"));
+const machO = [
+  ...findMachO(join(app, "Contents/Resources/bot")),
+  ...findMachO(join(app, "Contents/Resources/node/lib")),
+];
 for (const file of machO) sign(file);
 sign(join(app, "Contents/Resources/node/bin/node"), [
   "--entitlements",

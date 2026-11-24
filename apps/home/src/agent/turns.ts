@@ -251,6 +251,7 @@ class Turn {
       tasks: trigger.guest ? [] : home.tasks.lines(agent.id),
       skills: trigger.guest ? undefined : home.skills.prompt(trigger.conversationId),
       devices: trigger.guest ? undefined : home.handoffs.prompt(agent, home.person()),
+      shell: trigger.guest || trigger.room ? undefined : home.shell.prompt(home.person()),
       // A card without a button only shows something: a pairing code, a task's address.
       waiting: home.store
         .openCards(trigger.conversationId)

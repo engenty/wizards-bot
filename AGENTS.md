@@ -69,6 +69,9 @@ engenty wizards pins.
 - **Before you write it yourself:** look at what the installed Mastra ships
   (`node_modules/@mastra/*/dist`) and build on it. Say in the change what Mastra covers and
   what stays the home's.
+- **Shell.** The full Linux is Mastra's `AppleContainerSandbox` (`@mastra/apple-container`).
+  The light shell is agentOS, which has no Mastra provider; its engine is the home's own
+  (`shell/agentos.ts`), and a connected folder is the home's `FolderDrive`.
 - **Not from Mastra:** what a card looks like and who may answer it, push, email, WhatsApp and Signal, the
   tasks' timer and longer work, the request to connect and the signature between homes.
   Mastra's working memory and semantic recall are not switched on; an agent's memory is the
@@ -157,6 +160,10 @@ no emoji, no "please".
   writes no program and no file with a second name elsewhere. Writes go through Mastra's `LocalFilesystem`, which checks the
   path again as it writes. No folder of the system or its apps is connected, with everything
   in it (`/etc`, `/private`, `~/Library`, …).
+- A command an agent runs (`shell_run`, docs/shell.md) runs in a sandbox, never on the computer
+  itself: the light shell (agentOS) or, on a Mac with Apple's container, a full Linux. It reaches
+  only the sites it names that the person allowed, sees connected folders through the folder
+  rules, read only, and changes one only after the person said yes to that command.
 - A photo of the person is looked at by a model on the home's own computer. Any other model sees
   it only after the person said yes to that. The home deletes the photo afterwards.
 - A channel hears only its owner. Homes hear only connected contacts, by signature. An agent
