@@ -4,6 +4,8 @@ import WebKit
 /// An artifact beside the chat: a page an agent wrote, shown where a document is shown. It is a
 /// stranger's page. It loads from the home's address for it, which the home serves closed off;
 /// it gets no bridge to the app, keeps nothing, and leaves for nowhere: a link opens in Safari.
+/// A connection's view (`format` `app`) loads the home's host, which frames the view and runs
+/// its bridge to the home itself; the app only opens the links it asks for in Safari.
 struct ArtifactView: View {
     @Environment(AppModel.self) private var model
     @Bindable var session: ArtifactSession
@@ -63,6 +65,8 @@ private struct ArtifactPage: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        // The host of a connection's view asks for links here (apps/web/src/app-host).
+        configuration.userContentController.add(HostMessages(coordinator: context.coordinator), name: "app")
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.dataDetectorTypes = []
         let view = WKWebView(frame: .zero, configuration: configuration)
@@ -84,6 +88,7 @@ private struct ArtifactPage: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ view: WKWebView, coordinator: Coordinator) {
+        view.configuration.userContentController.removeScriptMessageHandler(forName: "app")
         view.stopLoading()
         view.navigationDelegate = nil
         view.uiDelegate = nil
@@ -100,10 +105,34 @@ private struct ArtifactPage: UIViewRepresentable {
 
         init(_ parent: ArtifactPage) { self.parent = parent }
 
+        /// The view a host page frames: its `page` beside its `host`, on the same home.
+        var viewOfHost: URL? {
+            guard let loaded, loaded.path.hasSuffix("/host") else { return nil }
+            var parts = URLComponents(url: loaded, resolvingAgainstBaseURL: false)
+            parts?.path = String(loaded.path.dropLast("host".count)) + "page"
+            parts?.query = nil
+            return parts?.url
+        }
+
+        /// What the host of a connection's view asks: a link, opened in Safari. Nothing else.
+        func hostSaid(_ body: Any) {
+            guard viewOfHost != nil,
+                  let message = body as? [String: Any],
+                  message["type"] as? String == "open-link",
+                  let text = message["url"] as? String,
+                  let url = URL(string: text),
+                  ["http", "https"].contains(url.scheme ?? "") else { return }
+            Task { @MainActor in await UIApplication.shared.open(url) }
+        }
+
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
             guard let url = action.request.url else { return .cancel }
             // Inside the page: frames of its own content only; the page's policy allows no others.
+            // The host of a connection's view frames that view, from the same home.
             if action.targetFrame?.isMainFrame == false {
+                if let view = viewOfHost, url.host == view.host, url.port == view.port, url.path == view.path {
+                    return .allow
+                }
                 return ["about", "data", "blob"].contains(url.scheme ?? "") ? .allow : .cancel
             }
             if url == loaded { return .allow }
@@ -141,5 +170,16 @@ private struct ArtifactPage: UIViewRepresentable {
         ) -> WKWebView? {
             nil
         }
+    }
+}
+
+/// Passes the host's messages on without the web view keeping the coordinator alive.
+private final class HostMessages: NSObject, WKScriptMessageHandler {
+    weak var coordinator: ArtifactPage.Coordinator?
+
+    init(coordinator: ArtifactPage.Coordinator) { self.coordinator = coordinator }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        coordinator?.hostSaid(message.body)
     }
 }
