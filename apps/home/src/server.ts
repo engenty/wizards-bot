@@ -15,6 +15,7 @@ import {
   DeviceResources,
   FILE_LIMIT,
   ImportMessages,
+  MakeFolder,
   PairRequest,
   type PairResponse,
   PullSetup,
@@ -541,6 +542,18 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       const refused = await waitsForYes(c);
       if (refused) return refused;
     }
+    // A folder picked on a card is one the home may connect; the card stays open otherwise.
+    if (before.actions.find((action) => action.id === body.action)?.style === "primary") {
+      for (const field of before.fields ?? []) {
+        const path = body.values?.[field.id];
+        if (field.type !== "folder" || typeof path !== "string" || !path) continue;
+        try {
+          home.folders.preview(path);
+        } catch (error) {
+          return folderProblem(c, error);
+        }
+      }
+    }
     try {
       const card = await home.answer(before.id, { ...body, by: c.get("device").name });
       return c.json({ card });
@@ -672,11 +685,17 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   app.get("/v1/folders", (c) => c.json({ folders: home.folders.list() }));
 
-  app.post("/v1/folders/pick", async (c) => c.json(await home.folders.pick()));
-
   app.get("/v1/folders/browse", (c) => {
     try {
       return c.json(home.folders.browse(c.req.query("path")));
+    } catch (error) {
+      return folderProblem(c, error);
+    }
+  });
+
+  app.post("/v1/folders/new", async (c) => {
+    try {
+      return c.json(home.folders.makeFolder(MakeFolder.parse(await c.req.json())));
     } catch (error) {
       return folderProblem(c, error);
     }

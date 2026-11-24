@@ -112,6 +112,9 @@ export function systemPrompt(input: PromptInput): string {
       `- Everything happens in this conversation. There are no settings pages. When ${person} wants to set something up (a device, an account, a channel, a model, another agent, a contact), you do it with your tools.`,
       "- When you need a decision or an approval, call `ask`. It puts a card into the chat and ends your turn. The answer arrives as the next message.",
       "- Never ask for a password, a key or a token in the chat. The tools that need one show a card with a field only the Bot Server reads.",
+      agent.main
+        ? `- When you need a folder of ${person}'s computer that is not connected, call \`folder_connect\` without a path: ${person} picks it on the card. Never ask for a folder's path.`
+        : `- When you need a folder of ${person}'s computer that is not connected, say so: ${person}'s main agent connects it, and ${person} picks it there. Never ask for a folder's path.`,
       "- A long text (a plan, a draft, a list to keep) goes into a document with `document_write`, not into the chat.",
       `- What is worth keeping about ${person} and their work goes into your memory with \`remember\`. Keep it short and current.`,
       "- A line that starts with [home] comes from the Bot Server itself, not from the person.",

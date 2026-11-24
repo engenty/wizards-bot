@@ -1,10 +1,11 @@
 import type { FolderListing } from "@wizards-bot/protocol";
 import { describe, expect, it } from "vitest";
-import { completions, separatorOf, trimmedPath } from "./paths";
+import { completions, crumbs, nameOf, separatorOf, tilde, trimmedPath } from "./paths";
 
 const listing: FolderListing = {
   path: "/Users/ada",
   parent: "/Users",
+  home: "/Users/ada",
   folders: [
     { name: "Desktop", path: "/Users/ada/Desktop" },
     { name: "Documents", path: "/Users/ada/Documents" },
@@ -33,6 +34,7 @@ describe("completions", () => {
     const windows: FolderListing = {
       path: "C:\\Users\\ada",
       parent: "C:\\Users",
+      home: "C:\\Users\\ada",
       folders: [{ name: "Documents", path: "C:\\Users\\ada\\Documents" }],
     };
     expect(completions(windows, "C:\\Users\\ada\\Doc")).toHaveLength(1);
@@ -52,5 +54,32 @@ describe("trimmedPath", () => {
     expect(trimmedPath(" /Users/ada/Trips/ ")).toBe("/Users/ada/Trips");
     expect(trimmedPath("/")).toBe("/");
     expect(trimmedPath("/Users/ada")).toBe("/Users/ada");
+  });
+});
+
+describe("tilde", () => {
+  it("writes the home folder as ~ and leaves other paths as they are", () => {
+    expect(tilde("/Users/ada/Documents/Trips", "/Users/ada")).toBe("~/Documents/Trips");
+    expect(tilde("/Users/ada", "/Users/ada")).toBe("~");
+    expect(tilde("/Users/adam/x", "/Users/ada")).toBe("/Users/adam/x");
+    expect(tilde("/Volumes/Disk", undefined)).toBe("/Volumes/Disk");
+  });
+});
+
+describe("nameOf", () => {
+  it("is the last part of a path", () => {
+    expect(nameOf("/Users/ada/Trips/")).toBe("Trips");
+    expect(nameOf("C:\\Users\\ada")).toBe("ada");
+  });
+});
+
+describe("crumbs", () => {
+  it("leads from the home folder down to the folder", () => {
+    expect(crumbs("/Users/ada/Documents/Trips", "/Users/ada")).toEqual([
+      { name: "ada", path: "/Users/ada" },
+      { name: "Documents", path: "/Users/ada/Documents" },
+      { name: "Trips", path: "/Users/ada/Documents/Trips" },
+    ]);
+    expect(crumbs("/Users/ada", "/Users/ada")).toEqual([{ name: "ada", path: "/Users/ada" }]);
   });
 });

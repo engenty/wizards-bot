@@ -8,9 +8,11 @@ import { type Draft, useDraft } from "../lib/drafts";
 import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
+import { nameOf } from "../lib/paths";
 import { Button, cn, Input } from "../ui";
 import { Markdown } from "../ui/Markdown";
 import { QrCode } from "../ui/Qr";
+import { FolderPicker } from "./FolderPicker";
 import { PersonCard } from "./PersonCard";
 
 const STYLES = { primary: "primary", plain: "secondary", danger: "danger" } as const;
@@ -21,6 +23,13 @@ function valuesOf(fields: CardField[], draft: Draft): Draft {
     fields.flatMap((field) => (field.value === undefined ? [] : [[field.id, field.value]])),
   );
   return { ...starts, ...draft };
+}
+
+/** The folder picked on an answered card. */
+function folderOf(card: Card): string | undefined {
+  const field = card.fields?.find((each) => each.type === "folder");
+  const value = field ? card.answer?.values?.[field.id] : undefined;
+  return typeof value === "string" && value ? value : undefined;
 }
 
 /** Whether every field the card requires has an answer. */
@@ -40,6 +49,17 @@ function Field({
   onChange: (value: string | string[]) => void;
 }) {
   const id = `${cardId}-${field.id}`;
+  if (field.type === "folder") {
+    return (
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1.5 font-medium text-[0.875rem]">{field.label}</legend>
+        <FolderPicker
+          value={typeof value === "string" && value ? value : undefined}
+          onChange={(path) => onChange(path ?? "")}
+        />
+      </fieldset>
+    );
+  }
   if (field.type === "choice" || field.type === "multi") {
     const multi = field.type === "multi";
     const picked = Array.isArray(value) ? value : value ? [value] : [];
@@ -103,7 +123,14 @@ export function CardView({ card }: { card: Card }) {
   const [problem, setProblem] = useState<string | null>(null);
 
   if (card.state !== "open") {
-    const chosen = card.actions.find((action) => action.id === card.answer?.action)?.label;
+    const action = card.actions.find((each) => each.id === card.answer?.action);
+    // A folder the person picked on the card is named beside the yes.
+    const picked = action?.style === "primary" ? folderOf(card) : undefined;
+    const chosen = action
+      ? picked
+        ? `${action.label} · ${nameOf(picked)}`
+        : action.label
+      : undefined;
     const by = card.answer?.by;
     return (
       <section className="rounded-xl bg-paper-2 px-4 py-3">

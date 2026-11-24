@@ -193,8 +193,9 @@ The shell's parts:
   - Notifications: the web app's `lib/notify.ts` decides what is worth telling; on the Mac it
     hands the notice to the shell, which posts it with `UNUserNotificationCenter` and opens the
     card when it is clicked. `WKWebView` has no `Notification` of its own.
-  - The folder dialog: `NSOpenPanel` in the app's window instead of the home's `osascript`
-    (`apps/home/src/folders/folders.ts`), when the home runs on this Mac.
+  - The folder dialog: `NSOpenPanel` in the app's window, folders only and a new folder
+    allowed, when the home runs on this Mac. With a home elsewhere the web app's folder picker
+    shows the home's own folder browser (`GET /v1/folders/browse`, docs/protocol.md).
   - The badge on the Dock icon: the number of what needs you.
 - **Menu bar item.** Whether the Bot Server runs, "Öffnen", "Telefon verbinden" (the QR),
   "Bot Server anhalten".

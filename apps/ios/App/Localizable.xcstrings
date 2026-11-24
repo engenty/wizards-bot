@@ -583,26 +583,6 @@
         }
       }
     },
-    "Next" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Weiter"
-          }
-        }
-      }
-    },
-    "No folder dialog opens on your Bot Server’s computer. Type the path." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auf dem Computer deines Bot Servers öffnet sich kein Dialog für Ordner. Gib den Pfad ein."
-          }
-        }
-      }
-    },
     "No Bot Server answers at this address. Check the address and that this device is in the same network." : {
       "localizations" : {
         "de" : {
@@ -1043,32 +1023,12 @@
         }
       }
     },
-    "The folder dialog is open on your Bot Server’s computer." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Der Ordner-Dialog ist auf dem Computer deines Bot Servers offen."
-          }
-        }
-      }
-    },
     "The folder holds more than that." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Im Ordner liegt noch mehr."
-          }
-        }
-      }
-    },
-    "The folder’s path" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pfad des Ordners"
           }
         }
       }
@@ -1299,16 +1259,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tippe stattdessen die Adresse und den Code ein. Du kannst die Kamera in den Einstellungen erlauben."
-          }
-        }
-      }
-    },
-    "Type the path" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pfad eingeben"
           }
         }
       }
@@ -3205,6 +3155,102 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dein Bot Server"
+          }
+        }
+      }
+    },
+    "Choose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wählen"
+          }
+        }
+      }
+    },
+    "Make" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anlegen"
+          }
+        }
+      }
+    },
+    "New folder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New folder"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuer Ordner"
+          }
+        }
+      }
+    },
+    "Name of the new folder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name of the new folder"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name des neuen Ordners"
+          }
+        }
+      }
+    },
+    "No folders in here." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No folders in here."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier liegen keine Ordner."
+          }
+        }
+      }
+    },
+    "Not your whole home folder: open a folder in it." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not your whole home folder: open a folder in it."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht deinen ganzen Benutzerordner: öffne einen Ordner darin."
           }
         }
       }

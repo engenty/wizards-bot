@@ -123,7 +123,11 @@ export type CardKind = z.infer<typeof CardKind>;
 export const CardField = z.object({
   id: z.string(),
   label: z.string(),
-  type: z.enum(["text", "secret", "choice", "multi"]),
+  /**
+   * `folder`: a folder of the home's computer the person picks, never types first; its value
+   * is the folder's path.
+   */
+  type: z.enum(["text", "secret", "choice", "multi", "folder"]),
   options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
@@ -705,13 +709,26 @@ export const FolderPreview = z.object({
 });
 export type FolderPreview = z.infer<typeof FolderPreview>;
 
-/** The folders inside a path, for a path field that completes what is typed. */
+/**
+ * The folders inside a folder of the person's home folder on the home's computer, for the
+ * folder picker. Only folders, nothing hidden, nothing outside the home folder.
+ */
 export const FolderListing = z.object({
   path: z.string(),
+  /** The folder one up; null at the person's home folder, where the picker starts. */
   parent: z.string().nullable(),
+  /** The person's home folder: where the picker starts and what `~` stands for. */
+  home: z.string(),
   folders: z.array(z.object({ name: z.string(), path: z.string() })),
 });
 export type FolderListing = z.infer<typeof FolderListing>;
+
+/** `POST /v1/folders/new`: a new folder `name` inside `parent`, in the person's home folder. */
+export const MakeFolder = z.object({
+  parent: z.string().min(1),
+  name: z.string().trim().min(1).max(255),
+});
+export type MakeFolder = z.infer<typeof MakeFolder>;
 
 // ── The person's avatar ─────────────────────────────────────────────────────
 
