@@ -18,6 +18,7 @@ export function AgentPane({
   over,
   leaving,
   onFolder,
+  onOpenFolder,
   onClose,
 }: {
   agent: Agent;
@@ -27,6 +28,8 @@ export function AgentPane({
   leaving: boolean;
   /** Connects a folder from this agent's chat. */
   onFolder: () => void;
+  /** Opens a connected folder in the file browser, where this pane stands. */
+  onOpenFolder: (id: string) => void;
   onClose: () => void;
 }) {
   const detail = useAgentDetail(agent.id, true);
@@ -122,6 +125,7 @@ export function AgentPane({
             name={agent.name}
             conversationId={agent.conversationId}
             onFolder={onFolder}
+            onOpenFolder={onOpenFolder}
           />
         ) : null}
         {detail.data?.memory.trim() ? (

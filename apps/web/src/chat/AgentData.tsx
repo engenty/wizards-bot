@@ -50,9 +50,12 @@ function FileIcon({ file }: { file: FileRef }) {
 function FolderLine({
   folder,
   onProblem,
+  onOpen,
 }: {
   folder: FolderType;
   onProblem: (text: string) => void;
+  /** Opens the folder in the file browser beside the chat. */
+  onOpen: () => void;
 }) {
   const client = useQueryClient();
   const [asking, setAsking] = useState(false);
@@ -81,11 +84,19 @@ function FolderLine({
   }
   return (
     <li className={cn(line, "group")} title={folder.path}>
-      <Folder className={icon} />
-      <span className="min-w-0 flex-1 truncate text-[0.9375rem]">{folder.name}</span>
-      <span className="shrink-0 text-[0.8125rem] text-ink-3">
-        {t(folder.access === "write" ? "folder.write" : "folder.read")}
-      </span>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+      >
+        <Folder className={icon} />
+        <span className="min-w-0 flex-1 truncate text-[0.9375rem] group-hover:underline">
+          {folder.name}
+        </span>
+        <span className="shrink-0 text-[0.8125rem] text-ink-3">
+          {t(folder.access === "write" ? "folder.write" : "folder.read")}
+        </span>
+      </button>
       <IconButton
         label={`${t("folders.disconnect")}: ${folder.name}`}
         onClick={() => setAsking(true)}
@@ -165,12 +176,15 @@ export function AgentData({
   name,
   conversationId,
   onFolder,
+  onOpenFolder,
 }: {
   agentId: string;
   name: string;
   conversationId: string;
   /** Connects a folder from this chat. */
   onFolder: () => void;
+  /** Opens a connected folder in the file browser beside the chat. */
+  onOpenFolder: (id: string) => void;
 }) {
   const folders = useFolders();
   const devices = useDevices();
@@ -190,7 +204,12 @@ export function AgentData({
       {folders.data?.length || elsewhere.length || files.length ? (
         <ul className="enter-fade divide-y divide-border-soft rounded-xl border border-border-soft bg-card px-4">
           {(folders.data ?? []).map((folder) => (
-            <FolderLine key={folder.id} folder={folder} onProblem={setProblem} />
+            <FolderLine
+              key={folder.id}
+              folder={folder}
+              onProblem={setProblem}
+              onOpen={() => onOpenFolder(folder.id)}
+            />
           ))}
           {elsewhere.map(({ resource, device }) => (
             <DeviceLine key={`${device}/${resource.id}`} resource={resource} device={device} />

@@ -97,7 +97,8 @@ function webPolicy(page: string): string {
     "img-src 'self' data: blob:",
     "media-src 'self' blob:",
     "font-src 'self'",
-    "connect-src 'self'",
+    // A text file the page fetched is read back from its own blob to show it.
+    "connect-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'none'",
     "frame-ancestors 'none'",

@@ -11,6 +11,8 @@ import type {
   DocumentMark,
   FileRef,
   Folder,
+  FolderActivity,
+  FolderEntries,
   HomeInfo,
   Models,
   PluginsView,
@@ -168,6 +170,27 @@ export function useFolders() {
     queryKey: keys.folders(),
     queryFn: ({ signal }) =>
       api.get<{ folders: Folder[] }>("/v1/folders", signal).then((r) => r.folders),
+  });
+}
+
+/** What a place in a connected folder holds, for the file browser. */
+export function useFolderEntries(id: string, path: string) {
+  return useQuery({
+    queryKey: keys.folderEntries(id, path),
+    queryFn: ({ signal }) =>
+      api.get<FolderEntries>(`/v1/folders/${id}/entries?path=${encodeURIComponent(path)}`, signal),
+  });
+}
+
+/** What agents and the person did in a connected folder, newest first. */
+export function useFolderActivity(id: string, on: boolean) {
+  return useQuery({
+    queryKey: keys.folderActivity(id),
+    enabled: on,
+    queryFn: ({ signal }) =>
+      api
+        .get<{ activity: FolderActivity[] }>(`/v1/folders/${id}/activity`, signal)
+        .then((r) => r.activity),
   });
 }
 
