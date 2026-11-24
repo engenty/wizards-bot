@@ -63,6 +63,7 @@ describe("a connected folder in the light shell", () => {
     name: "data",
     path: root,
     access,
+    allow: "ask",
     createdAt: "",
   });
   // The folder tools' rules, as `Folders.locate` applies them.
