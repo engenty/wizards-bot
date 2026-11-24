@@ -13,7 +13,15 @@ import { type Call, defineTool, ENDS_TURN, type Looked, type Tool } from "../age
 import type { TurnContext } from "../agent/turns.ts";
 import type { Home } from "../home.ts";
 import { newId, now } from "../ids.ts";
-import { Calls, HOLD_MS, type Question, type Step } from "./calls.ts";
+import {
+  Calls,
+  type Carried,
+  HOLD_MS,
+  type Question,
+  type Step,
+  TASK_MS,
+  type Where,
+} from "./calls.ts";
 import { contentOf, type ElicitAnswer } from "./elicitation.ts";
 
 const REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers";
@@ -26,7 +34,10 @@ type Kept =
 
 /** One tool of a connection as Mastra's client gives it. */
 interface Runs {
-  execute(args: unknown, context: { abortSignal: AbortSignal }): Promise<unknown>;
+  execute(
+    args: unknown,
+    context: { abortSignal: AbortSignal; writer?: { write(chunk: unknown): Promise<void> } },
+  ): Promise<unknown>;
 }
 
 export interface ConnectionTool {
@@ -181,20 +192,106 @@ export class Connections {
 
   constructor(home: Home) {
     this.home = home;
-    this.calls = new Calls((held, connection, tool, said) => {
-      // The server gave up, or the home did: the question's card is closed, the agent hears it.
-      const card = this.waiting().find((one) => one.kept.held === held)?.card;
-      if (!card) return;
-      home.store.expireCard(card.id);
-      home.tell(
-        card.conversationId,
-        `${connection.name} asked the person something during ${tool} and stopped waiting before an answer came. The card is closed. If the person still wants it, use the tool again. ${connection.name} said:\n${said}`,
-      );
+    this.calls = new Calls({
+      over: (held, connection, tool, said) => {
+        // The server gave up, or the home did: the question's card is closed, the agent hears it.
+        const card = this.waiting().find((one) => one.kept.held === held)?.card;
+        if (!card) return;
+        home.store.expireCard(card.id);
+        home.tell(
+          card.conversationId,
+          `${connection.name} asked the person something during ${tool} and stopped waiting before an answer came. The card is closed. If the person still wants it, use the tool again. ${connection.name} said:\n${said}`,
+        );
+      },
+      asked: (held, connection, tool, question, where) =>
+        this.askLater(held, connection, tool, question, where),
+      finished: (held, connection, tool, ended, where) => {
+        // A question of the task that is still open is over with it.
+        for (const card of this.later())
+          if (card.payload.held === held) home.store.expireCard(card.id);
+        const said =
+          "error" in ended
+            ? `The tool failed: ${ended.error.message}`
+            : typeof ended.result === "string"
+              ? ended.result
+              : ended.result.text;
+        this.ended(
+          where,
+          connection.name,
+          tool,
+          said,
+          "error" in ended ? undefined : ended.carried,
+        );
+      },
     });
     // No call survives a start of the home: a card of a server's question is over.
     for (const { card } of this.waiting()) home.store.expireCard(card.id);
+    for (const card of this.later()) {
+      home.store.expireCard(card.id);
+      home.tell(
+        card.conversationId,
+        `${String(card.payload.connection)} was running ${String(card.payload.tool)} as a task when the Bot Server started again; the home follows it no more and its question is closed. The task may still go on at ${String(card.payload.connection)} itself.`,
+      );
+    }
     home.addTools((context) => this.tools(context));
     this.registerCards();
+  }
+
+  /** The open cards of questions a task asked after its turn. */
+  private later() {
+    return this.home.store.items().flatMap((card) => {
+      const payload = this.home.store.cardPayload<Record<string, unknown>>(card.id);
+      return payload?.type === "connection_task" ? [{ ...card, payload }] : [];
+    });
+  }
+
+  /** A card in the conversation for what a task asks after its turn. */
+  private askLater(
+    held: string,
+    connection: { id: string; name: string },
+    tool: string,
+    question: Question,
+    where: Where,
+  ): void {
+    const shown = this.calls.card(connection, question);
+    if ("refused" in shown) {
+      this.calls.reply(held, { action: "decline" });
+      this.home.tell(
+        where.conversationId,
+        `${connection.name} asked something during ${tool} that the Bot Server does not show: ${shown.refused}. It was told no.`,
+      );
+      return;
+    }
+    const { store } = this.home;
+    const empty = store.addMessage({
+      conversationId: where.conversationId,
+      role: "agent",
+      agentId: where.agentId,
+      channel: "home",
+      parts: [],
+    });
+    const card = store.createCard(
+      {
+        ...shown,
+        payload: { type: "connection_task", held, question, connection: connection.name, tool },
+      },
+      { agentId: where.agentId, conversationId: where.conversationId, messageId: empty.id },
+    );
+    store.updateMessage(empty.id, { parts: [{ type: "card", card }] });
+  }
+
+  /** Tells the conversation what a task came to. */
+  private ended(
+    where: Where,
+    connection: string,
+    tool: string,
+    said: string,
+    _carried?: Carried,
+  ): void {
+    this.home.tell(
+      where.conversationId,
+      `${connection} finished ${tool}, which ran as a task:\n${said}`,
+    );
   }
 
   /** The open cards of questions a connection's server asked. */
@@ -285,7 +382,8 @@ export class Connections {
     _at?: unknown,
   ): Promise<string | undefined> {
     const step = await this.use(connection, tool, args);
-    if ("asks" in step) {
+    // Nobody can be asked here, nor told later.
+    if ("asks" in step || "started" in step) {
       this.calls.drop(step.held);
       return undefined;
     }
@@ -297,7 +395,9 @@ export class Connections {
     if (!this.clients.has(connection.id)) await this.reconnect(connection.id);
     const runs = this.runs.get(connection.id)?.[tool];
     if (!runs) throw new Error(`${connection.name} has no tool ${tool} any more.`);
-    return this.calls.start(connection, tool, (abortSignal) => runs.execute(args, { abortSignal }));
+    return this.calls.start(connection, tool, (abortSignal, writer) =>
+      runs.execute(args, { abortSignal, writer }),
+    );
   }
 
   remove(connection: Connection): void {
@@ -368,6 +468,8 @@ export class Connections {
           // The home shows forms and pages a server asks for, as cards.
           capabilities: { elicitation: { form: {}, url: {} } },
           inputRequests: this.calls.handler(id),
+          // A server may run a long call as a task (MCP Tasks): Mastra follows it to its end.
+          tasks: { maxWaitMs: TASK_MS },
         },
       },
     });
@@ -406,8 +508,19 @@ export class Connections {
   }
 
   /** Shows what a call came to: its answer, or the card of what its server asks. */
-  private shown(connection: Connection, step: Step, call: Call): Promise<string | Looked> {
+  private shown(
+    connection: Connection,
+    step: Step,
+    call: Call,
+    where: Where,
+  ): Promise<string | Looked> {
     if ("result" in step) return Promise.resolve(step.result);
+    if ("started" in step) {
+      this.calls.background(step.held, where);
+      return Promise.resolve(
+        `${connection.name} runs this as a task (${step.started}), which goes on after your turn. The home tells you in this conversation when it ends, and asks the person with a card when it needs them. Say so in one sentence; do not call it again.`,
+      );
+    }
     const card = this.calls.card(connection, step.asks);
     // The handler showed the same question before it let the call wait.
     if ("refused" in card) return Promise.resolve(`The tool failed: ${card.refused}.`);
@@ -472,7 +585,10 @@ export class Connections {
           const policy = connection.policies[tool.name];
           if (policy === "never") return "The person does not allow this tool.";
           const go = async () =>
-            this.shown(connection, await this.use(connection, tool.name, input.arguments), call);
+            this.shown(connection, await this.use(connection, tool.name, input.arguments), call, {
+              agentId: agent.id,
+              conversationId,
+            });
           const kept = call.answer?.kept as Kept | undefined;
           if (!call.answer || !kept) {
             // In a turn that read data from outside the home, "always" does not count: what
@@ -525,7 +641,10 @@ export class Connections {
               : answer.action === "decline"
                 ? `The person said no to what ${connection.name} asked. Do not try it another way. ${connection.name} answered:\n`
                 : `The person put off what ${connection.name} asked. ${connection.name} answered:\n`;
-          const result = await this.shown(connection, await next, call);
+          const result = await this.shown(connection, await next, call, {
+            agentId: agent.id,
+            conversationId,
+          });
           if (!said || result === ENDS_TURN) return result;
           return typeof result === "string"
             ? said + result
@@ -648,6 +767,43 @@ export class Connections {
 
   private registerCards(): void {
     const { home } = this;
+    // The person answered what a task asked after its turn: the answer goes to the server.
+    home.onCard("connection_task", ({ card, action, values, payload }) => {
+      const held = String(payload.held);
+      const question = payload.question as Question;
+      const name = String(payload.connection);
+      const answer: ElicitAnswer = {
+        action: action === "accept" || action === "decline" ? action : "cancel",
+      };
+      if (answer.action === "accept" && question.mode !== "url") {
+        const checked = contentOf(question.requestedSchema, values);
+        if ("problems" in checked) {
+          // What was typed does not fit: the same question once more, the task still waits.
+          const again = this.calls.card({ id: "", name }, question, checked.problems);
+          if (!("refused" in again)) {
+            const empty = home.store.addMessage({
+              conversationId: card.conversationId,
+              role: "agent",
+              agentId: card.agentId,
+              channel: "home",
+              parts: [],
+            });
+            const next = home.store.createCard(
+              { ...again, payload },
+              { agentId: card.agentId, conversationId: card.conversationId, messageId: empty.id },
+            );
+            home.store.updateMessage(empty.id, { parts: [{ type: "card", card: next }] });
+          }
+          return;
+        }
+        answer.content = checked.content;
+      }
+      if (!this.calls.reply(held, answer))
+        home.tell(
+          card.conversationId,
+          `${name} is not waiting any more for what it asked during ${String(payload.tool)}. Nothing was sent.`,
+        );
+    });
     home.onCard("connection", ({ card, action, payload }) => {
       const name = String(payload.name);
       if (action === "cancel") {

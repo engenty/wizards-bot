@@ -17,6 +17,8 @@ const RESULT_LIMIT = 12_000;
 const QUIET_MS = 60_000;
 /** How long the home keeps a call open while its server waits for the person. */
 export const HOLD_MS = 10 * 60_000;
+/** How long a call that became a task (MCP Tasks) may run before the home gives up on it. */
+export const TASK_MS = 24 * 60 * 60_000;
 
 interface Target {
   id: string;
@@ -37,10 +39,43 @@ export interface Carried {
   resources?: { uri: string; mimeType?: string; text?: string; blob?: string }[];
 }
 
-/** Where a call stands: it answered, or its server asks the person and waits. */
+/**
+ * Where a call stands: it answered, its server asks the person and waits, or the server runs
+ * it as a task (MCP Tasks) that goes on after the turn.
+ */
 export type Step =
   | { result: string | Looked; carried?: Carried }
-  | { asks: Question; held: string };
+  | { asks: Question; held: string }
+  | { started: string; held: string };
+
+/** The conversation a call that runs on as a task belongs to. */
+export interface Where {
+  agentId: string;
+  conversationId: string;
+}
+
+/** What a call does that nobody waits for: the connection is told through these. */
+export interface CallEvents {
+  /** It ended while its question was with the person in a turn. */
+  over(held: string, connection: Target, tool: string, said: string): void;
+  /** A call that runs on as a task asks the person something. */
+  asked(held: string, connection: Target, tool: string, question: Question, where: Where): void;
+  /** A call that runs on as a task ended. */
+  finished(
+    held: string,
+    connection: Target,
+    tool: string,
+    ended: { result: string | Looked; carried?: Carried } | { error: Error },
+    where: Where,
+  ): void;
+}
+
+/** What Mastra's client writes about a call that became a task. */
+interface TaskProgress {
+  type?: string;
+  taskId?: string;
+  status?: string;
+}
 
 /** A call of a connection's tool that is under way. Its server may ask while it is open. */
 interface Held {
@@ -53,6 +88,10 @@ interface Held {
   shown: boolean;
   /** Set when the call is over. */
   ended?: { result: string | Looked; carried?: Carried } | { error: Error };
+  /** The server runs the call as a task: its id and how it stands. */
+  task?: { id: string; status: string };
+  /** The call runs on after its turn, in this conversation. */
+  background?: Where;
   /** Someone waits for what the call does next. */
   watched: boolean;
   moved(): void;
@@ -129,11 +168,10 @@ function resultOf(raw: unknown): string | Looked {
  */
 export class Calls {
   private readonly held = new Map<string, Held>();
-  /** Called when a call ends while its question is still with the person. */
-  private readonly over: (held: string, connection: Target, tool: string, said: string) => void;
+  private readonly events: CallEvents;
 
-  constructor(over: (held: string, connection: Target, tool: string, said: string) => void) {
-    this.over = over;
+  constructor(events: CallEvents) {
+    this.events = events;
   }
 
   /** What a connection's client does when its server asks the person. */
@@ -150,6 +188,12 @@ export class Calls {
       return new Promise<ElicitAnswer>((resolve) => {
         call.questions.push({ question, answer: resolve });
         call.moved();
+        // A task that runs on after its turn asks with a card of its own.
+        if (call.background && !call.watched && !call.shown) {
+          call.shown = true;
+          call.within(HOLD_MS, "No answer came in time.");
+          this.events.asked(call.id, call.connection, call.tool, question, call.background);
+        }
       });
     };
   }
@@ -158,7 +202,10 @@ export class Calls {
   start(
     connection: Target,
     tool: string,
-    execute: (signal: AbortSignal) => Promise<unknown>,
+    execute: (
+      signal: AbortSignal,
+      writer: { write(chunk: unknown): Promise<void> },
+    ) => Promise<unknown>,
   ): Promise<Step> {
     const abort = new AbortController();
     let timer: NodeJS.Timeout | undefined;
@@ -184,9 +231,19 @@ export class Calls {
       },
     };
     call.moved();
-    call.within(QUIET_MS, `${connection.name} did not answer in time.`);
+    this.quiet(call);
     this.held.set(call.id, call);
-    void execute(abort.signal)
+    // Mastra's client says when the server turned the call into a task, and how it stands.
+    const writer = {
+      write: async (chunk: unknown) => {
+        const progress = chunk as TaskProgress;
+        if (progress?.type !== "mcp-task" || !progress.taskId) return;
+        if (!call.task) call.within(TASK_MS, `${connection.name} did not finish in time.`);
+        call.task = { id: progress.taskId, status: progress.status ?? "working" };
+        call.moved();
+      },
+    };
+    void execute(abort.signal, writer)
       .then(
         (raw) => ({ result: resultOf(raw), carried: carriedOf(raw) }),
         // What went wrong is for the agent to read: the first lines say it.
@@ -196,9 +253,11 @@ export class Calls {
         clearTimeout(timer);
         call.ended = ended;
         this.held.delete(call.id);
-        if (!call.watched && call.shown) {
+        if (!call.watched && call.background) {
+          this.events.finished(call.id, connection, tool, ended, call.background);
+        } else if (!call.watched && call.shown) {
           const said = "error" in ended ? `The tool failed: ${ended.error.message}` : ended.result;
-          this.over(call.id, connection, tool, typeof said === "string" ? said : said.text);
+          this.events.over(call.id, connection, tool, typeof said === "string" ? said : said.text);
         }
         call.moved();
       });
@@ -214,9 +273,42 @@ export class Calls {
     const waiting = call?.shown ? call.questions.shift() : undefined;
     if (!call || !waiting) return undefined;
     call.shown = false;
-    call.within(QUIET_MS, `${call.connection.name} did not answer in time.`);
+    this.quiet(call);
     waiting.answer(value);
     return this.watch(call);
+  }
+
+  /**
+   * Lets a call that the server runs as a task go on after its turn, in this conversation: its
+   * next questions are cards of their own (`asked`), its end is told (`finished`).
+   */
+  background(held: string, where: Where): void {
+    const call = this.held.get(held);
+    if (call) call.background = where;
+  }
+
+  /** Answers the question of a call that runs on as a task. False when it is not open any more. */
+  reply(held: string, value: ElicitAnswer): boolean {
+    const call = this.held.get(held);
+    const waiting = call?.shown ? call.questions.shift() : undefined;
+    if (!call || !waiting) return false;
+    call.shown = false;
+    this.quiet(call);
+    waiting.answer(value);
+    // A question that arrived meanwhile is the next card.
+    const next = call.questions[0];
+    if (next && call.background) {
+      call.shown = true;
+      call.within(HOLD_MS, "No answer came in time.");
+      this.events.asked(call.id, call.connection, call.tool, next.question, call.background);
+    }
+    return true;
+  }
+
+  /** How long a call may be quiet: a task as long as tasks run, any other call a minute. */
+  private quiet(call: Held): void {
+    if (call.task) call.within(TASK_MS, `${call.connection.name} did not finish in time.`);
+    else call.within(QUIET_MS, `${call.connection.name} did not answer in time.`);
   }
 
   /**
@@ -249,6 +341,10 @@ export class Calls {
           call.within(HOLD_MS, "No answer came in time.");
           return { asks: waiting.question, held: call.id };
         }
+        // A task that works: the turn goes on, the call after it. A task that asks first is
+        // waited for, so its question comes in the turn.
+        if (call.task && call.task.status === "working")
+          return { started: call.task.id, held: call.id };
         await call.next;
       }
     } finally {

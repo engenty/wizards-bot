@@ -33,8 +33,21 @@ export type Outcome =
   | { ask: Record<string, Record<string, unknown>>; state?: unknown }
   | { needs: string };
 
+/** A call the fake runs as a task (MCP Tasks): the test moves it on. */
+export interface FakeTask {
+  status: "working" | "input_required" | "completed" | "cancelled";
+  /** What it asks while `input_required`: an elicitation's params. */
+  ask?: Record<string, unknown>;
+  /** What it came to once `completed`. */
+  text?: string;
+  /** What the client sent with `tasks/update`, oldest first. */
+  answers: unknown[];
+}
+
 export interface FakeTool {
   title?: string;
+  /** Run as a task when the client follows tasks: the task as it starts. */
+  task?: () => Omit<FakeTask, "answers">;
   description?: string;
   readOnly?: boolean;
   /** The tool's own `_meta` in the list (MCP Apps: `ui.resourceUri`, `ui.visibility`). */
@@ -66,6 +79,8 @@ export class FakeMcp {
   /** The codes a sign-in was finished with. */
   readonly codes: string[] = [];
   url = "";
+  /** The tasks this server runs, by id. */
+  readonly tasks = new Map<string, FakeTask>();
   private server: Server | undefined;
   private readonly waiting = new Map<string, (answer: unknown) => void>();
   private asked = 0;
@@ -200,6 +215,40 @@ export class FakeMcp {
       });
     if (rpc.method === "tools/list")
       return reply({ ...complete, tools: this.listed(), ttlMs: 0, cacheScope: "private" });
+    const task = this.tasks.get(String(params.taskId));
+    const now = new Date().toISOString();
+    const handle = (id: string, t: FakeTask) => ({
+      taskId: id,
+      status: t.status,
+      createdAt: now,
+      lastUpdatedAt: now,
+      ttlMs: null,
+      pollIntervalMs: 20,
+    });
+    if (rpc.method === "tasks/get") {
+      if (!task) return fail(200, -32602, "Unknown task");
+      return reply({
+        ...complete,
+        ...handle(String(params.taskId), task),
+        ...(task.status === "input_required"
+          ? { inputRequests: { page: { method: "elicitation/create", params: task.ask } } }
+          : {}),
+        ...(task.status === "completed"
+          ? { result: { content: [{ type: "text", text: task.text ?? "" }] } }
+          : {}),
+      });
+    }
+    if (rpc.method === "tasks/update") {
+      if (!task) return fail(200, -32602, "Unknown task");
+      task.answers.push(params.inputResponses);
+      task.status = "working";
+      return reply(complete);
+    }
+    if (rpc.method === "tasks/cancel") {
+      if (!task) return fail(200, -32602, "Unknown task");
+      task.status = "cancelled";
+      return reply({ ...complete, ...handle(String(params.taskId), task) });
+    }
     if (rpc.method !== "tools/call") return fail(200, -32601, "Unknown method");
 
     const call: Retry = {
@@ -210,6 +259,12 @@ export class FakeMcp {
     this.calls.push(call);
     const tool = this.tools[String(params.name)];
     if (!tool) return fail(200, -32602, "Unknown tool");
+    if (tool.task && JSON.stringify(params._meta ?? {}).includes("io.modelcontextprotocol/tasks")) {
+      const id = `task-${this.tasks.size + 1}`;
+      const started = { ...tool.task(), answers: [] };
+      this.tasks.set(id, started);
+      return reply({ resultType: "task", _meta: meta, ...handle(id, started) });
+    }
     let state: unknown;
     try {
       state = call.requestState === undefined ? undefined : this.verify(call.requestState);
