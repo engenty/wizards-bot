@@ -1,7 +1,7 @@
 // From engenty wizards: the theme switch (apps/web/src/studio/ThemeSwitch.tsx) and the language
 // switch and legal links of its account pages (engenty-wizards-manage, apps/web/src/brand.tsx and
 // pages/legal.tsx).
-import { Check, ChevronDown, Languages, Moon, Palette, Sun } from "lucide-react";
+import { Check, ChevronDown, Droplet, Moon, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PrivacyDialog } from "../chat/ConsentDialog";
 import { Engenty } from "../engenty/Engenty";
@@ -21,7 +21,7 @@ import { Menu } from "../ui/Menu";
 
 const THEMES = [
   { mode: "light", icon: Sun, label: "theme.light" },
-  { mode: "branded", icon: Palette, label: "theme.branded" },
+  { mode: "branded", icon: Droplet, label: "theme.branded" },
   { mode: "dark", icon: Moon, label: "theme.dark" },
 ] as const satisfies readonly { mode: ThemeMode; icon: typeof Sun; label: string }[];
 
@@ -179,35 +179,33 @@ export function LangSwitch() {
 const HEADER_BUTTON =
   "grid size-9 cursor-pointer place-items-center rounded-full text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink aria-expanded:bg-paper-2 aria-expanded:text-ink coarse:size-11";
 
-/** The theme as one button: the icon of the theme in effect, its menu the themes and the colours. */
-function ThemeMenu() {
+/** The theme as one button: the icon of the theme in effect; a click shows the next one. */
+function ThemeButton() {
   const shown = useThemeMode();
-  const Icon = THEMES.find((option) => option.mode === shown)?.icon ?? Palette;
+  const at = THEMES.findIndex((option) => option.mode === shown);
+  const now = THEMES[at] ?? THEMES[1];
+  const next = THEMES[(at + 1) % THEMES.length] ?? THEMES[0];
+  const label = t("theme.next", { now: t(now.label), next: t(next.label) });
   return (
-    <Menu
-      label={t("theme.label")}
-      narrow
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={() => setTheme(next.mode)}
       className={HEADER_BUTTON}
-      items={THEMES.map(({ mode, icon: ModeIcon, label }) => ({
-        icon: <ModeIcon />,
-        label: t(label),
-        checked: mode === shown,
-        onSelect: () => setTheme(mode),
-      }))}
-      foot={<GroundPick />}
     >
-      <Icon className="size-[1.125rem]" />
-    </Menu>
+      <now.icon className="size-[1.125rem]" />
+    </button>
   );
 }
 
-/** The language as one button. */
+/** The language as one button: the one in effect. */
 function LangMenu() {
   return (
     <Menu
       label={t("lang.label")}
       narrow
-      className={HEADER_BUTTON}
+      className={cn(HEADER_BUTTON, "font-medium text-[0.8125rem]")}
       items={LANGS.map((code) => ({
         icon: <span className="w-5 text-[0.75rem] text-ink-3">{code.toUpperCase()}</span>,
         label: LANG_NAMES[code],
@@ -215,7 +213,7 @@ function LangMenu() {
         onSelect: () => setLang(code),
       }))}
     >
-      <Languages className="size-[1.125rem]" />
+      {lang.toUpperCase()}
     </Menu>
   );
 }
@@ -251,7 +249,7 @@ export function Frame({ children }: { children: ReactNode }) {
         </span>
         <span className="flex-1" />
         <span className="flex items-center gap-1">
-          <ThemeMenu />
+          <ThemeButton />
           <LangMenu />
         </span>
       </header>

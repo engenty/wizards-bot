@@ -14,13 +14,12 @@ export interface MenuItem {
  * A small menu at its button: above it when the button is in the lower half of the window, as the
  * composer's + is, below it otherwise, as the person's card at the top of the list is; it ends at
  * the button's right edge when the button stands in the right half. A click beside it or Escape
- * closes it. `head` is shown above the items, e.g. who is signed in, `foot` below them.
+ * closes it. `head` is shown above the items, e.g. who is signed in.
  */
 export function Menu({
   label,
   head,
   items,
-  foot,
   narrow = false,
   className,
   children,
@@ -30,7 +29,6 @@ export function Menu({
   head?: ReactNode;
   /** `null` draws a line between groups. */
   items: (MenuItem | null)[];
-  foot?: ReactNode;
   /** A menu of a few short items. */
   narrow?: boolean;
   className?: string;
@@ -143,7 +141,6 @@ export function Menu({
               />
             ),
           )}
-          {foot ? <div className="px-3 pt-1.5 pb-2">{foot}</div> : null}
         </div>
       ) : null}
     </>
