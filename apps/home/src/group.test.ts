@@ -3,7 +3,7 @@ import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, test } from "node:test";
-import type { Card, HomeInfo, Message, PairResponse } from "@wizards-bot/protocol";
+import type { Agent, Card, HomeInfo, Message, PairResponse } from "@wizards-bot/protocol";
 import { PassRefused } from "./group.ts";
 import { type TestHome, testHome, textOf } from "./test/fakes.ts";
 
@@ -174,6 +174,18 @@ describe("a group home", () => {
     assert.match(system, /Ada, Ben/);
     assert.match(asked?.messages.at(-1)?.content ?? "", /^Ben writes:\nHello/);
     assert.equal(textOf(t.last()), "Hello Ben.");
+  });
+
+  test("each admin reads for themselves", async () => {
+    const conversationId = t.home.store.mainAgent().conversationId;
+    const unread = async (token: string) =>
+      ((await (await t.request("/v1/agents", { token })).json()) as { agents: Agent[] }).agents[0]
+        ?.unread;
+    assert.equal(await unread(ben), 1);
+    assert.equal(await unread(ada), 1);
+    await t.request(`/v1/conversations/${conversationId}/read`, { token: ben, body: {} });
+    assert.equal(await unread(ben), 0);
+    assert.equal(await unread(ada), 1);
   });
 
   test("a card waits for every admin; the first answer counts and names who gave it", async () => {

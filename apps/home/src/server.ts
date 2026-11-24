@@ -12,7 +12,7 @@ import { join, normalize } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { CsvRefused, OriginRefused } from "@engenty/vault";
-import type { Admin, Event } from "@wizards-bot/protocol";
+import type { Admin, Agent, Event } from "@wizards-bot/protocol";
 import {
   AddMark,
   type AgentDetail,
@@ -365,7 +365,15 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   // ── Agents and conversations ──────────────────────────────────────────────
 
-  app.get("/v1/agents", (c) => c.json({ agents: store.agents().map(publicAgent) }));
+  /** An agent's line as one device sees it: in a group home, with what its admin has not read. */
+  const seenBy = (agent: Agent, device: DeviceRecord): Agent =>
+    device.admin
+      ? { ...agent, unread: store.unread(agent.conversationId, device.admin.id) }
+      : agent;
+
+  app.get("/v1/agents", (c) =>
+    c.json({ agents: store.agents().map((agent) => seenBy(publicAgent(agent), c.get("device"))) }),
+  );
 
   app.get("/v1/search", (c) => c.json({ hits: store.search(c.req.query("q") ?? "") }));
 
@@ -373,7 +381,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const agent = store.agent(c.req.param("id"));
     if (!agent) return c.json({ error: "not_found" }, 404);
     const detail: AgentDetail = {
-      agent: publicAgent(agent),
+      agent: seenBy(publicAgent(agent), c.get("device")),
       memory: agent.memory,
       tasks: home.tasks.list(agent.id),
       doing: home.turns.doing(agent.conversationId),
@@ -454,7 +462,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       clientId: body.clientId,
       from: writer ? { name: writer.name, admin: writer.id } : undefined,
     });
-    store.markRead(conversation.id);
+    store.markRead(conversation.id, writer?.id);
     const asked = about
       ? `About this passage of the document "${about.title}" (${about.id}):\n${passage}\n\n${body.text}`
       : body.text;
@@ -475,7 +483,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   });
 
   app.post("/v1/conversations/:id/read", (c) => {
-    store.markRead(c.req.param("id"));
+    store.markRead(c.req.param("id"), c.get("device").admin?.id);
     return c.body(null, 204);
   });
 
@@ -1053,17 +1061,22 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         wake?.();
       };
       // A hand-off is for one device: no other device hears of it.
-      const deviceId = c.get("device").id;
+      const device = c.get("device");
+      const deviceId = device.id;
       const forThis = (event: Event) =>
         event.type !== "handoff.updated" || event.handoff.deviceId === deviceId;
+      // An agent's line carries what this device's admin has not read.
+      const asSeen = (event: Event): Event =>
+        event.type === "agent.updated" ? { ...event, agent: seenBy(event.agent, device) } : event;
       if (!Number.isNaN(lastId)) {
         const missed = home.events.since(lastId);
         if (missed) {
-          for (const stored of missed) if (forThis(stored.event)) push(stored.id, stored.event);
+          for (const stored of missed)
+            if (forThis(stored.event)) push(stored.id, asSeen(stored.event));
         } else push(undefined, { type: "reset" });
       }
       const unsubscribe = home.events.subscribe((stored) => {
-        if (forThis(stored.event)) push(stored.id, stored.event);
+        if (forThis(stored.event)) push(stored.id, asSeen(stored.event));
       });
       const unlisten = home.handoffs.listen(deviceId);
       const ping = setInterval(() => {

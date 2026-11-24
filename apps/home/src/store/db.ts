@@ -18,6 +18,9 @@ create table if not exists pairing (code text primary key, expires_at text not n
 create table if not exists admin (
   id text primary key, name text not null, role text not null, created_at text not null);
 create table if not exists admin_pass (jti text primary key, expires_at text not null);
+create table if not exists conversation_read (
+  conversation_id text not null references conversation(id) on delete cascade,
+  admin_id text not null, read_at text not null, primary key (conversation_id, admin_id));
 create table if not exists agent (
   id text primary key, name text not null, kind text not null, about text not null default '',
   instructions text not null default '', memory text not null default '',
