@@ -21,6 +21,8 @@ export interface PromptInput {
   skills?: string;
   /** What the person's devices offer, and the questions handed to them that wait. */
   devices?: string;
+  /** What the agents' shell is and when to use it, when it can run here. */
+  shell?: string;
   spoken: boolean;
   /** The turn answers this contact, or this caller from outside (no handle), instead of the person. */
   guest?: { name: string; handle?: string; hears?: boolean };
@@ -154,6 +156,7 @@ export function systemPrompt(input: PromptInput): string {
           .join("\n")}`
       : "",
     input.devices ?? "",
+    input.shell ?? "",
     input.skills ?? "",
     input.waiting?.length
       ? `Cards that still wait for ${person}'s answer: ${input.waiting.map((title) => `"${title}"`).join(", ")}.`

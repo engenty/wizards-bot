@@ -27,6 +27,7 @@ import { keyDomain } from "./peers/person.ts";
 import { Plugins } from "./plugins/plugins.ts";
 import { Setup } from "./setup/setup.ts";
 import { Sharing } from "./sharing/sharing.ts";
+import { Shell } from "./shell/shell.ts";
 import { Skills } from "./skills/skills.ts";
 import { Db } from "./store/db.ts";
 import { Store } from "./store/store.ts";
@@ -56,6 +57,8 @@ export class Home {
   readonly mastra: HomeMastra;
   readonly files: Files;
   readonly folders: Folders;
+  /** The agents' sandboxed shell. */
+  readonly shell: Shell;
   readonly skills: Skills;
   readonly plugins: Plugins;
   readonly artifacts: Artifacts;
@@ -104,6 +107,7 @@ export class Home {
     this.peers = new Peers(this);
     this.tasks = new Tasks(this);
     this.folders = new Folders(this);
+    this.shell = new Shell(this);
     this.handoffs = new Handoffs(this);
     this.skills = new Skills(this);
     this.plugins = new Plugins(this, () => this.skills.ownNames());
@@ -283,6 +287,7 @@ export class Home {
     this.notifier.close();
     this.connections.close();
     void this.browser.stop();
+    void this.shell.close();
     this.plugins.close();
     this.mastra.close();
     this.db.close();
