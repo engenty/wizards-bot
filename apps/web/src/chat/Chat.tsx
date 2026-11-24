@@ -16,7 +16,6 @@ import { applyEvent } from "../lib/events";
 import { pastedName } from "../lib/files";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
-import { askToNotify } from "../lib/notify";
 import { loadEarlier, useThread } from "../lib/queries";
 import type { Link } from "../lib/stream";
 import { uuid } from "../lib/uuid";
@@ -85,7 +84,6 @@ export function Chat({
   const takes = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
 
   const send = async (text: string, files: FileRef[]) => {
-    askToNotify();
     try {
       const clientId = uuid();
       const { message } = await withConsent(
@@ -231,6 +229,7 @@ export function Chat({
         onDocument={onDocument}
         onArtifact={onArtifact}
         onProblem={flash}
+        onStart={(text) => void send(text, [])}
       />
       <div className="mx-auto w-full max-w-[46rem] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
         {problem ? (

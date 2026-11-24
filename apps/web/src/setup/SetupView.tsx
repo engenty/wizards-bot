@@ -1,14 +1,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { Card, Setup, SetupCheck } from "@wizards-bot/protocol";
-import { ChevronDown, FolderPlus, KeyRound, Smartphone } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { CardView } from "../chat/CardView";
-import { FolderDialog } from "../chat/FolderDialog";
+import { Engenty } from "../engenty/Engenty";
 import { api } from "../lib/api";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
-import { useFolders, useItems } from "../lib/queries";
-import { Button, cn, Input, Select } from "../ui";
+import { useItems } from "../lib/queries";
+import { Button, cn, Select, Spinner } from "../ui";
 import { QrCode } from "../ui/Qr";
 import { CheckList, Command, TestAgain, useTest } from "./Checks";
 import { Frame } from "./Frame";
@@ -21,16 +21,22 @@ const GATEWAYS = [
   { value: "anthropic", label: "Anthropic" },
 ];
 
-/** Where the setup stands: one dash per step, green once passed, amber where it is now. */
+/** Where the setup stands: one dash per step, lit up to the one shown. */
 function Dashes({ steps, at }: { steps: Step[]; at: number }) {
   return (
-    <div className="flex items-center gap-1.5" aria-hidden="true">
+    <div
+      className="flex items-center justify-center gap-1.5"
+      role="img"
+      aria-label={t("setup.step", { n: at + 1, total: steps.length })}
+    >
       {steps.map((step, i) => (
         <span
           key={step}
           className={cn(
-            "h-1 w-8 rounded-full transition-colors",
-            i < at ? "bg-moss" : i === at ? "bg-ember" : "bg-paper-2",
+            "h-1.5 rounded-full transition-all",
+            i === at ? "w-5 bg-ember" : "w-1.5",
+            i < at && "bg-ember",
+            i > at && "bg-paper-2",
           )}
         />
       ))}
@@ -38,12 +44,26 @@ function Dashes({ steps, at }: { steps: Step[]; at: number }) {
   );
 }
 
-function Part({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+/** What the setup says, as the first agent would say it in the chat. */
+function Says({ children }: { children: ReactNode }) {
   return (
-    <section className="mt-6">
-      <h3 className="font-medium text-[0.9375rem]">{title}</h3>
-      {hint ? <p className="mt-1 text-[0.8125rem] text-ink-3 leading-relaxed">{hint}</p> : null}
-      <div className="mt-2">{children}</div>
+    <div className="flex items-start gap-2.5">
+      <span className="mt-1 shrink-0">
+        <Engenty kind="round" size={24} animated={false} />
+      </span>
+      <p className="rounded-2xl bg-card px-3.5 py-2.5 text-[0.9375rem] leading-relaxed">
+        {children}
+      </p>
+    </div>
+  );
+}
+
+/** A group of rows on a card, under a quiet label. */
+function Group({ label, children }: { label?: string; children: ReactNode }) {
+  return (
+    <section className="mt-3 ml-[2.125rem]">
+      {label ? <h3 className="mb-1.5 pl-0.5 text-[0.75rem] text-ink-3">{label}</h3> : null}
+      <div className="rounded-xl bg-card px-3.5">{children}</div>
     </section>
   );
 }
@@ -92,76 +112,52 @@ function GatewayKey({ onProblem }: { onProblem: (text: string) => void }) {
   );
 }
 
-/** A code to add the phone, shown here only: a QR for the wizards.bot app, the address, the code. */
+/** The phone's code, made when the step opens: a QR for the wizards.bot app, and the code to type. */
 function AddPhone({ onProblem }: { onProblem: (text: string) => void }) {
   const [pairing, setPairing] = useState<{ address: string; code: string; link: string } | null>(
     null,
   );
-  const [busy, setBusy] = useState(false);
-  if (pairing) {
-    return (
-      <div className="flex flex-wrap items-center gap-5">
+  const asked = useRef(false);
+  useEffect(() => {
+    if (asked.current) return;
+    asked.current = true;
+    api
+      .post<{ address: string; code: string; link: string }>("/v1/setup/pairing", {})
+      .then(setPairing, (err: Error) => onProblem(err.message));
+  }, [onProblem]);
+  return (
+    <div className="flex flex-wrap items-center gap-5 py-3.5">
+      {pairing ? (
         <QrCode text={pairing.link} label={t("setup.phone.qr")} />
-        <dl className="min-w-0 text-[0.875rem]">
-          <dt className="text-[0.75rem] text-ink-3">{t("setup.phone.address")}</dt>
-          <dd className="break-all font-mono">{pairing.address}</dd>
-          <dt className="mt-2 text-[0.75rem] text-ink-3">{t("setup.phone.code")}</dt>
-          <dd className="font-mono font-medium text-[1.0625rem] tracking-widest">{pairing.code}</dd>
-          <dd className="mt-2 text-[0.75rem] text-ink-3">{t("setup.phone.once")}</dd>
-        </dl>
-      </div>
-    );
-  }
-  return (
-    <Button
-      variant="secondary"
-      size="sm"
-      busy={busy}
-      onClick={() => {
-        setBusy(true);
-        api
-          .post<{ address: string; code: string; link: string }>("/v1/setup/pairing", {})
-          .then(setPairing, (err: Error) => {
-            onProblem(err.message);
-            setBusy(false);
-          });
-      }}
-    >
-      <Smartphone className="size-4" />
-      {t("setup.phone.show")}
-    </Button>
+      ) : (
+        <span className="grid size-32 place-items-center rounded-lg bg-paper-2">
+          <Spinner className="size-5 text-ink-3" />
+        </span>
+      )}
+      <ol className="min-w-0 flex-1 space-y-1.5 text-[0.875rem] leading-snug">
+        <li>
+          <span className="text-ink-3">1</span> {t("setup.phone.get")}
+        </li>
+        <li>
+          <span className="text-ink-3">2</span> {t("setup.phone.scan")}
+        </li>
+        {pairing ? (
+          <li className="pt-1 text-[0.8125rem] text-ink-3">
+            {t("setup.phone.type")}{" "}
+            <span className="font-mono text-ink-2 tracking-wider">{pairing.code}</span>
+            <span className="block break-all font-mono text-[0.75rem]">{pairing.address}</span>
+          </li>
+        ) : null}
+      </ol>
+    </div>
   );
 }
 
-/** What the setup offers besides the models that answer: a key, the person's computer. */
-const OPTIONS = ["own-key", "link"];
-
-/** A model source not on this computer and never tested: something to set up, not a state. */
-const notHere = (check: SetupCheck) => check.state === "absent" && !check.at;
-
-/** A quiet line that opens what else there is. */
-function More({ open: start, children }: { open: boolean; children: ReactNode }) {
-  const [open, setOpen] = useState(start);
-  return (
-    <section className="mt-6">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex cursor-pointer items-center gap-1.5 font-medium text-[0.875rem] text-ink-2 transition hover:text-ink"
-      >
-        {t("setup.more")}
-        <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
-      </button>
-      {open ? <div className="mt-1 divide-y divide-border-soft">{children}</div> : null}
-    </section>
-  );
-}
-
+/** One way to a model that is set up by hand: what it is, and what to do. */
 function Option({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
   return (
     <div className="py-3">
-      <h3 className="font-medium text-[0.9375rem]">{title}</h3>
+      <p className="font-medium text-[0.9375rem]">{title}</p>
       <p className="mt-0.5 text-[0.8125rem] text-ink-3 leading-relaxed">{hint}</p>
       <div className="mt-2">{children}</div>
     </div>
@@ -195,29 +191,30 @@ function alsoCan(setup: Setup): string[] {
   ];
 }
 
+/** The options that are not a model of their own: a key, the person's computer. */
+const OPTIONS = ["own-key", "link"];
+
+/** A model on the home's own computer, or on a linked computer (`<computer>/<source>`). */
+const onComputer = (check: SetupCheck) =>
+  ["claude", "codex", "ollama"].includes(check.id) || check.id.includes("/");
+
 /**
- * The first start of a home: who the person is, which model answers (tested with a short call
- * each), what the agents can do with it, and a phone and a folder. It stands where the chat
- * stands, not over it. What it changes later goes through the main agent or the settings.
+ * The first start of a home, as a short conversation: the person's name, which model answers
+ * (each tested with a short call), and the phone. It stands where the chat stands, not over
+ * it. What it changes later goes through the main agent or the settings.
  */
 export function SetupView({ setup }: { setup: Setup }) {
   const client = useQueryClient();
-  const folders = useFolders();
   const [steps] = useState(() => stepsOf(setup));
   const [at, setAt] = useState(0);
   const [name, setName] = useState(setup.name.value);
   const [busy, setBusy] = useState(false);
-  const [folder, setFolder] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const test = useTest(setProblem);
   const step = steps[at] ?? "models";
-  // The models that answer, or could while none does, here; the rest is under "More options",
-  // as a quiet hint: once one model answers, one that does not is no error.
-  const sources = setup.models.filter((check) => !OPTIONS.includes(check.id));
-  const ready = (check: SetupCheck) =>
-    setup.working ? ["ok", "warning", "testing"].includes(check.state) : !notHere(check);
-  const models = sources.filter(ready);
-  const elsewhere = sources.filter((check) => !ready(check));
+  const models = setup.models.filter((check) => !OPTIONS.includes(check.id));
+  const here = models.filter(onComputer);
+  const accounts = models.filter((check) => !onComputer(check));
   const link = setup.models.find((check) => check.id === "link");
   const last = at === steps.length - 1;
 
@@ -260,23 +257,15 @@ export function SetupView({ setup }: { setup: Setup }) {
   return (
     <div className="h-full overflow-y-auto bg-background">
       <Frame>
-        <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 pt-8 pb-8 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <h1 className="font-medium text-[1.125rem]">{t("setup.title")}</h1>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <Dashes steps={steps} at={at} />
-                <p className="text-[0.75rem] text-ink-3">
-                  {t("setup.step", { n: at + 1, total: steps.length })}
-                </p>
-              </div>
-            </div>
-          </div>
+        <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 pt-6 pb-6 sm:px-6">
+          {steps.length > 1 ? <Dashes steps={steps} at={at} /> : null}
 
-          <div>
+          <div className="mt-6">
             {step === "name" ? (
-              <Part title={t("setup.name.title")} hint={t("setup.name.hint")}>
+              <>
+                <Says>{t("setup.name.title")}</Says>
                 <form
+                  className="mt-3 ml-[2.125rem] rounded-xl bg-card px-1.5 py-1"
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (canGoOn("name", setup, name)) {
@@ -284,76 +273,66 @@ export function SetupView({ setup }: { setup: Setup }) {
                     }
                   }}
                 >
-                  <Input
+                  <input
                     aria-label={t("setup.name.label")}
                     value={name}
                     maxLength={80}
+                    // biome-ignore lint/a11y/noAutofocus: the one field of this step
                     autoFocus
                     onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-transparent px-2 py-1.5 text-[0.9375rem] text-ink outline-none placeholder:text-ink-4"
                   />
                 </form>
-              </Part>
+              </>
             ) : null}
 
             {step === "models" ? (
               <>
-                <Part
-                  title={t("setup.models.title")}
-                  hint={setup.hosted ? undefined : t("setup.models.hint")}
-                >
-                  <CheckList checks={models} onTest={(source) => void test(source)} />
+                <Says>{t(setup.hosted ? "setup.models.askHosted" : "setup.models.ask")}</Says>
+                {here.length ? (
+                  <Group label={t("setup.models.here")}>
+                    <CheckList checks={here} onTest={(source) => void test(source)} />
+                  </Group>
+                ) : null}
+                <Group label={here.length ? t("setup.models.account") : undefined}>
+                  {accounts.length ? (
+                    <CheckList checks={accounts} onTest={(source) => void test(source)} />
+                  ) : null}
+                  <div className={cn(accounts.length > 0 && "border-border-soft border-t")}>
+                    <Option title={t("setup.ownKey.title")} hint={t("setup.ownKey.hint")}>
+                      <GatewayKey onProblem={setProblem} />
+                    </Option>
+                  </div>
+                  {link?.command ? (
+                    <div className="border-border-soft border-t">
+                      <Option title={t("setup.computer.title")} hint={t("setup.computer.hint")}>
+                        <LinkCommand command={link.command} />
+                      </Option>
+                    </div>
+                  ) : null}
+                </Group>
+                <div className="ml-[2.125rem]">
                   {alsoCan(setup).map((line) => (
-                    <p key={line} className="mt-1 text-[0.8125rem] text-ink-3">
+                    <p key={line} className="mt-2 text-[0.8125rem] text-ink-3">
                       {line}
                     </p>
                   ))}
                   {setup.hosted ? null : <TestAgain setup={setup} onTest={() => void test()} />}
-                </Part>
-                <More open={models.length === 0}>
-                  {elsewhere.length ? (
-                    <CheckList quiet checks={elsewhere} onTest={(source) => void test(source)} />
-                  ) : null}
-                  <Option title={t("setup.ownKey.title")} hint={t("setup.ownKey.hint")}>
-                    <GatewayKey onProblem={setProblem} />
-                  </Option>
-                  {link?.command ? (
-                    <Option title={t("setup.computer.title")} hint={t("setup.computer.hint")}>
-                      <LinkCommand command={link.command} />
-                    </Option>
-                  ) : null}
-                </More>
-                {setup.working || testing(setup) ? null : (
-                  <p role="status" className="mt-6 text-[0.8125rem] text-ink-3">
-                    {t("setup.models.gate")}
-                  </p>
-                )}
+                  {setup.working || testing(setup) ? null : (
+                    <p role="status" className="mt-3 text-[0.8125rem] text-ink-3">
+                      {t("setup.models.gate")}
+                    </p>
+                  )}
+                </div>
               </>
             ) : null}
 
             {step === "devices" ? (
               <>
-                <p className="mt-6 text-[0.8125rem] text-ink-3">
-                  {t(setup.hosted ? "setup.devices.hintOne" : "setup.devices.hint")}
-                </p>
-                <Part title={t("setup.phone.title")} hint={t("setup.phone.hint")}>
+                <Says>{t("setup.phone.ask")}</Says>
+                <Group>
                   <AddPhone onProblem={setProblem} />
-                </Part>
-                {setup.hosted ? null : (
-                  <Part title={t("setup.folder.title")} hint={t("setup.folder.hint")}>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Button variant="secondary" size="sm" onClick={() => setFolder(true)}>
-                        <FolderPlus className="size-4" />
-                        {t("setup.folder.add")}
-                      </Button>
-                      {folders.data?.length ? (
-                        <span className="text-[0.8125rem] text-ink-3">
-                          {t("setup.folder.count", { n: folders.data.length })}
-                        </span>
-                      ) : null}
-                    </div>
-                  </Part>
-                )}
-                <FolderDialog open={folder} onClose={() => setFolder(false)} />
+                </Group>
               </>
             ) : null}
           </div>
@@ -370,6 +349,11 @@ export function SetupView({ setup }: { setup: Setup }) {
               </Button>
             ) : null}
             <span className="flex-1" />
+            {step === "devices" ? (
+              <Button variant="ghost" busy={busy} onClick={() => void next()}>
+                {t("setup.later")}
+              </Button>
+            ) : null}
             <Button busy={busy} disabled={!canGoOn(step, setup, name)} onClick={() => void next()}>
               {last ? t("setup.finish") : t("setup.next")}
             </Button>

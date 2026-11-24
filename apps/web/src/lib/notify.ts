@@ -69,9 +69,33 @@ export function notify(notices: Notice[]) {
   }
 }
 
-/** Asks once whether the page may notify; called from a tap, as browsers want it. */
-export function askToNotify() {
-  if (!inMacApp() && "Notification" in window && Notification.permission === "default") {
-    void Notification.requestPermission();
+const LATER = "wizards.notify.later";
+
+/**
+ * Whether the chat offers to notify: in a browser that has not been asked yet, until the
+ * person said not now. The Mac app asks through macOS when it first notifies.
+ */
+export function canAskToNotify(): boolean {
+  if (inMacApp() || !("Notification" in window) || Notification.permission !== "default") {
+    return false;
+  }
+  try {
+    return localStorage.getItem(LATER) === null;
+  } catch {
+    return true;
+  }
+}
+
+/** Asks whether the page may notify; called from a tap, as browsers want it. */
+export function askToNotify(): Promise<unknown> {
+  return canAskToNotify() ? Notification.requestPermission() : Promise.resolve();
+}
+
+/** The person does not want to be asked again in this browser. */
+export function notifyLater() {
+  try {
+    localStorage.setItem(LATER, new Date().toISOString());
+  } catch {
+    // Without storage the offer comes back next time.
   }
 }
