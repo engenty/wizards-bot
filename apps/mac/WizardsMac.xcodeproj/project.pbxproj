@@ -10,6 +10,7 @@
 		AA0000000000000000000015 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AA0000000000000000000014 /* Sparkle */; };
 		AA0000000000000000000012 /* bot.wizards.home.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000011 /* bot.wizards.home.plist */; };
 		AA0000000000000000000017 /* bot.wizards.link.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000016 /* bot.wizards.link.plist */; };
+		5B0000000000000000000003 /* OpenEnum.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0000000000000000000002 /* OpenEnum.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -30,6 +31,7 @@
 /* Begin PBXFileReference section */
 		AA0000000000000000000008 /* wizards.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wizards.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA0000000000000000000011 /* bot.wizards.home.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = bot.wizards.home.plist; sourceTree = "<group>"; };
+		5B0000000000000000000002 /* OpenEnum.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OpenEnum.swift; path = ../ios/Shared/Protocol/OpenEnum.swift; sourceTree = "<group>"; };
 		AA0000000000000000000016 /* bot.wizards.link.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = bot.wizards.link.plist; sourceTree = "<group>"; };
 		DD0000000000000000000008 /* wizardsMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wizardsMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -43,6 +45,12 @@
 		5A0000000000000000000001 /* Core */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Core;
+			sourceTree = "<group>";
+		};
+		5B0000000000000000000001 /* Engenty */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			name = Engenty;
+			path = ../ios/Shared/Engenty;
 			sourceTree = "<group>";
 		};
 		DD0000000000000000000010 /* Tests */ = {
@@ -76,6 +84,8 @@
 			children = (
 				AA0000000000000000000010 /* App */,
 				5A0000000000000000000001 /* Core */,
+				5B0000000000000000000001 /* Engenty */,
+				5B0000000000000000000002 /* OpenEnum.swift */,
 				AA0000000000000000000013 /* LaunchAgents */,
 				DD0000000000000000000010 /* Tests */,
 				EE0000000000000000000003 /* Products */,
@@ -119,6 +129,7 @@
 			fileSystemSynchronizedGroups = (
 				AA0000000000000000000010 /* App */,
 				5A0000000000000000000001 /* Core */,
+				5B0000000000000000000001 /* Engenty */,
 			);
 			name = wizards;
 			packageProductDependencies = (
@@ -215,6 +226,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5B0000000000000000000003 /* OpenEnum.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

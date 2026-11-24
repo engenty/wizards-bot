@@ -42,12 +42,12 @@ struct FirstView: View {
             Spacer(minLength: 24)
             VStack(spacing: 22) {
                 VStack(spacing: 10) {
-                    HStack(spacing: 10) {
-                        Circle().fill(Petrol.accent).frame(width: 10, height: 10)
-                        Text(verbatim: "wizards.bot")
-                            .font(.system(size: 24, weight: .semibold))
-                            .foregroundStyle(Petrol.ink)
-                    }
+                    EngentyFigure(kind: .round, lively: true)
+                        .frame(width: 72, height: 72)
+                        .padding(.bottom, 4)
+                    Text(verbatim: "wizards.bot")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(Petrol.ink)
                     Text("Your own agents. They work on this Mac, or on a Bot Server you already have.")
                         .font(.system(size: 13))
                         .foregroundStyle(Petrol.ink2)
