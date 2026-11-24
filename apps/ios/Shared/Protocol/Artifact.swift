@@ -7,10 +7,14 @@ import Foundation
 nonisolated struct ArtifactMeta: Codable, Hashable, Sendable, Identifiable {
     var id: String
     var title: String
+    /// `html`: a page an agent wrote. `app`: the view a connection's server shows a tool's
+    /// result in (MCP Apps); its `page` is the home's host that runs the view.
     var format: String
     var version: Int
     var updatedAt: String
     var conversationId: String
+    /// An app's result in a few lines, for where its view is not shown.
+    var summary: String?
 }
 
 nonisolated struct Artifact: Codable, Hashable, Sendable, Identifiable {
@@ -20,6 +24,7 @@ nonisolated struct Artifact: Codable, Hashable, Sendable, Identifiable {
     var version: Int
     var updatedAt: String
     var conversationId: String
+    var summary: String?
     /// The page as the agent wrote it. A device never shows it itself: it shows `page`.
     var content: String
     /// Path of the page as the home serves it, with a key that opens this one page for an hour.
