@@ -386,6 +386,23 @@ import Testing
         #expect(try decode(Message.self, Self.message).queued == nil)
     }
 
+    @Test func whatTheModelThoughtAndItsSources() throws {
+        let message = try decode(Message.self, """
+        { "id": "msg_…", "conversationId": "cnv_…", "role": "agent", "channel": "app", "state": "done",
+          "createdAt": "2026-11-24T09:12:00.000Z", "parts": [
+            { "type": "reasoning", "text": "Trains first." },
+            { "type": "text", "text": "The 7:10." },
+            { "type": "source", "url": "https://example.com/trains", "title": "Timetable" },
+            { "type": "source", "url": "javascript:alert(1)" } ] }
+        """)
+        #expect(message.parts[0] == .reasoning("Trains first."))
+        #expect(message.parts[2] == .source(url: "https://example.com/trains", title: "Timetable"))
+        // What the model thought is not the answer a voice or a preview reads.
+        #expect(message.text == "The 7:10.")
+        let back = try decode(Message.self, String(decoding: try JSONEncoder().encode(message), as: UTF8.self))
+        #expect(back.parts == message.parts)
+    }
+
     @Test func errors() {
         func error(_ status: Int, _ body: String) -> HomeError { HomeClient.error(status: status, body: Data(body.utf8)) }
         #expect(error(401, #"{ "error": "unauthorized", "message": "Pair again." }"#) == .unauthorized)

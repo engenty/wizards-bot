@@ -63,14 +63,19 @@ struct MessageView: View {
     /// What the agent said: type on the page, no bubble.
     private var theirs: some View {
         let firstFile = message.parts.firstIndex(where: \.isFile)
+        let firstSource = message.parts.firstIndex(where: \.isSource)
         return VStack(alignment: .leading, spacing: 12) {
             if let from = message.from {
                 WriterLine(from: from)
             }
             ForEach(Array(message.parts.enumerated()), id: \.offset) { index, part in
-                // The files of a message stand together, where the first one is.
+                // The files of a message stand together, where the first one is; so do the sources.
                 if part.isFile {
                     if index == firstFile { MessageFiles(files: message.files, mine: false) }
+                } else if case .source = part {
+                    if index == firstSource { SourcesView(sources: message.sources) }
+                } else if case .reasoning(let text) = part {
+                    ReasoningView(text: text, live: message.state == .streaming)
                 } else {
                     PartView(part: part)
                 }
@@ -155,6 +160,61 @@ extension Part {
     var isFile: Bool {
         if case .file = self { true } else { false }
     }
+
+    var isSource: Bool {
+        if case .source = self { true } else { false }
+    }
+}
+
+extension Message {
+    /// The pages the answer draws on, web addresses only.
+    var sources: [(url: URL, title: String)] {
+        parts.compactMap {
+            guard case .source(let address, let title) = $0, let url = URL(string: address),
+                  url.scheme == "https" || url.scheme == "http" else { return nil }
+            return (url, title ?? url.host() ?? address)
+        }
+    }
+}
+
+/// What the model thought before it answered: folded away, and open while it is still written.
+private struct ReasoningView: View {
+    let text: String
+    let live: Bool
+    @State private var open = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: Binding(get: { open || live }, set: { open = $0 })) {
+            MarkdownText(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text(live ? "Thinking…" : "Thought")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// The pages an answer draws on, as links that open outside the app.
+private struct SourcesView: View {
+    let sources: [(url: URL, title: String)]
+
+    var body: some View {
+        if !sources.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Sources")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(sources, id: \.url) { source in
+                    Link(source.title, destination: source.url)
+                        .font(.footnote)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
 }
 
 private struct PartView: View {
@@ -231,6 +291,9 @@ private struct PartView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .accessibilityElement(children: .combine)
+        case .reasoning, .source:
+            // Drawn by the message, which knows whether it is still written and where the sources stand.
+            EmptyView()
         case .unknown(_, let title):
             // A part this version does not know is drawn as its title, or left out.
             if let title, !title.isEmpty {

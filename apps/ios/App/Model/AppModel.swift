@@ -405,10 +405,18 @@ final class AppModel {
             var parts = threads[conversationId]!.messages[index].parts
             // The delta may open the text part it writes to.
             while parts.count <= part { parts.append(.text("")) }
-            guard case .text(let soFar) = parts[part] else { return }
-            parts[part] = .text(soFar + text)
-            threads[conversationId]!.messages[index].parts = parts
-            if isOnScreen(conversationId) { voice.reply(messageId, grew: text) }
+            switch parts[part] {
+            case .text(let soFar):
+                parts[part] = .text(soFar + text)
+                threads[conversationId]!.messages[index].parts = parts
+                if isOnScreen(conversationId) { voice.reply(messageId, grew: text) }
+            case .reasoning(let soFar):
+                // What the model thinks is shown, never spoken.
+                parts[part] = .reasoning(soFar + text)
+                threads[conversationId]!.messages[index].parts = parts
+            default:
+                return
+            }
         case .cardUpdated(let card):
             apply(card)
         case .agentUpdated(let agent):
