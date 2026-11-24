@@ -527,10 +527,43 @@ export class Store {
     return id;
   }
 
-  markRead(conversationId: string): void {
-    const before = this.conversation(conversationId)?.unread ?? 0;
-    this.db.run("update conversation set read_at = ? where id = ?", now(), conversationId);
+  /**
+   * Marks a conversation read. In a group home each admin reads for themselves: `adminId`
+   * keeps when they read it, and the others' unread stays.
+   */
+  markRead(conversationId: string, adminId?: string): void {
+    const before = this.unread(conversationId, adminId);
+    if (adminId)
+      this.db.run(
+        "insert into conversation_read (conversation_id, admin_id, read_at) values (?, ?, ?) on conflict(conversation_id, admin_id) do update set read_at = excluded.read_at",
+        conversationId,
+        adminId,
+        now(),
+      );
+    else this.db.run("update conversation set read_at = ? where id = ?", now(), conversationId);
     if (before > 0) this.touchConversation(conversationId);
+  }
+
+  /**
+   * Messages of the agent one admin has not read; without `adminId`, the home's own count. An
+   * admin who never read the conversation counts from when the home last did.
+   */
+  unread(conversationId: string, adminId?: string): number {
+    if (!adminId) return this.conversation(conversationId)?.unread ?? 0;
+    const row = this.db.get<{ read_at: string }>(
+      "select coalesce((select read_at from conversation_read where conversation_id = ? and admin_id = ?), read_at) as read_at from conversation where id = ?",
+      conversationId,
+      adminId,
+      conversationId,
+    );
+    if (!row) return 0;
+    return (
+      this.db.get<{ n: number }>(
+        "select count(*) as n from message where conversation_id = ? and role = 'agent' and created_at > ?",
+        conversationId,
+        row.read_at,
+      )?.n ?? 0
+    );
   }
 
   addMessage(input: {

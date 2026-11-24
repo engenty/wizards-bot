@@ -88,6 +88,8 @@ carries `admin: { id, name }`, also in `PairResponse.device`, so a device knows 
   no admin's device, as in any home.
 - A card waits for every admin. The first answer counts; its `answer.admin` says who gave it,
   `answer.by` on which device. The agent hears who answered.
+- Each admin reads for themselves: `unread` in `GET /v1/agents` and in `agent.updated` is what
+  the device's admin has not read, and `POST /v1/conversations/:id/read` marks it for them.
 - A device offers nothing to the agents: `PUT /v1/device/resources` answers 409 `group_home`.
 - An admin the Manage-App no longer lists loses their devices within a minute: their token
   answers 401 `unauthorized`.
