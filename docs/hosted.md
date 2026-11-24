@@ -31,7 +31,7 @@ of [network.md](network.md)) is level 2 on the same machinery: one container for
    image, a volume, the address `ada.wizards.bot`, and the home's settings: its address, a setup
    code that works once, and the way to the gateway.
 3. **The person lands on `https://ada.wizards.bot/#setup=<code>`.** The home's own setup runs as
-   on a computer (`apps/home/src/setup`): the models with their test calls, the phone, a folder.
+   on a computer (`apps/home/src/setup`): the models with their test calls, then the phone.
    The gateway is green from the start. Bringing a key of one's own (a gateway or a provider) or
    linking one's computer is one more line in the same step, nothing else.
 4. **A welcome mail** from the Manage-App with the link.
