@@ -45,7 +45,7 @@ struct FirstView: View {
                     EngentyFigure(kind: .round, lively: true)
                         .frame(width: 72, height: 72)
                         .padding(.bottom, 4)
-                    Text(verbatim: "wizards.bot")
+                    Text(verbatim: Identity.current.name)
                         .font(.system(size: 24, weight: .semibold))
                         .foregroundStyle(Petrol.ink)
                     Text("Your own agents. They work on this Mac, or on a Bot Server you already have.")
@@ -259,7 +259,7 @@ private struct StepRow: View {
                 .foregroundStyle(row.state == .next ? Petrol.ink3 : Petrol.ink)
             Spacer(minLength: 8)
             if row.trailing {
-                Text("this Mac · \(String(Address.port))")
+                Text("this Mac · \(String(LocalHome.port))")
                     .font(.system(size: 12).monospaced())
                     .foregroundStyle(Petrol.ink3)
             }

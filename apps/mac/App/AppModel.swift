@@ -74,7 +74,7 @@ final class AppModel {
     /// The address is this Mac's own Bot Server.
     func isLocal(_ home: URL) -> Bool {
         let host = home.host?.lowercased() ?? ""
-        return (host == "localhost" || host == "127.0.0.1") && (home.port ?? 80) == Address.port
+        return (host == "localhost" || host == "127.0.0.1") && (home.port ?? 80) == LocalHome.port
     }
 
     /// "Start on this Mac": the app's Bot Server, or the one already here; then its setup, paired.

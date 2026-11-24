@@ -42,8 +42,8 @@ struct FoundView: View {
                         .petrolButton()
                         .padding(.top, 4)
                 case let .portTaken(program):
-                    title("Port 4747 is taken by \(program).")
-                    line("A Bot Server listens on 4747. Quit that program to start one here, or connect to a Bot Server elsewhere.")
+                    title("Port \(String(LocalHome.port)) is taken by \(program).")
+                    line("A Bot Server listens on \(String(LocalHome.port)). Quit that program to start one here, or connect to a Bot Server elsewhere.")
                 }
             }
             Spacer(minLength: 0)
