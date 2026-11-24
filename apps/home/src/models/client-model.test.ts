@@ -48,7 +48,17 @@ function fakeClient(replies: (string | Error)[]) {
     }
     return text;
   };
-  return { turns, ask, session: () => stored };
+  /** One message of the person made of several text parts. */
+  const askParts = async (parts: { type: "text"; text: string }[]): Promise<void> => {
+    const { stream } = await model.doStream({
+      prompt: [
+        { role: "system", content: "Be brief." },
+        { role: "user", content: parts },
+      ],
+    } as CallOptions);
+    for await (const _ of stream);
+  };
+  return { turns, ask, askParts, session: () => stored };
 }
 
 describe("a subscription client as a model", () => {
@@ -75,6 +85,15 @@ describe("a subscription client as a model", () => {
       client.turns[1]?.message,
       "The conversation since your last turn:\nPerson: [home] The person answered a card\n\nNow:\nWhat do I like?",
     );
+  });
+
+  test("reads the turn's context with the newest message, set apart from it", async () => {
+    const client = fakeClient(["Noted."]);
+    await client.askParts([
+      { type: "text", text: "What is on today?" },
+      { type: "text", text: "\n\n[home] It is Monday." },
+    ]);
+    assert.equal(client.turns[0]?.message, "What is on today?\n\n[home] It is Monday.");
   });
 
   test("reads everything again when its last answer is not in what it is shown", async () => {

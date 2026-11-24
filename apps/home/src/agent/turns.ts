@@ -9,8 +9,9 @@ import type { Home } from "../home.ts";
 import { newToken } from "../ids.ts";
 import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
 import type { AgentRecord } from "../store/store.ts";
+import { cacheProcessor, markedInstructions } from "./cache.ts";
 import { Draft } from "./draft.ts";
-import { systemPrompt } from "./prompt.ts";
+import { type Prompt, systemPrompt } from "./prompt.ts";
 import { type Answer, type Asking, mastraTools, runTool, type Tool } from "./tool.ts";
 
 export interface Trigger {
@@ -128,6 +129,7 @@ class Turn {
   note: string | undefined;
   /** What the agent said is done and what is next, when it asked for another turn. */
   next: { done: string; next: string } | undefined;
+  private changing: string | undefined;
   /** Tool rounds the run took, and whether the last one still called tools. */
   steps = 0;
   open = false;
@@ -236,7 +238,21 @@ class Turn {
     return this.open && this.steps >= MAX_STEPS;
   }
 
+  /** The stable part of the prompt: the run's instructions. */
   instructions(): string {
+    return this.prompt().stable;
+  }
+
+  /**
+   * What changes from turn to turn, made once per turn: the same in every step of the run, so
+   * each step reads the steps before it from the provider's cache.
+   */
+  context(): string {
+    this.changing ??= this.prompt().context;
+    return this.changing;
+  }
+
+  private prompt(): Prompt {
     const { home, agent, trigger } = this;
     // In a room the agent reads what is beside its own conversation with the person.
     const beside = trigger.room ? agent.conversationId : trigger.conversationId;
@@ -796,7 +812,8 @@ export class Turns {
     const created = new Agent({
       id: agent.id,
       name: agent.name,
-      instructions: ({ requestContext }) => turnOf(requestContext).instructions(),
+      instructions: ({ requestContext }) =>
+        markedInstructions(turnOf(requestContext).instructions()),
       model: (({ requestContext }: { requestContext: RequestContext }) =>
         turnOf(requestContext).models()) as never,
       tools: (({ requestContext }: { requestContext: RequestContext }) => {
@@ -804,6 +821,10 @@ export class Turns {
         return mastraTools(tools, draft, asking, (cardId) => this.answers.get(cardId));
       }) as never,
       memory: this.home.mastra.memory,
+      // Marks the request for the provider's prompt cache and adds the turn's changing context.
+      inputProcessors: [
+        cacheProcessor((context) => (context ? turnOf(context).context() : "")) as never,
+      ],
     });
     this.home.mastra.instance.addAgent(created);
     this.agents.set(agent.id, created);

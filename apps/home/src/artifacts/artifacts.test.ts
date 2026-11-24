@@ -284,8 +284,10 @@ describe("artifacts of a home", () => {
     assert.match(system, /<script src="\/artifact-lib\/d3\.js"><\/script>/);
     assert.match(system, /import \* as THREE from "three"/);
     assert.match(system, /<main class="sheet">/);
-    assert.match(system, /Artifacts beside this chat/);
-    assert.match(system, /- "Rain in March" \(art_\w+\), version 1/);
+    // What is beside the chat changes from turn to turn: it goes with the newest message.
+    const context = t.model.requests.at(-1)?.context ?? "";
+    assert.match(context, /Artifacts beside this chat/);
+    assert.match(context, /- "Rain in March" \(art_\w+\), version 1/);
   });
 
   test("a second write with its id is a new version, and the first one is kept", async () => {

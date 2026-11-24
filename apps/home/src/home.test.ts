@@ -166,9 +166,9 @@ describe("a home", () => {
   test("the agent is told which documents are beside the chat", async () => {
     t.model.script.push({ text: "Yes." });
     await t.say("Is the list there?");
-    const system = t.model.requests.at(-1)?.messages[0]?.content ?? "";
-    assert.match(system, /Documents beside this chat/);
-    assert.match(system, /- "Packing" \(doc_\w+\), version 2, last changed by Ada/);
+    const context = t.model.requests.at(-1)?.context ?? "";
+    assert.match(context, /Documents beside this chat/);
+    assert.match(context, /- "Packing" \(doc_\w+\), version 2, last changed by Ada/);
   });
 
   test("passages marked in a document are kept, listed, removed and read by the agent", async () => {
@@ -376,12 +376,19 @@ describe("a turn", () => {
   test("reads what is written while it runs, and answers once", async () => {
     const t = await testHome("Ada");
     try {
+      // The second message is written while the tool runs: after the model's request, which a
+      // message written during it would start again.
+      let started: () => void = () => {};
+      const running = new Promise<void>((resolve) => {
+        started = resolve;
+      });
       t.home.addTools(() => [
         defineTool({
           name: "look_up",
           description: "Takes a moment.",
           input: z.object({}),
           run: async () => {
+            started();
             await new Promise((resolve) => setTimeout(resolve, 400));
             return "The 7:10 is on time.";
           },
@@ -397,7 +404,7 @@ describe("a turn", () => {
         text: "Is the 7:10 on time?",
         channel: "app",
       });
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await running;
       const second = t.home.turns.enqueue({
         conversationId,
         text: "Also book a seat.",

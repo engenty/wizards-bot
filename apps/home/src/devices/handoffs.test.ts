@@ -62,7 +62,8 @@ describe("a question handed to a device", () => {
       (tool) => (tool as { function: { name: string } }).function.name,
     );
     assert.ok(!names.includes("device_ask"));
-    assert.ok(!(t.model.requests.at(-1)?.messages[0]?.content ?? "").includes("device_ask"));
+    const request = t.model.requests.at(-1);
+    assert.ok(!`${request?.messages[0]?.content}${request?.context}`.includes("device_ask"));
   });
 
   test("a device says what it offers; the home keeps the list, never the contents", async () => {
@@ -87,7 +88,7 @@ describe("a question handed to a device", () => {
   test("the agent reads what each device offers", async () => {
     t.model.script.push({ text: "Noted." });
     await t.say("What can you reach?");
-    const system = t.model.requests.at(-1)?.messages[0]?.content ?? "";
+    const system = t.model.requests.at(-1)?.context ?? "";
     assert.match(system, /- Test phone \(phone, [^)]+\): calendar \(read, change after/);
     assert.match(system, /folder "Receipts" \(read\)/);
     assert.ok(!system.includes("Ada's iPad"));
@@ -123,7 +124,7 @@ describe("a question handed to a device", () => {
     t.model.script.push({ text: "Still waiting." });
     await t.say("Anything yet?");
     assert.match(
-      t.model.requests.at(-1)?.messages[0]?.content ?? "",
+      t.model.requests.at(-1)?.context ?? "",
       /wait for its answer[\s\S]*Test phone[\s\S]*"What is in my calendar tomorrow\?"/,
     );
   });
