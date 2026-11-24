@@ -447,6 +447,32 @@ person asks for it.
 A `srcdoc` frame would not work in any case: it takes over the policy of the page around it,
 and the web app's policy allows no script written into a page.
 
+### A connection's view (`format: "app"`)
+
+When a tool of a connection answers with a view of its server (MCP Apps: `ui://…` in the tool's
+or the result's `_meta.ui.resourceUri`), the home keeps the call as an artifact of
+`format: "app"` with a `summary` (the result's text, for a watch or a notification) and puts it
+into the message as an `artifact` part. Its `page` is the home's host:
+`/v1/artifacts/:id/host?until=…&key=…`. A device frames it as it frames any artifact's page.
+
+The host runs the MCP Apps bridge (`@modelcontextprotocol/ext-apps`) and frames the view,
+`/v1/artifacts/:id/page` with the same key. The view is served with the policy its server
+named (`_meta.ui.csp`): `sandbox allow-scripts allow-forms` without `allow-same-origin`,
+`connect-src` only to its `connectDomains`, styles, fonts and pictures only from its
+`resourceDomains`. The host reaches the home only with the artifact's key, answered with
+`Access-Control-Allow-Origin: null`:
+
+| Route                                                   | What                                                                                                                                                                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /v1/artifacts/:id/app/call`                        | `{ title, tool, input, result }`: the call as the view gets it                                                                                                                                                           |
+| `POST /v1/artifacts/:id/app/tool` `{ name, arguments }` | a tool of the same connection, run without a card (the person pressed it in the view); a tool with `destructiveHint` asks with a card in the conversation and answers an error; one the person set to "never" is refused |
+| `POST /v1/artifacts/:id/app/context` `{ text }`         | what the view tells the agent; kept with the artifact, `artifact_read` gives it                                                                                                                                          |
+| `POST /v1/artifacts/:id/app/message` `{ text }`         | a message as the person, into the conversation                                                                                                                                                                           |
+
+The host posts `{ "source": "wizards-app", "type": "open-link", "url" }` and `{ "source":
+"wizards-app", "type": "size", "height" }` to the frame around it; on iOS the same to the
+`app` script message handler.
+
 ### Libraries
 
 A page uses D3 and three.js from the home's own dependencies, and the home puts them into the

@@ -12,6 +12,7 @@ import { Browser } from "./browser/browser.ts";
 import { type ChannelAdapter, Channels } from "./channels/channels.ts";
 import { ADAPTERS } from "./channels/index.ts";
 import { type Config, isHosted, VERSION } from "./config.ts";
+import { Apps } from "./connections/apps.ts";
 import { Connections } from "./connections/connections.ts";
 import { Handoffs } from "./devices/handoffs.ts";
 import { Events } from "./events.ts";
@@ -63,6 +64,7 @@ export class Home {
   readonly skills: Skills;
   readonly plugins: Plugins;
   readonly artifacts: Artifacts;
+  readonly apps: Apps;
   readonly sharing: Sharing;
   readonly avatars: Avatars;
   readonly models: Models;
@@ -115,6 +117,7 @@ export class Home {
     this.skills = new Skills(this);
     this.plugins = new Plugins(this, () => this.skills.ownNames());
     this.artifacts = new Artifacts(this);
+    this.apps = new Apps(this);
     this.sharing = new Sharing(this);
     this.avatars = new Avatars(this);
     this.channels = new Channels(this, adapters);

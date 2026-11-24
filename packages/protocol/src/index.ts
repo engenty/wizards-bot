@@ -497,10 +497,16 @@ export type AddMark = z.input<typeof AddMark>;
 export const ArtifactMeta = z.object({
   id: z.string(),
   title: z.string(),
-  format: z.enum(["html"]),
+  /**
+   * `html`: a page an agent wrote. `app`: the view a connection's server shows a tool's result
+   * in (MCP Apps); its `page` is the home's host that runs the view and its bridge.
+   */
+  format: z.enum(["html", "app"]),
   version: z.number(),
   updatedAt: z.string(),
   conversationId: z.string(),
+  /** An app's result in a few lines, for where its view is not shown (a watch, a notification). */
+  summary: z.string().optional(),
 });
 export type ArtifactMeta = z.infer<typeof ArtifactMeta>;
 
