@@ -255,7 +255,8 @@ private struct FieldView: View {
                     }
                 }
             case .folder:
-                FolderField(path: $text)
+                // A folder the card proposes to make: the line that says so, while it is chosen.
+                FolderField(path: $text, hint: field.value == .text(text) ? field.placeholder : nil)
             default:
                 TextField(text: $text, prompt: Text(verbatim: field.placeholder ?? ""), axis: .vertical) { Text(verbatim: field.label) }
                     .lineLimit(1 ... 5)

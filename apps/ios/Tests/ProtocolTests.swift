@@ -137,6 +137,8 @@ import Testing
                 #expect(throws: Never.self) { try JSONDecoder().decode(DeviceResources.self, from: data) }
             } else if keys.isSuperset(of: ["deviceId", "agentName"]) {
                 #expect(throws: Never.self) { try JSONDecoder().decode(Handoff.self, from: data) }
+            } else if keys.isSuperset(of: ["folderId", "changes"]) {
+                #expect(throws: Never.self) { try JSONDecoder().decode(FolderActivity.self, from: data) }
             } else if keys.isSuperset(of: ["home", "folders"]) {
                 #expect(throws: Never.self) { try JSONDecoder().decode(FolderListing.self, from: data) }
             } else if keys.isSuperset(of: ["fields", "actions"]) {
@@ -180,6 +182,29 @@ import Testing
         ["homes", "seq"],  // a version of the person's record: the app makes and signs none yet
         ["skills", "tools", "state"],  // a plugin of the home: the app lists none yet
     ]
+
+    // MARK: The file browser
+
+    @Test func whatAFolderHoldsAndWhatHappenedInIt() throws {
+        let place = try decode(FolderEntries.self, """
+        { "folder": { "id": "fld_1", "name": "Büro", "path": "/Users/ada/Büro", "access": "write", "allow": "always",
+            "createdAt": "2026-11-24T10:00:00.000Z" },
+          "path": "Briefe", "parent": "",
+          "entries": [ { "name": "kraus.md", "path": "Briefe/kraus.md", "kind": "file", "size": 32,
+            "changedAt": "2026-11-24T10:22:00.000Z" } ],
+          "more": false }
+        """)
+        #expect(place.folder.allow == .always)
+        #expect(place.entries.first?.isFolder == false)
+        let activity = try decode(FolderActivityEnvelope.self, """
+        { "activity": [ { "id": "fac_1", "folderId": "fld_1", "read": 0,
+          "changes": [ { "action": "make", "path": "Briefe/Archiv", "undone": true, "at": "t" } ], "at": "t" } ] }
+        """).activity
+        #expect(activity.first?.agentName == nil)
+        #expect(activity.first?.changes.first?.undone == true)
+        let edit = try JSONSerialization.jsonObject(with: JSONEncoder().encode(FolderEdit.trash(["a.txt"]))) as? [String: Any]
+        #expect(edit?.keys.sorted() == ["action", "paths"])
+    }
 
     // MARK: Rooms
 

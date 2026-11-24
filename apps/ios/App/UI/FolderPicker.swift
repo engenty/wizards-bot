@@ -7,6 +7,8 @@ struct FolderField: View {
     @Environment(AppModel.self) private var model
     /// The chosen folder's path; empty while none is chosen.
     @Binding var path: String
+    /// A line instead of what the folder holds, e.g. that the Bot Server makes it.
+    var hint: String? = nil
 
     @State private var browsing = false
     @State private var found: FolderPreview?
@@ -25,7 +27,11 @@ struct FolderField: View {
                 .buttonStyle(ActionButtonStyle(style: .plain))
             } else {
                 chip
-                if let refused {
+                if let hint {
+                    Text(verbatim: hint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else if let refused {
                     Text(refused)
                         .font(.footnote)
                         .foregroundStyle(.red)
@@ -75,7 +81,7 @@ struct FolderField: View {
     private func look() async {
         found = nil
         refused = nil
-        guard !path.isEmpty, let client = model.client else { return }
+        guard !path.isEmpty, hint == nil, let client = model.client else { return }
         if home == nil { home = try? await client.browseFolders().home }
         do {
             found = try await client.previewFolder(path)
@@ -192,6 +198,16 @@ private struct FolderLevel: View {
                         Label(folder.name, systemImage: "folder")
                     }
                 }
+                // Where the picker starts, the person's other disks are a tap away.
+                if listing.parent == nil, let disks = listing.disks, !disks.isEmpty, path == nil {
+                    Section("Disks") {
+                        ForEach(disks) { disk in
+                            NavigationLink(value: disk.path) {
+                                Label(disk.name, systemImage: "externaldrive")
+                            }
+                        }
+                    }
+                }
             } else if problem == nil {
                 ProgressView()
                     .frame(maxWidth: .infinity)
@@ -210,7 +226,7 @@ private struct FolderLevel: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Choose") { if let listing { choose(listing.path) } }
-                    .disabled(listing == nil || listing?.parent == nil)
+                    .disabled(listing == nil || listing?.path == listing?.home)
             }
             ToolbarItem(placement: .bottomBar) {
                 Button("New folder", systemImage: "folder.badge.plus") {
@@ -222,7 +238,7 @@ private struct FolderLevel: View {
             }
         }
         .safeAreaInset(edge: .top) {
-            if listing?.parent == nil, listing != nil {
+            if let listing, listing.path == listing.home {
                 Text("Not your whole home folder: open a folder in it.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
