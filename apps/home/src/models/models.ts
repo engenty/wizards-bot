@@ -2,7 +2,12 @@ import { totalmem } from "node:os";
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { detectClient } from "@engenty/local-models/clients";
-import { type ChatModel, type InstalledModel, ollamaModel } from "@engenty/local-models/ollama";
+import {
+  type ChatModel,
+  fits,
+  type InstalledModel,
+  ollamaModel,
+} from "@engenty/local-models/ollama";
 import {
   type ModelService,
   type ModelSource,
@@ -22,7 +27,7 @@ import {
   SUBSCRIPTIONS,
   type SubscriptionId,
 } from "./client-model.ts";
-import { chatModels, onThisComputer } from "./ollama.ts";
+import { chatModels, MEMORY_SHARE, onThisComputer } from "./ollama.ts";
 import { agreed, serviceOf, services } from "./services.ts";
 
 export type { ClientTurn } from "./client-model.ts";
@@ -105,6 +110,9 @@ export function accountModel(
     ...(doFetch ? { fetch: doFetch } : {}),
   })(model);
 }
+
+/** Whether the person picked Ollama: "on" or "off". */
+const OLLAMA = "models.ollama";
 
 const REFRESH_MS = 60_000;
 
@@ -233,12 +241,49 @@ export class Models {
     );
   }
 
+  // ── Ollama ────────────────────────────────────────────────────────────────
+
+  /**
+   * Whether the home may have this computer's Ollama load a model: the person picked it, or put
+   * one of its models into their order. A model takes a large part of the computer's memory, so
+   * finding Ollama is not enough.
+   */
+  ollamaPicked(): boolean {
+    const said = this.db.meta(OLLAMA);
+    if (said) return said === "on";
+    return this.order().some((ref) => splitRef(ref).sourceId === "ollama");
+  }
+
+  /** Whether the person has said yes or no to Ollama. */
+  ollamaSaid(): boolean {
+    return Boolean(this.db.meta(OLLAMA));
+  }
+
+  pickOllama(on: boolean): void {
+    this.db.setMeta(OLLAMA, on ? "on" : "off");
+    if (!on) {
+      const rest = this.order().filter((ref) => splitRef(ref).sourceId !== "ollama");
+      this.db.setMeta("models.order", JSON.stringify(rest));
+    }
+  }
+
+  /** The model Ollama would load once the person picks it; none when none leaves the computer room. */
+  ollamaOffer(): { model: string; size: number } | undefined {
+    const first = this.ollama[0];
+    if (!first) return undefined;
+    const here = onThisComputer(this.config.ollamaUrl);
+    if (here && !fits(first, this.memory, MEMORY_SHARE)) return undefined;
+    return { model: first.name, size: first.size };
+  }
+
   order(): string[] {
     return JSON.parse(this.db.meta("models.order") ?? "[]") as string[];
   }
 
   setOrder(refs: string[]): void {
     this.db.setMeta("models.order", JSON.stringify(refs));
+    // Naming one of its models in the order picks Ollama.
+    if (refs.some((ref) => splitRef(ref).sourceId === "ollama")) this.db.setMeta(OLLAMA, "on");
   }
 
   view(): ModelsView {
@@ -260,11 +305,15 @@ export class Models {
 
   /**
    * Model refs in the order the home tries them: the person's order first, then a
-   * subscription, then Ollama, then a gateway; this computer before another one.
+   * subscription, then Ollama, then a gateway; this computer before another one. This
+   * computer's Ollama is among them only once the person picked it.
    */
   candidates(): string[] {
     const available = new Map<string, ModelSource>();
-    for (const source of this.sources()) if (source.online) available.set(source.id, source);
+    const picked = this.ollamaPicked();
+    for (const source of this.sources()) {
+      if (source.online && (picked || source.id !== "ollama")) available.set(source.id, source);
+    }
     const refs: string[] = [];
     const add = (ref: string) => {
       const { sourceId, model } = splitRef(ref);
@@ -287,7 +336,9 @@ export class Models {
    * else, which a picture of the person reaches only when the person said so.
    */
   forPictures(): { here: string[]; elsewhere: { ref: string; label: string }[] } {
-    const here = this.ollama.filter((model) => model.vision).map((model) => `ollama:${model.name}`);
+    const here = this.ollamaPicked()
+      ? this.ollama.filter((model) => model.vision).map((model) => `ollama:${model.name}`)
+      : [];
     const elsewhere: { ref: string; label: string }[] = [];
     for (const ref of this.candidates()) {
       const { sourceId } = splitRef(ref);

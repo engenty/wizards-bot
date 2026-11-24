@@ -34,6 +34,7 @@ import {
   SendMessage,
   SetupGateway,
   SwitchAddress,
+  SwitchOllama,
   TestSetup,
   UndoFolderChange,
   UpdateDevice,
@@ -52,7 +53,7 @@ import { PassRefused } from "./group.ts";
 import type { Home } from "./home.ts";
 import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
-import { PullRefused } from "./setup/setup.ts";
+import { OllamaRefused, PullRefused } from "./setup/setup.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
 import { AddressRefused } from "./tunnel/tunnel.ts";
 import { VaultRefused } from "./vault/vault.ts";
@@ -1043,6 +1044,17 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       throw error;
     }
     return c.json(await home.setup.view());
+  });
+
+  // Ollama on this computer, used only on the person's word: its model takes much memory.
+  app.post("/v1/setup/ollama", async (c) => {
+    const { on } = SwitchOllama.parse(await c.req.json());
+    try {
+      return c.json(await home.setup.ollama(on));
+    } catch (error) {
+      if (error instanceof OllamaRefused) return fail(c, 400, "refused", error.message);
+      throw error;
+    }
   });
 
   // A model for Ollama on this computer, on the person's yes; it loads while the setup shows it.

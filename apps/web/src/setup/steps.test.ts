@@ -48,6 +48,14 @@ describe("when the setup opens", () => {
   });
 });
 
+describe("an Ollama nobody picked", () => {
+  it("is not tested from the list; it is picked first", () => {
+    const start = { model: "qwen3:8b", size: 5.2e9 };
+    expect(testable(check("ollama", { on: false, start }))).toBe(false);
+    expect(testable(check("ollama", { on: true }))).toBe(true);
+  });
+});
+
 describe("going on", () => {
   it("needs a name, then a model that answered; the rest does not hold the person", () => {
     expect(canGoOn("name", setup(), "  ")).toBe(false);
