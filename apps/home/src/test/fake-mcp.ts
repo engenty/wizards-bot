@@ -28,8 +28,11 @@ export type Outcome =
   | { needs: string };
 
 export interface FakeTool {
+  title?: string;
   description?: string;
   readOnly?: boolean;
+  /** The tool's own `_meta` in the list (MCP Apps: `ui.resourceUri`, `ui.visibility`). */
+  meta?: Record<string, unknown>;
   run(call: Retry, state: unknown): Outcome;
 }
 
@@ -100,9 +103,11 @@ export class FakeMcp {
   private listed(): unknown[] {
     return Object.entries(this.tools).map(([name, tool]) => ({
       name,
+      ...(tool.title ? { title: tool.title } : {}),
       description: tool.description ?? name,
       inputSchema: { type: "object", properties: {} },
       annotations: { readOnlyHint: tool.readOnly === true },
+      ...(tool.meta ? { _meta: tool.meta } : {}),
     }));
   }
 

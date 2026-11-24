@@ -31,10 +31,32 @@ interface Runs {
 
 export interface ConnectionTool {
   name: string;
+  title?: string;
   description: string;
   inputSchema: unknown;
   /** The server says the tool only reads. Everything else asks the person first. */
   readOnly: boolean;
+  /** Only the server's own view calls it (MCP Apps `visibility: ["app"]`), never the agent. */
+  appOnly?: boolean;
+}
+
+/** As much of a tool's description as the home keeps. */
+const DESCRIPTION_LIMIT = 4000;
+/** How long a tool's line in the list may be. */
+const LINE_LIMIT = 160;
+
+/** A tool's description in one line: its first sentence. */
+function firstSentence(description: string): string {
+  const flat = description.replace(/\s+/g, " ").trim();
+  const end = flat.search(/[.!?](\s|$)/);
+  const sentence = end >= 0 ? flat.slice(0, end + 1) : flat;
+  return sentence.length > LINE_LIMIT ? `${sentence.slice(0, LINE_LIMIT - 1)}…` : sentence;
+}
+
+/** Who may call a tool, as its MCP Apps metadata says. */
+function appOnlyOf(meta: unknown): boolean {
+  const visibility = (meta as { ui?: { visibility?: unknown } } | undefined)?.ui?.visibility;
+  return Array.isArray(visibility) && visibility.length > 0 && !visibility.includes("model");
 }
 
 export interface Connection {
@@ -346,9 +368,11 @@ export class Connections {
       if (!found) throw new Error(listed.errors[row.name] ?? "The connection does not answer.");
       const tools: ConnectionTool[] = Object.values(found).map((tool) => ({
         name: tool.name,
-        description: (tool.description ?? "").slice(0, 600),
+        ...(tool.title ? { title: tool.title } : {}),
+        description: (tool.description ?? "").slice(0, DESCRIPTION_LIMIT),
         inputSchema: tool.inputSchema,
         readOnly: tool.annotations?.readOnlyHint === true,
+        ...(appOnlyOf(tool._meta) ? { appOnly: true } : {}),
       }));
       this.clients.set(id, client);
       this.runs.set(id, ((await client.listToolsets())[row.name] ?? {}) as Record<string, Runs>);
@@ -386,20 +410,30 @@ export class Connections {
     const use: Tool[] = [
       defineTool({
         name: "connection_tools",
-        description: "List what a connected account or app can do: its tools with their inputs.",
-        input: z.object({ name: z.string() }),
-        label: (input) => `Looking at ${String(input.name ?? "a connection")}`,
+        description:
+          "List what a connected account or app can do: one line per tool. Name a tool to get all it says about itself and its input, before you call it.",
+        input: z.object({
+          name: z.string().describe("The connection."),
+          tool: z.string().optional().describe("One of its tools, in full."),
+        }),
+        label: (input) => `Looking at ${String(input.tool ?? input.name ?? "a connection")}`,
         run: async (input) => {
           const connection = this.byName(input.name);
           if (!connection)
             return `There is no connection ${input.name}. Connected: ${this.names().join(", ") || "none"}.`;
           if (connection.state !== "connected")
             return `${connection.name} is not connected (${connection.state}).`;
-          return connection.tools
-            .map(
-              (tool) =>
-                `- ${tool.name}${tool.readOnly ? " (reads)" : " (changes something: the person is asked first)"}: ${tool.description}\n  input: ${JSON.stringify(tool.inputSchema)}`,
-            )
+          const tools = connection.tools.filter((tool) => !tool.appOnly);
+          const what = (tool: ConnectionTool) =>
+            tool.readOnly ? "reads" : "changes something: the person is asked first";
+          if (input.tool) {
+            const tool = tools.find((candidate) => candidate.name === input.tool);
+            if (!tool)
+              return `${connection.name} has no tool ${input.tool}. Its tools: ${tools.map((t) => t.name).join(", ")}.`;
+            return `${tool.name}${tool.title ? ` (${tool.title})` : ""}, ${what(tool)}\n\n${tool.description}\n\ninput: ${JSON.stringify(tool.inputSchema)}`;
+          }
+          return tools
+            .map((tool) => `- ${tool.name} (${what(tool)}): ${firstSentence(tool.description)}`)
             .join("\n");
         },
       }),
@@ -418,7 +452,9 @@ export class Connections {
         run: async (input, call) => {
           const connection = this.byName(input.name);
           if (connection?.state !== "connected") return `${input.name} is not connected.`;
-          const tool = connection.tools.find((candidate) => candidate.name === input.tool);
+          const tool = connection.tools.find(
+            (candidate) => candidate.name === input.tool && !candidate.appOnly,
+          );
           if (!tool)
             return `${connection.name} has no tool ${input.tool}. Call connection_tools first.`;
           const policy = connection.policies[tool.name];

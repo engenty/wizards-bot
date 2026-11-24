@@ -611,7 +611,9 @@ export class Tasks {
             : undefined;
           if (connection?.state !== "connected")
             return `Name a connected account or app: ${home.connections.names().join(", ") || "none is connected"}.`;
-          const tool = connection.tools.find((candidate) => candidate.name === input.tool);
+          const tool = connection.tools.find(
+            (candidate) => candidate.name === input.tool && !candidate.appOnly,
+          );
           if (!tool) return `${connection.name} has no tool ${input.tool}. Call connection_tools.`;
           if (!tool.readOnly)
             return `${tool.name} changes something. Only a tool that reads can be looked at by itself.`;
