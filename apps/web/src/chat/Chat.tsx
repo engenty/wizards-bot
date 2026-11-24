@@ -89,7 +89,7 @@ export function Chat({
   const depth = useRef(0);
   const takes = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
 
-  const send = async (text: string, files: FileRef[]) => {
+  const send = async (text: string, files: FileRef[], later = false) => {
     try {
       const clientId = uuid();
       const { message } = await withConsent(
@@ -97,6 +97,7 @@ export function Chat({
           api.post<{ message: Message }>(`/v1/conversations/${agent.conversationId}/messages`, {
             text,
             ...(files.length ? { files: files.map((file) => file.id) } : {}),
+            ...(later ? { later: true } : {}),
             clientId,
           }),
         (models) => client.setQueryData(keys.models(), models),

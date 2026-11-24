@@ -159,7 +159,13 @@ document it is.
 
 `POST /v1/conversations/:id/read` marks the conversation read.
 
-`POST /v1/conversations/:id/stop` stops the reply that is being written.
+A message written while the agent writes its reply goes into that reply: the agent reads it
+before its next step. With `later: true` it waits instead, for after the answer: the stored
+message has `queued: true`, and `message.updated` clears it when the agent starts on it. Without
+a reply being written, `later` changes nothing.
+
+`POST /v1/conversations/:id/stop` stops the reply that is being written, and what waits for after
+it. The messages stay with the agent, which reads them with the next one; `queued` is cleared.
 
 `POST /v1/conversations/:id/import` with `ImportMessages` → `{ "messages": Message[] }`. A phone
 sends what it wrote with its own model while the home was out of reach. The `model` of such a

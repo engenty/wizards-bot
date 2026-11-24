@@ -105,11 +105,21 @@ interface Said {
   images: ClientImage[];
 }
 
+/**
+ * Marks the signal that asks for a turn on a message stored before it (`agent/turns.ts`), in its
+ * `providerOptions.home`.
+ */
+export const ASKED_OPTION = "asked";
+
 /** The AI SDK's prompt as the instructions and what was said, oldest first. */
 export function clientPrompt(prompt: CallOptions["prompt"]): { system: string; said: Said[] } {
   const system: string[] = [];
   const said: Said[] = [];
   for (const message of prompt) {
+    // The signal that asks for a turn on what was stored before it: the stored message is "Now".
+    const options = (message as { providerOptions?: { home?: Record<string, unknown> } })
+      .providerOptions;
+    if (options?.home?.[ASKED_OPTION]) continue;
     if (message.role === "system") {
       system.push(message.content);
     } else if (message.role === "user" || message.role === "assistant") {

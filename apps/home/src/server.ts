@@ -475,6 +475,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       : body.text;
     void home.turns.enqueue({
       conversationId: conversation.id,
+      messageId: message.id,
+      later: body.later,
       // In a room the group home is one member: the others read who of it wrote.
       text: !writer
         ? asked

@@ -33,16 +33,18 @@ export interface ComposerHandle {
 /** Taller than this the field scrolls. */
 const MAX_HEIGHT = 200;
 
+const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /** The keys that open the file picker: ⌘U on a Mac, Ctrl+U elsewhere. */
-const UPLOAD_KEYS = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
-  ? "⌘U"
-  : "Ctrl+U";
+const UPLOAD_KEYS = MAC ? "⌘U" : "Ctrl+U";
+/** The keys that send a message for after the answer under way. */
+const LATER_KEYS = MAC ? "⌘↩" : "Ctrl+↩";
 
 /**
  * The field a message is written in: text (typed or spoken), files (picked, pasted,
  * photographed or handed in through `ref`), and the send button. One line, it is a pill; the
  * buttons stay level with the text, and on the last line once it grows. An answer under way
- * (`busy`) does not lock it: Enter sends on, and an empty field offers Stop.
+ * (`busy`) does not lock it: Enter sends into it, ⌘↩ (Ctrl+↩) for after it, and an empty field
+ * offers Stop.
  */
 export function Composer({
   placeholder,
@@ -58,8 +60,11 @@ export function Composer({
   busy: boolean;
   /** Stops the answer under way: its button stands where Send does while the field is empty. */
   onStop: () => void;
-  /** False keeps the draft, e.g. when the home did not take the message. */
-  onSend: (text: string, files: FileRef[]) => Promise<boolean>;
+  /**
+   * False keeps the draft, e.g. when the home did not take the message. `later`: the agent reads
+   * it after the answer under way.
+   */
+  onSend: (text: string, files: FileRef[], later: boolean) => Promise<boolean>;
   plus: PlusItem[];
   className?: string;
   ref?: Ref<ComposerHandle>;
@@ -114,7 +119,7 @@ export function Composer({
   const uploading = attached.list.some((a) => a.state === "uploading");
   const typed = Boolean(text.trim() || files.length > 0);
   const ready = typed && !uploading;
-  const submit = async () => {
+  const submit = async (later = false) => {
     if (!ready) {
       return;
     }
@@ -122,7 +127,7 @@ export function Composer({
     const draft = text;
     const taken = attached.take();
     setText("");
-    if (await onSend(draft.trim(), files)) {
+    if (await onSend(draft.trim(), files, later && busy)) {
       attached.sent(taken);
     } else {
       setText(draft);
@@ -186,11 +191,17 @@ export function Composer({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
-                void submit();
+                void submit(e.metaKey || e.ctrlKey);
               }
             }}
             aria-label={placeholder}
-            placeholder={speech.listening ? t("composer.listening") : placeholder}
+            placeholder={
+              speech.listening
+                ? t("composer.listening")
+                : busy
+                  ? t("composer.later", { keys: LATER_KEYS })
+                  : placeholder
+            }
             className="max-h-[200px] min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-[0.9375rem] leading-5 outline-none placeholder:truncate placeholder:text-ink-4 coarse:min-h-11 coarse:py-3"
           />
           {speech.supported ? (
