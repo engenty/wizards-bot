@@ -117,3 +117,67 @@ describe("what a tool's result carries besides its text", () => {
     assert.equal(step.carried?.resources?.[0]?.uri, "ui://studio/note.json");
   });
 });
+
+describe("a call the server runs as a task", () => {
+  let t: TestHome;
+  let studio: FakeMcp;
+  const until = async (ok: () => boolean) => {
+    for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 20));
+    assert.ok(ok());
+  };
+  before(async () => {
+    t = await testHome("Ada");
+    studio = new FakeMcp("modern", {
+      long: { readOnly: true, task: () => ({ status: "working" }), run: () => ({ text: "now" }) },
+    });
+    await studio.start();
+    await t.home.connections.add({ name: "studio", url: studio.url });
+  });
+  after(() => {
+    studio.stop();
+    t.stop();
+  });
+
+  test("the turn goes on; the task's question is a card; its end is told", async () => {
+    t.model.script.push({
+      calls: [
+        {
+          name: "connection_call",
+          arguments: { name: "studio", tool: "long", arguments: {}, why: "Run it" },
+        },
+      ],
+    });
+    t.model.script.push({ text: "It runs." });
+    await t.say("run the long one");
+    assert.match(result(t), /runs this as a task \(task-1\)/);
+
+    const task = studio.tasks.get("task-1");
+    assert.ok(task);
+    task.status = "input_required";
+    task.ask = {
+      mode: "form",
+      message: "Who visits?",
+      requestedSchema: { type: "object", properties: { name: { type: "string", title: "Name" } } },
+    };
+    await until(() =>
+      t.home.store.items().some((card) => card.title === "studio asks you something"),
+    );
+    const card = t.item();
+    assert.match(card.body ?? "", /Who visits/);
+
+    await t.answer(card.id, "accept", { f0: "Lena" });
+    await until(() => task.answers.length === 1);
+    assert.deepEqual(task.answers[0], { page: { action: "accept", content: { name: "Lena" } } });
+
+    t.model.script.push({ text: "Done." });
+    task.status = "completed";
+    task.text = "The visit is booked.";
+    await until(() =>
+      JSON.stringify(t.model.requests).includes("studio finished long, which ran as a task"),
+    );
+    assert.match(JSON.stringify(t.model.requests.at(-1)), /The visit is booked\./);
+    // The turn the home's word started ends before the home does.
+    await until(() => t.home.store.agents().every((agent) => agent.state !== "working"));
+    await t.home.idle();
+  });
+});
