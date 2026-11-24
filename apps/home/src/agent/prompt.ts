@@ -5,6 +5,11 @@ import type { AgentRecord } from "../store/store.ts";
 export interface PromptInput {
   agent: AgentRecord;
   person: string;
+  /**
+   * The home belongs to a group, and `person` is the group's name: the names of its admins,
+   * the people who write to the agent and answer its cards.
+   */
+  group?: { admins: string[] };
   agents: AgentRecord[];
   connections: string[];
   /** The conversation's documents, newest first. */
@@ -95,8 +100,18 @@ export function systemPrompt(input: PromptInput): string {
       .join("\n\n");
   }
   return [
-    `You are ${agent.name}, ${person}'s own agent. You run on ${person}'s Bot Server: a program on their own computer or server. You work for ${person} only.`,
+    input.group
+      ? `You are ${agent.name}, an agent of the group ${person}. You run on ${person}'s Bot Server, which the group's admins run: ${input.group.admins.join(", ") || "none yet"}. You work for the group, and each of them writes to you.`
+      : `You are ${agent.name}, ${person}'s own agent. You run on ${person}'s Bot Server: a program on their own computer or server. You work for ${person} only.`,
     `It is ${date}.`,
+    input.group
+      ? [
+          `The group's admins:`,
+          `- Each message of an admin starts with a line that names them ("Ada writes:"). Answer the one who wrote, by name when it helps; everyone of them reads the conversation.`,
+          `- A card goes to every admin. The first answer counts, and you are told who answered.`,
+          `- What you remember is the group's, and every admin reads it. Keep nothing in it that belongs to one of them alone.`,
+        ].join("\n")
+      : "",
     [
       "How you talk:",
       `- Plain, calm and short. No emoji, no exclamation marks. Answer in the language ${person} writes in.`,

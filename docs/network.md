@@ -369,6 +369,16 @@ done.
 
 A group home is a home on a VPS that belongs to a group: a club, a company, a forum.
 
+Built on 2026-11-24, for a team's hosted home (`apps/home/src/group.ts`, `docs/hosted.md`
+Contracts 10 and 11): the team's owners and admins in the Manage-App are the admins; each pairs
+their first device with a pass from the Manage-App and further devices with a code they ask
+for; every device is marked with whose it is. Every admin sees the conversations of the
+group's agents, each message names the admin who wrote it, a card waits for all of them and
+the first answer counts and is named. A device offers nothing to the group's agents. Not built
+from this section: the group's record listing its admins (the record is signed by the key the
+first admin made), members other than through rooms and shared agents, limits per member,
+private conversations of one admin, and a group home not made by the Manage-App.
+
 - **Identity.** The group has a record like a person: `club@wizards.id` or `@example.club`, a
   group id, the home's key. The record lists the **admins** by person id instead of one person
   key; a new record needs the signature of one admin (later: several, open decision 8).

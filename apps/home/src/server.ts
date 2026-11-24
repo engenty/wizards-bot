@@ -12,7 +12,7 @@ import { join, normalize } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { CsvRefused, OriginRefused } from "@engenty/vault";
-import type { Event } from "@wizards-bot/protocol";
+import type { Admin, Event } from "@wizards-bot/protocol";
 import {
   AddMark,
   type AgentDetail,
@@ -26,6 +26,7 @@ import {
   FolderEdit,
   ImportMessages,
   MakeFolder,
+  PairAdmin,
   PairRequest,
   type PairResponse,
   PullSetup,
@@ -47,6 +48,7 @@ import { tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
 import { FileRefused, isText, sniff } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
+import { PassRefused } from "./group.ts";
 import type { Home } from "./home.ts";
 import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
@@ -198,11 +200,39 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       return fail(c, 429, "too_many", "Too many wrong codes. Wait a minute, then try again.");
     }
     const demo = home.config.demoCode !== undefined && tidyCode(body.code) === home.config.demoCode;
-    if (!(demo || home.hosted.redeemSetupCode(body.code) || store.redeemPairingCode(body.code))) {
+    const redeemed =
+      demo || home.hosted.redeemSetupCode(body.code) ? {} : store.redeemPairingCode(body.code);
+    // In a group home every device is an admin's: a code pairs only as the admin who asked for it.
+    const admin = redeemed?.adminId ? home.group.admin(redeemed.adminId) : undefined;
+    if (!redeemed || (home.group.isGroup() && !admin)) {
       wrongCodes.push(Date.now());
       return fail(c, 401, "unauthorized", "This code is not valid any more. Ask for a new one.");
     }
-    const { token, device } = store.addDevice(body);
+    const { token, device } = store.addDevice({ ...body, adminId: admin?.id });
+    return c.json({
+      token,
+      device: publicDevice(device),
+      home: home.info(),
+    } satisfies PairResponse);
+  });
+
+  // An admin of a group home pairs their first device with the pass the Manage-App gave them.
+  app.post("/v1/pair/admin", async (c) => {
+    const body = PairAdmin.parse(await c.req.json());
+    const minuteAgo = Date.now() - 60_000;
+    while (wrongCodes.length && (wrongCodes[0] as number) < minuteAgo) wrongCodes.shift();
+    if (wrongCodes.length >= 5) {
+      return fail(c, 429, "too_many", "Too many wrong codes. Wait a minute, then try again.");
+    }
+    let admin: Admin;
+    try {
+      admin = await home.group.admit(body.pass);
+    } catch (error) {
+      if (!(error instanceof PassRefused)) throw error;
+      wrongCodes.push(Date.now());
+      return fail(c, 401, "unauthorized", error.message);
+    }
+    const { token, device } = store.addDevice({ ...body, adminId: admin.id });
     return c.json({
       token,
       device: publicDevice(device),
@@ -288,6 +318,14 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   app.put("/v1/device/resources", async (c) => {
     const body = DeviceResources.parse(await c.req.json());
+    // What one admin's phone keeps would reach the turns of the others.
+    if (home.group.isGroup())
+      return fail(
+        c,
+        409,
+        "group_home",
+        "A team's Bot Server takes nothing from a device: its calendar, contacts and folders stay on it.",
+      );
     const device = home.handoffs.offer(c.get("device").id, body.resources, body.agents);
     return c.json(publicDevice(device as DeviceRecord));
   });
@@ -316,7 +354,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   app.post("/v1/devices", async (c) => {
     const body = AddDevice.parse(await c.req.json());
-    const { token, device } = store.addDevice(body);
+    // A watch is the admin's whose phone pairs it.
+    const { token, device } = store.addDevice({ ...body, adminId: c.get("device").admin?.id });
     return c.json({
       token,
       device: publicDevice(device),
@@ -401,6 +440,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const passage = about && body.about ? quote(body.about.quote) : "";
     const shown = passage ? `${passage}\n\n${body.text}` : body.text;
     const channel = c.get("device").kind === "watch" ? "watch" : "app";
+    // In a group home a message says which admin wrote it, to the others and to the agent.
+    const writer = c.get("device").admin;
     const message = store.addMessage({
       conversationId: conversation.id,
       role: "you",
@@ -411,13 +452,21 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         ...(body.text.trim() ? [{ type: "text" as const, text: shown }] : []),
       ],
       clientId: body.clientId,
+      from: writer ? { name: writer.name, admin: writer.id } : undefined,
     });
     store.markRead(conversation.id);
+    const asked = about
+      ? `About this passage of the document "${about.title}" (${about.id}):\n${passage}\n\n${body.text}`
+      : body.text;
     void home.turns.enqueue({
       conversationId: conversation.id,
-      text: about
-        ? `About this passage of the document "${about.title}" (${about.id}):\n${passage}\n\n${body.text}`
-        : body.text,
+      // In a room the group home is one member: the others read who of it wrote.
+      text: !writer
+        ? asked
+        : store.agent(conversation.agentId)?.origin === "room"
+          ? `${writer.name}: ${asked}`
+          : `${writer.name} writes:\n${asked}`,
+      writer,
       channel,
       spoken: body.spoken,
       files: attached,
@@ -576,7 +625,11 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       }
     }
     try {
-      const card = await home.answer(before.id, { ...body, by: c.get("device").name });
+      const card = await home.answer(before.id, {
+        ...body,
+        by: c.get("device").name,
+        admin: c.get("device").admin,
+      });
       return c.json({ card });
     } catch (error) {
       if (error instanceof AlreadyAnswered) {
@@ -1013,7 +1066,15 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         if (forThis(stored.event)) push(stored.id, stored.event);
       });
       const unlisten = home.handoffs.listen(deviceId);
-      const ping = setInterval(() => void stream.write(": ping\n\n").catch(() => {}), 20_000);
+      const ping = setInterval(() => {
+        // A device whose admin is gone is signed out; its stream ends with the next ping.
+        if (!store.device(deviceId)) {
+          open = false;
+          wake?.();
+          return;
+        }
+        void stream.write(": ping\n\n").catch(() => {});
+      }, 20_000);
       let open = true;
       stream.onAbort(() => {
         open = false;

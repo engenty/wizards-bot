@@ -140,7 +140,15 @@ nonisolated struct CardAnswer: Codable, Hashable, Sendable {
     var values: [String: FieldValue]?
     /// Device name or channel the answer came from.
     var by: String
+    /// In a group home: the admin whose device answered.
+    var admin: Admin? = nil
     var at: String
+}
+
+/// One of the people who run a group home; a device of it belongs to one admin.
+nonisolated struct Admin: Codable, Hashable, Sendable {
+    var id: String
+    var name: String
 }
 
 nonisolated struct Card: Codable, Hashable, Sendable, Identifiable {
@@ -380,6 +388,8 @@ nonisolated struct Writer: Codable, Hashable, Sendable {
     var name: String
     var kind: EngentyKind?
     var of: String?
+    /// In a group home: the admin who wrote a message of the people's side.
+    var admin: String? = nil
 }
 
 nonisolated struct SendMessage: Codable, Hashable, Sendable {
@@ -537,6 +547,12 @@ nonisolated struct HomeInfo: Codable, Hashable, Sendable {
     var publicKey: String
     /// A hosted Bot Server at `<name>.wizards.bot`, run by engenty.
     var hosted: Bool?
+    /// A group home: it belongs to a team, and `name` is the team's.
+    var group: HomeGroup? = nil
+}
+
+nonisolated struct HomeGroup: Codable, Hashable, Sendable {
+    var name: String
 }
 
 nonisolated enum PushEnvironment: OpenEnum {
@@ -577,6 +593,8 @@ nonisolated struct Device: Codable, Hashable, Sendable, Identifiable {
     var resources: [DeviceResource]? = nil
     /// Which agents may ask it, as the person said on it.
     var agents: DeviceAgents? = nil
+    /// In a group home: whose device it is.
+    var admin: Admin? = nil
 }
 
 nonisolated struct PairResponse: Codable, Hashable, Sendable {

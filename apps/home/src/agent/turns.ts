@@ -4,7 +4,7 @@ import {
   MASTRA_THREAD_ID_KEY,
   RequestContext,
 } from "@mastra/core/request-context";
-import type { Card, Channel, FileRef, Message } from "@wizards-bot/protocol";
+import type { Admin, Card, Channel, FileRef, Message } from "@wizards-bot/protocol";
 import type { Home } from "../home.ts";
 import { newToken } from "../ids.ts";
 import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
@@ -23,6 +23,8 @@ export interface Trigger {
   replyTo?: { channel: Channel; peer: string; thread?: string };
   /** Files the person attached to the message. */
   files?: FileRef[];
+  /** In a group home: the admin who wrote the message. */
+  writer?: Admin;
   /**
    * The turn answers someone else, not the person: a contact (name and handle) or a caller
    * from outside (its name). The agent has none of the person's tools. `hears`: the person
@@ -241,6 +243,9 @@ class Turn {
     return systemPrompt({
       agent,
       person: home.person() || "the person",
+      group: home.group.isGroup()
+        ? { admins: home.group.admins().map((admin) => admin.name) }
+        : undefined,
       agents: home.store.agents(),
       connections: home.connections.names(),
       documents: home.store.documents(beside).slice(0, 12),
@@ -379,6 +384,7 @@ export class Turns {
         values,
         card: { id: card.id, title: card.title, actions: card.actions },
         kept: payload.kept,
+        by: card.answer?.admin?.name,
       }),
     );
   }
@@ -593,7 +599,7 @@ export class Turns {
       // The tool asked again: its new card waits, and no model has anything to read yet.
       if (draft.asks) return this.close(turn, "done", undefined);
       const chosen = answer.card.actions.find((action) => action.id === answer.action);
-      trigger.text = `[home] The person answered "${answer.card.title}" with "${chosen?.label ?? answer.action}". ${name} says:\n${ran.text}`;
+      trigger.text = `[home] ${answer.by ?? "The person"} answered "${answer.card.title}" with "${chosen?.label ?? answer.action}". ${name} says:\n${ran.text}`;
     }
 
     // A message that names a kind of document loads its skill before the model starts.
