@@ -17,7 +17,7 @@ struct ScannerSheet<Found>: View {
         NavigationStack {
             Group {
                 if DataScannerViewController.isSupported, DataScannerViewController.isAvailable {
-                    Scanner(read: read, onFound: onFound)
+                    CodeScanner(read: read, onFound: onFound)
                         .ignoresSafeArea()
                         .overlay(alignment: .bottom) {
                             Text(hint)
@@ -47,7 +47,8 @@ struct ScannerSheet<Found>: View {
     }
 }
 
-private struct Scanner<Found>: UIViewControllerRepresentable {
+/// The camera, reading QR codes: hands over the first code that `read` makes something of.
+struct CodeScanner<Found>: UIViewControllerRepresentable {
     let read: (String) -> Found?
     let onFound: (Found) -> Void
 

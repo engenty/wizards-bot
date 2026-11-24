@@ -28,7 +28,7 @@ struct WizardsApp: App {
                     // wizardsbot://pair?home=<url>&code=<code>
                     guard let link = PairingLink(url) else { return }
                     model.pendingLink = link
-                    if !model.needsPairing { model.showsPairing = true }
+                    if !model.pairingFills { model.showsPairing = true }
                 }
         }
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The pairing screen until the device has a home or the person chose to go without; then the chat.
+/// The pairing screens until the device has a home or the person chose to go without, and after a
+/// pairing until the person opens the chat; then the chat.
 /// Over both, a question of the phone's agent while it waits for the person.
 struct RootView: View {
     @Environment(AppModel.self) private var model
@@ -8,13 +9,13 @@ struct RootView: View {
     var body: some View {
         @Bindable var model = model
         Group {
-            if model.needsPairing {
+            if model.pairingFills {
                 PairingView()
             } else {
                 ChatScreen()
             }
         }
-        .animation(.default, value: model.needsPairing)
+        .animation(.default, value: model.pairingFills)
         // The phone's agent wants to change something or send a file: nothing happens without a yes.
         .alert(
             Text(verbatim: model.question?.title ?? ""),
@@ -49,15 +50,11 @@ struct RootView: View {
         .sheet(item: $model.phoneAction) { action in
             PhoneActionSheet(action: action)
         }
-        .sheet(isPresented: $model.showsPairing) {
-            NavigationStack {
-                PairingView(isSheet: true)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Close", systemImage: "xmark") { model.showsPairing = false }
-                        }
-                    }
-            }
+        .sheet(isPresented: Binding(
+            get: { model.showsPairing },
+            set: { shown in if !shown { model.closePairing() } }
+        )) {
+            PairingView(isSheet: true)
         }
     }
 }

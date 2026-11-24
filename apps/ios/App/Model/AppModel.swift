@@ -66,6 +66,8 @@ final class AppModel {
     var showsAgents = false
     var showsSettings = false
     var showsPairing = false
+    /// The home this device just paired with, while the pairing screens show that it is connected.
+    private(set) var justPaired: HomeLink?
     /// The pairing link the app was opened with, until the pairing screen took it.
     var pendingLink: PairingLink?
     /// Why an invite link the person scanned or opened did not open, while the app says so.
@@ -113,6 +115,9 @@ final class AppModel {
 
     var isPaired: Bool { link != nil }
     var needsPairing: Bool { link == nil && !deviceOnly }
+    /// True while the pairing screens fill the window: before the first home, and after a pairing
+    /// there until the person opens the chat. Otherwise they open as a sheet.
+    var pairingFills: Bool { needsPairing || (justPaired != nil && !showsPairing) }
     var client: HomeClient? { link.map(HomeClient.init) }
 
     var currentAgent: Agent? {
@@ -208,6 +213,7 @@ final class AppModel {
             let link = HomeLink(baseURL: home, token: response.token, deviceId: response.device.id, name: response.home.name)
             link.store()
             adopt(link)
+            justPaired = link
         } catch let problem as PairingProblem {
             throw problem
         } catch HomeError.unreachable {
@@ -223,13 +229,18 @@ final class AppModel {
     private func adopt(_ link: HomeLink) {
         self.link = link
         pairingNote = nil
-        showsPairing = false
         agents = []
         currentAgentId = nil
         threads = [:]
         lastEventId = nil
         connect()
         watch.homeChanged()
+    }
+
+    /// The person leaves the pairing screens for the chat.
+    func closePairing() {
+        justPaired = nil
+        showsPairing = false
     }
 
     /// Works without a home: the model on this device answers.
@@ -271,6 +282,7 @@ final class AppModel {
         showsAgents = false
         showsItems = false
         showsSettings = false
+        justPaired = nil
         pairingNote = note
         store.forgetHome()
         notifier.setBadge(0)
@@ -1020,11 +1032,13 @@ final class AppModel {
 
     // MARK: - Notifications
 
-    /// A card waits for the person: the first one is the moment to ask for notifications.
+    /// A card waits for the person: a notification when its conversation is not on screen. A
+    /// device that was never asked (paired before the Connected screen, or past it without
+    /// Allow) is asked here once.
     private func noteCard(_ card: Card) {
         guard card.needsYou, !notified.contains(card.id) else { return }
         notified.insert(card.id)
-        notifier.ask()
+        Task { _ = await notifier.allow() }
         guard !isOnScreen(card.conversationId) else { return }
         notifier.post(card, from: agent(card.agentId)?.name ?? "wizards.bot")
     }
@@ -1035,8 +1049,6 @@ final class AppModel {
         let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         notified.insert(message.id)
-        // A reply that arrives while the app is not in front is the other moment to ask.
-        if !active { notifier.ask() }
         notifier.post(reply: message, text: text, from: message.agentId.flatMap(agent)?.name ?? "wizards.bot")
     }
 
