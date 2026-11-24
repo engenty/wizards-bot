@@ -37,6 +37,12 @@ describe("when the setup opens", () => {
     ]);
   });
 
+  it("asks for the folders after the models, except on a hosted home", () => {
+    const own = { path: "/Users/ada/wizards", connected: false, exists: false };
+    expect(stepsOf(setup({ ownFolder: own }))).toEqual(["name", "models", "folders", "devices"]);
+    expect(stepsOf(setup({ hosted: true }))).toEqual(["name", "models", "devices"]);
+  });
+
   it("shows only the models on a home set up before", () => {
     expect(stepsOf(setup({ done: true, hasModel: false }))).toEqual(["models"]);
   });
@@ -48,6 +54,7 @@ describe("going on", () => {
     expect(canGoOn("name", setup(), "Ada")).toBe(true);
     expect(canGoOn("models", setup())).toBe(false);
     expect(canGoOn("models", setup({ working: true }))).toBe(true);
+    expect(canGoOn("folders", setup())).toBe(true);
     expect(canGoOn("devices", setup())).toBe(true);
   });
 });

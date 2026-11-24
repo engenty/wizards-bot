@@ -59,6 +59,10 @@ const SKIPPED = new Set([
   "$RECYCLE.BIN",
   "System Volume Information",
 ]);
+/** The meta key that names the agents' own folder by its id. */
+const OWN = "folders.own";
+/** The name of the agents' own folder the setup suggests in the person's home folder. */
+const OWN_NAME = "wizards";
 const READ_LIMIT = 60_000;
 const READ_BYTES = 2 * 1024 * 1024;
 /** A Word, Excel or PowerPoint file or a PDF may be larger: its text is a small part of it. */
@@ -117,7 +121,29 @@ export class Folders {
   }
 
   list(): Folder[] {
-    return this.home.db.all<Row>("select * from folder order by name").map(toFolder);
+    const own = this.home.db.meta(OWN);
+    return this.home.db
+      .all<Row>("select * from folder order by name")
+      .map((row) => ({ ...toFolder(row), ...(row.id === own ? { own: true } : {}) }));
+  }
+
+  /** The agents' own folder, where they keep what they make for the person. */
+  own(): Folder | undefined {
+    return this.list().find((folder) => folder.own);
+  }
+
+  /**
+   * Where the agents' own folder is, or would be: the one connected, else `~/wizards`, which
+   * the setup suggests.
+   */
+  ownPlace(): { path: string; connected: boolean; exists: boolean } {
+    const own = this.own();
+    const path = own?.path ?? join(realpathSync(homedir()), OWN_NAME);
+    return {
+      path,
+      connected: Boolean(own),
+      exists: existsSync(path) && statSync(path).isDirectory(),
+    };
   }
 
   byName(name: string): Folder | undefined {
@@ -192,6 +218,7 @@ export class Folders {
   }
 
   connect(input: ConnectFolder): Folder {
+    if (input.own) return this.connectOwn(input.path);
     const path = this.allowed(input.path);
     const existing = this.list().find((folder) => folder.path === path);
     if (existing) return this.setAccess(existing.id, input.access) as Folder;
@@ -210,6 +237,28 @@ export class Folders {
     return this.list().find((folder) => folder.id === id) as Folder;
   }
 
+  /**
+   * Makes a folder the agents' own: connected for changes, the one before it stays connected as
+   * it was. A folder that is not there yet is made, inside the person's home folder only.
+   */
+  private connectOwn(path: string): Folder {
+    const top = realpathSync(homedir());
+    const wanted = resolve(top, expand(path.trim()));
+    if (!existsSync(wanted)) {
+      if (!existsSync(dirname(wanted)))
+        throw new FolderRefused(
+          "not_found",
+          "There is no such folder on the Bot Server’s computer.",
+        );
+      inHome(top, join(realpathSync(dirname(wanted)), basename(wanted)));
+      mkdirSync(wanted);
+    }
+    const folder = this.connect({ path: wanted, access: "write" });
+    this.home.db.setMeta(OWN, folder.id);
+    this.changed();
+    return this.list().find((each) => each.id === folder.id) as Folder;
+  }
+
   setAccess(id: string, access: Folder["access"]): Folder | undefined {
     this.home.db.run("update folder set access = ? where id = ?", access, id);
     this.changed();
@@ -218,6 +267,7 @@ export class Folders {
 
   disconnect(id: string): void {
     this.home.db.run("delete from folder where id = ?", id);
+    if (this.home.db.meta(OWN) === id) this.home.db.setMeta(OWN, "");
     this.changed();
   }
 
@@ -486,16 +536,19 @@ export class Folders {
       defineTool({
         name: "folder_write",
         description:
-          "Write a text file in a connected folder: a new file, or the new full text of one that exists. Only in a folder the person connected for changes. Asks the person first. Ends your turn.",
+          "Write a text file in a connected folder: a new file, or the new full text of one that exists. Only in a folder the person connected for changes. Without `folder`, your own folder, where new files for the person go. Asks the person first. Ends your turn.",
         input: z.object({
-          folder: z.string(),
+          folder: z.string().optional().describe("The folder's name; your own folder without one."),
           path: z.string(),
           content: z.string().describe("The file's full text."),
           why: z.string().describe("One sentence for the person: what this changes."),
         }),
         label: (input) => `Asking to change ${String(input.path ?? "a file")}`,
         run: async (input) => {
-          const folder = named(input.folder);
+          const own = this.own();
+          if (!input.folder && !own)
+            return "You have no folder of your own. Name a connected folder.";
+          const folder = input.folder ? named(input.folder) : (own as Folder);
           if (folder.access !== "write")
             return `${folder.name} is connected for reading only. The person can allow changes in the list of folders.`;
           const file = this.locate(folder, input.path);

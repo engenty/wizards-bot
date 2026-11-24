@@ -146,10 +146,10 @@ export function systemPrompt(input: PromptInput): string {
           .join("\n")}`
       : "",
     input.folders?.length
-      ? `Connected folders of ${person}'s computer (use \`folder_list\`, \`folder_read\`, \`folder_look\` for pictures, \`folder_search\`):\n${input.folders
+      ? `Connected folders of ${person}'s computer (use \`folder_list\`, \`folder_read\`, \`folder_look\` for pictures, \`folder_search\`, \`folder_write\`):\n${input.folders
           .map(
             (folder) =>
-              `- ${folder.name}: ${folder.access === "write" ? "you may change files after asking" : "read only"}`,
+              `- ${folder.name}: ${folder.own ? "your own folder: what you make for the person (a text, a list, a file) goes here unless they name another place; " : ""}${folder.access === "write" ? "you may change files after asking" : "read only"}`,
           )
           .join("\n")}`
       : "",

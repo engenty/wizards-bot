@@ -11,7 +11,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
-import type { Folder, FolderListing, FolderPreview } from "@wizards-bot/protocol";
+import type { Folder, FolderListing, FolderPreview, Setup } from "@wizards-bot/protocol";
 import { type TestHome, testHome, textOf } from "../test/fakes.ts";
 
 describe("a connected folder", () => {
@@ -292,5 +292,123 @@ describe("the folder picker", () => {
     assert.equal(await status(join(home, "Documents"), "a/b"), 400);
     assert.equal(await status(tmpdir(), "escape"), 400);
     assert.equal(existsSync(join(tmpdir(), "escape")), false);
+  });
+});
+
+describe("the agents' own folder", () => {
+  let t: TestHome;
+  let home: string;
+  let was: string | undefined;
+
+  before(async () => {
+    t = await testHome("Ada");
+    home = realpathSync(mkdtempSync(join(tmpdir(), "wizards-bot-own-")));
+    mkdirSync(join(home, "Documents", "Laws"), { recursive: true });
+    mkdirSync(join(home, "Documents", "Trips"), { recursive: true });
+    was = process.env.HOME;
+    process.env.HOME = home;
+  });
+  after(() => {
+    process.env.HOME = was;
+    return t.stop();
+  });
+
+  const setup = async () => (await (await t.request("/v1/setup")).json()) as Setup;
+  const connect = async (body: Record<string, unknown>) =>
+    (await t.request("/v1/folders", { body })) as Response;
+
+  test("the setup suggests ~/wizards until one is chosen", async () => {
+    assert.deepEqual((await setup()).ownFolder, {
+      path: join(home, "wizards"),
+      connected: false,
+      exists: false,
+    });
+  });
+
+  test("is made when it is not there, and connected for changes", async () => {
+    const made = (await (
+      await connect({ path: "~/wizards", access: "read", own: true })
+    ).json()) as Folder;
+    assert.deepEqual([made.path, made.access, made.own], [join(home, "wizards"), "write", true]);
+    assert.equal(existsSync(join(home, "wizards")), true);
+    assert.deepEqual((await setup()).ownFolder, {
+      path: join(home, "wizards"),
+      connected: true,
+      exists: true,
+    });
+  });
+
+  test("other folders the setup connects join the same list", async () => {
+    await connect({ path: join(home, "Documents", "Laws"), access: "read" });
+    await connect({ path: join(home, "Documents", "Trips"), access: "write" });
+    const { folders } = (await (await t.request("/v1/folders")).json()) as { folders: Folder[] };
+    assert.deepEqual(
+      folders.map((folder) => [folder.name, folder.access, folder.own ?? false]),
+      [
+        ["Laws", "read", false],
+        ["Trips", "write", false],
+        ["wizards", "write", true],
+      ],
+    );
+  });
+
+  test("is where an agent writes when it names no folder, after a yes", async () => {
+    t.model.script.push(
+      {
+        calls: [
+          {
+            name: "folder_write",
+            arguments: { path: "notes.md", content: "# Notes\n", why: "Keep the notes." },
+          },
+        ],
+      },
+      { text: "Asked." },
+    );
+    await t.say("keep my notes");
+    const card = t.item();
+    assert.match(card.body ?? "", /\*\*wizards\*\*/);
+    t.model.script.push({ text: "Written." });
+    await t.answer(card.id, "write");
+    assert.equal(readFileSync(join(home, "wizards", "notes.md"), "utf8"), "# Notes\n");
+    const system =
+      (t.model.requests.at(-1)?.messages[0] as { content: string } | undefined)?.content ?? "";
+    assert.match(system, /- wizards: your own folder/);
+  });
+
+  test("is one folder: choosing another moves the mark, and the first stays connected", async () => {
+    await connect({ path: join(home, "Documents", "Laws"), access: "read", own: true });
+    const folders = t.home.folders.list();
+    assert.deepEqual(
+      folders.filter((folder) => folder.own).map((folder) => [folder.name, folder.access]),
+      [["Laws", "write"]],
+    );
+    assert.ok(folders.some((folder) => folder.name === "wizards" && !folder.own));
+  });
+
+  test("is made nowhere outside the home folder, and nothing is its own once disconnected", async () => {
+    assert.equal(
+      (await connect({ path: join(tmpdir(), "wizards-bot-not-here"), access: "write", own: true }))
+        .status,
+      400,
+    );
+    assert.equal(existsSync(join(tmpdir(), "wizards-bot-not-here")), false);
+    assert.equal((await connect({ path: "~/.hidden", access: "write", own: true })).status, 400);
+    const own = t.home.folders.own() as Folder;
+    await t.request(`/v1/folders/${own.id}`, { method: "DELETE" });
+    assert.equal(t.home.folders.own(), undefined);
+    assert.equal((await setup()).ownFolder?.connected, false);
+  });
+
+  test("a hosted home's setup has none", async () => {
+    const hosted = await testHome("Ben", undefined, {
+      config: { manageUrl: "http://127.0.0.1:9" },
+    });
+    try {
+      const view = (await (await hosted.request("/v1/setup")).json()) as Setup;
+      assert.equal(view.hosted, true);
+      assert.equal(view.ownFolder, undefined);
+    } finally {
+      hosted.stop();
+    }
   });
 });

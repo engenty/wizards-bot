@@ -192,6 +192,18 @@ export const en = {
   "setup.models.subtitleHosted": "Your wizards think with it.",
   "setup.models.here": "Found on this computer",
   "setup.models.account": "Or an account",
+  "setup.folders.title": "Folders",
+  "setup.folders.subtitle":
+    "Where your agents keep what they make, and which of your folders they may use.",
+  "setup.folders.own": "Your agents’ folder",
+  "setup.folders.ownHint": "New files your agents make go here.",
+  "setup.folders.made": "It is made when you go on.",
+  "setup.folders.other": "Choose another folder…",
+  "setup.folders.more": "More folders",
+  "setup.folders.none":
+    "Optional. Your agents read the files in them; the files stay where they are.",
+  "setup.folders.add": "Connect a folder",
+  "setup.folders.remove": "Disconnect",
   "setup.phone.ask":
     "Want your wizards on your phone too? Scan this with the wizards.bot app on your iPhone.",
   "setup.phone.get": "Get wizards.bot from the App Store.",
@@ -819,6 +831,18 @@ export const de: Record<Key, Line> = {
   "setup.models.subtitleHosted": "Damit denken deine Wizards.",
   "setup.models.here": "Auf diesem Computer gefunden",
   "setup.models.account": "Oder ein Konto",
+  "setup.folders.title": "Ordner",
+  "setup.folders.subtitle":
+    "Wo deine Agenten ablegen, was sie machen, und welche deiner Ordner sie nutzen dürfen.",
+  "setup.folders.own": "Ordner deiner Agenten",
+  "setup.folders.ownHint": "Neue Dateien deiner Agenten landen hier.",
+  "setup.folders.made": "Er wird angelegt, wenn du weitergehst.",
+  "setup.folders.other": "Anderen Ordner wählen …",
+  "setup.folders.more": "Weitere Ordner",
+  "setup.folders.none":
+    "Optional. Deine Agenten lesen die Dateien darin; sie bleiben, wo sie sind.",
+  "setup.folders.add": "Ordner verbinden",
+  "setup.folders.remove": "Trennen",
   "setup.phone.ask":
     "Willst du deine Wizards auch auf dem Telefon? Scanne das mit der wizards.bot-App auf deinem iPhone.",
   "setup.phone.get": "Lade wizards.bot aus dem App Store.",
