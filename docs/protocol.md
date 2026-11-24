@@ -1112,6 +1112,60 @@ freedesktop Trash on Linux, on a server a `trash` folder in the data folder kept
 agent writes a program, a file larger than 10 MB, a file with a second name elsewhere, or
 anything when the disk would keep less than 1 GB.
 
+### The file browser
+
+What a connected folder holds, its files and what was done in it. The routes reach exactly what
+the agents reach (nothing hidden, no file with keys or passwords by its name, no link), through
+the same checks; 400 `invalid` otherwise, 404 `not_found` for what is not there.
+
+- `GET /v1/folders/:id/entries?path=<path>` → `FolderEntries`: folders first, then files, each
+  with its path inside the folder, its size and when it changed; at most 500 (`more`).
+- `GET /v1/folders/:id/file?path=<path>` → the file's bytes, its type read from them. A picture,
+  a PDF or text is `inline`, anything else (and every file with `&download`) an `attachment`; it
+  never runs as a page (`content-security-policy: sandbox`, `nosniff`).
+- `GET /v1/folders/:id/activity` → `{ "activity": FolderActivity[] }`, newest first, kept 90
+  days: one row per turn of an agent (its name, how many files it read, each change) or per
+  thing the person did here. The event `folder.activity` with the folder's id says it grew.
+- `POST /v1/folders/:id/undo` with `{ "activityId", "index" }` (`UndoFolderChange`) takes one
+  change back: a new file, folder or copy goes to the Trash, a replaced or deleted one comes back
+  from it, a moved one goes back where it was → the new activity. 400 when it was taken back
+  already or the files are not where the change left them.
+- In a folder connected for changes the person also changes things themself, without a card:
+  `PUT /v1/folders/:id/file?path=<path>` with the bytes drops a file in (a file there already goes
+  to the Trash first; at most 200 MB) → the `FolderEntries` of its place; `POST
+  /v1/folders/:id/edit` with `FolderEdit` makes a folder (`make`), moves or renames (`move`) or
+  moves up to 200 paths to the Trash (`trash`) → 204. Both are noted in the activity without an
+  agent.
+
+```json
+{
+  "id": "fac_…",
+  "folderId": "fld_…",
+  "agentId": "agt_…",
+  "agentName": "Goose",
+  "conversationId": "cnv_…",
+  "read": 3,
+  "changes": [
+    {
+      "action": "move",
+      "path": "2026/Q1/scan1.pdf",
+      "fromFolder": "fld_…",
+      "from": "scan1.pdf",
+      "at": "…"
+    },
+    {
+      "action": "replace",
+      "path": "notes.md",
+      "bytes": 812,
+      "kept": true,
+      "undone": true,
+      "at": "…"
+    }
+  ],
+  "at": "…"
+}
+```
+
 ### An agent asks for a folder
 
 An agent that needs a folder asks with one card (`folder_connect`), never with a question for

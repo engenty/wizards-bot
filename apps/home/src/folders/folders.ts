@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmdirSync,
+  statSync,
+} from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { LocalFilesystem } from "@mastra/core/workspace";
@@ -6,6 +15,9 @@ import {
   type ConnectFolder,
   FOLDER_PREVIEW_LIMIT,
   type Folder,
+  type FolderActivity,
+  type FolderEdit,
+  type FolderEntries,
   type FolderListing,
   type FolderPreview,
   type MakeFolder,
@@ -55,13 +67,31 @@ const SEARCH_HITS = 40;
 export interface FolderChange {
   action: "make" | "write" | "replace" | "edit" | "copy" | "move" | "delete";
   path: string;
-  /** A copy's or a move's source, `<folder>/<path>`. */
+  /** A copy's or a move's source: its folder's id and its path there. */
+  fromFolder?: string;
   from?: string;
   bytes?: number;
   /** Where the old version or the deleted file is now, in the Trash. */
   kept?: string;
   at?: string;
 }
+
+interface ActivityRow {
+  id: string;
+  folder_id: string;
+  agent_id: string | null;
+  conversation_id: string | null;
+  read: number;
+  changes: string;
+  undone: string;
+  at: string;
+}
+
+/** Activity rows the file browser gets at once, and how long they are kept. */
+const ACTIVITY_SHOWN = 100;
+const ACTIVITY_DAYS = 90;
+/** Entries of one place the file browser lists. */
+const ENTRIES_SHOWN = 500;
 
 export class FolderRefused extends Error {
   readonly code: "not_found" | "invalid";
@@ -126,6 +156,10 @@ export class Folders {
   constructor(home: Home) {
     this.home = home;
     this.trash = new Trash(home.config.dataDir, Boolean(home.config.filesDir));
+    home.db.run(
+      "delete from folder_activity where at < ?",
+      new Date(Date.now() - ACTIVITY_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    );
     home.addTools((context) => this.tools(context));
     // On a server the folder of files is the agents' own from the start.
     if (home.config.filesDir && !this.own())
@@ -551,11 +585,24 @@ export class Folders {
    * and each change, so a change can be taken back.
    */
   noted(context: TurnContext, folder: Folder, change?: FolderChange, read = 0): void {
-    const turn = context.draft.id;
+    this.note(
+      { turn: context.draft.id, agentId: context.agent.id, conversationId: context.conversationId },
+      folder,
+      change,
+      read,
+    );
+  }
+
+  private note(
+    by: { turn: string; agentId?: string; conversationId?: string },
+    folder: Folder,
+    change?: FolderChange,
+    read = 0,
+  ): void {
     const row = this.home.db.get<{ id: string; read: number; changes: string }>(
       "select id, read, changes from folder_activity where folder_id = ? and turn = ?",
       folder.id,
-      turn,
+      by.turn,
     );
     const changes = [...(row ? (JSON.parse(row.changes) as FolderChange[]) : [])];
     if (change) changes.push({ ...change, at: now() });
@@ -572,13 +619,210 @@ export class Folders {
         "insert into folder_activity (id, folder_id, agent_id, conversation_id, turn, read, changes, at) values (?, ?, ?, ?, ?, ?, ?, ?)",
         newId("fac"),
         folder.id,
-        context.agent.id,
-        context.conversationId,
-        turn,
+        by.agentId ?? null,
+        by.conversationId ?? null,
+        by.turn,
         read,
         JSON.stringify(changes),
         now(),
       );
+    this.home.events.emit({ type: "folder.activity", folderId: folder.id });
+  }
+
+  /** What agents and the person did in a folder, newest first. */
+  activity(folderId: string, limit = ACTIVITY_SHOWN): FolderActivity[] {
+    const rows = this.home.db.all<ActivityRow>(
+      "select * from folder_activity where folder_id = ? order by at desc limit ?",
+      folderId,
+      limit,
+    );
+    return rows.map((row) => {
+      const undone = new Set(JSON.parse(row.undone) as number[]);
+      const agent = row.agent_id ? this.home.store.agent(row.agent_id) : undefined;
+      return {
+        id: row.id,
+        folderId: row.folder_id,
+        ...(row.agent_id ? { agentId: row.agent_id } : {}),
+        ...(agent ? { agentName: agent.name } : {}),
+        ...(row.conversation_id ? { conversationId: row.conversation_id } : {}),
+        read: row.read,
+        changes: (JSON.parse(row.changes) as FolderChange[]).map((change, index) => ({
+          action: change.action,
+          path: change.path,
+          ...(change.fromFolder ? { fromFolder: change.fromFolder } : {}),
+          ...(change.from ? { from: change.from } : {}),
+          ...(change.bytes !== undefined ? { bytes: change.bytes } : {}),
+          ...(change.kept ? { kept: true } : {}),
+          ...(undone.has(index) ? { undone: true } : {}),
+          at: change.at ?? row.at,
+        })),
+        at: row.at,
+      };
+    });
+  }
+
+  /**
+   * Takes back one change: a new file, folder or copy goes to the Trash, a replaced or deleted
+   * one comes back from it, a moved one goes back where it was. Throws when that cannot be.
+   */
+  undo(folderId: string, activityId: string, index: number): void {
+    const row = this.home.db.get<ActivityRow>(
+      "select * from folder_activity where id = ? and folder_id = ?",
+      activityId,
+      folderId,
+    );
+    const change = row && (JSON.parse(row.changes) as FolderChange[])[index];
+    if (!row || !change) throw new FolderRefused("not_found", "There is no such change.");
+    const undone = JSON.parse(row.undone) as number[];
+    if (undone.includes(index)) throw new FolderRefused("invalid", "It was taken back already.");
+    const folder = this.byId(folderId);
+    if (!folder) throw new FolderRefused("not_found", "The folder is not connected any more.");
+    if (folder.access !== "write")
+      throw new FolderRefused("invalid", "The folder is connected for reading only.");
+    const full = this.locate(folder, change.path);
+    const gone = (what: string) =>
+      new FolderRefused("invalid", `${what} is not where the change left it any more.`);
+    switch (change.action) {
+      case "write":
+      case "copy":
+        if (!existsSync(full)) throw gone(change.path);
+        this.trash.put(full);
+        break;
+      case "make":
+        if (!existsSync(full)) throw gone(change.path);
+        if (readdirSync(full).length) this.trash.put(full);
+        else rmdirSync(full);
+        break;
+      case "replace":
+      case "edit":
+        if (!change.kept || !existsSync(change.kept)) throw gone("The old version");
+        if (existsSync(full)) this.trash.put(full);
+        this.trash.restore(change.kept, full);
+        break;
+      case "delete":
+        if (!change.kept || !existsSync(change.kept)) throw gone(change.path);
+        this.trash.restore(change.kept, full);
+        break;
+      case "move": {
+        const source = change.fromFolder ? this.byId(change.fromFolder) : undefined;
+        if (!source || !change.from)
+          throw new FolderRefused("invalid", "Where it came from is not connected any more.");
+        if (!existsSync(full)) throw gone(change.path);
+        const back = this.writable(source, change.from);
+        if (existsSync(back))
+          throw new FolderRefused("invalid", `There is something at ${change.from} again.`);
+        mkdirSync(dirname(back), { recursive: true });
+        renameSync(full, back);
+        break;
+      }
+    }
+    this.home.db.run(
+      "update folder_activity set undone = ? where id = ?",
+      JSON.stringify([...undone, index]),
+      row.id,
+    );
+    this.home.events.emit({ type: "folder.activity", folderId });
+  }
+
+  /** What a place in a connected folder holds, for the file browser: what the agents reach. */
+  entries(folder: Folder, path = ""): FolderEntries {
+    const full = this.locate(folder, path);
+    if (!existsSync(full) || !statSync(full).isDirectory())
+      throw new FolderRefused("not_found", `There is no folder ${path} in ${folder.name}.`);
+    const inside = this.parts(path).join("/");
+    const all = safeEntries(full);
+    const entries = all
+      .flatMap((entry) => {
+        const stat = statSync(join(full, entry.name), { throwIfNoEntry: false });
+        if (!stat || !(entry.isDirectory() || entry.isFile())) return [];
+        return [
+          {
+            name: entry.name,
+            path: inside ? `${inside}/${entry.name}` : entry.name,
+            kind: entry.isDirectory() ? ("folder" as const) : ("file" as const),
+            size: entry.isDirectory() ? 0 : stat.size,
+            changedAt: stat.mtime.toISOString(),
+          },
+        ];
+      })
+      .sort(
+        (a, b) =>
+          Number(b.kind === "folder") - Number(a.kind === "folder") || a.name.localeCompare(b.name),
+      )
+      .slice(0, ENTRIES_SHOWN);
+    const parent = inside ? inside.split("/").slice(0, -1).join("/") : null;
+    return { folder, path: inside, parent, entries, more: all.length > ENTRIES_SHOWN };
+  }
+
+  /** A file of a connected folder, for showing or saving: where it is and how large. */
+  fileOf(folder: Folder, path: string): { full: string; size: number; name: string } {
+    const full = this.locate(folder, path);
+    const stat = statSync(full, { throwIfNoEntry: false });
+    if (!stat?.isFile())
+      throw new FolderRefused("not_found", `There is no file ${path} in ${folder.name}.`);
+    return { full, size: stat.size, name: basename(full) };
+  }
+
+  /** What the person does in the file browser, in a folder connected for changes. */
+  async edit(folder: Folder, edit: FolderEdit): Promise<void> {
+    if (folder.access !== "write")
+      throw new FolderRefused("invalid", "The folder is connected for reading only.");
+    const by = { turn: newId("fac") };
+    if (edit.action === "make") {
+      const full = this.writable(folder, edit.path);
+      if (existsSync(full))
+        throw new FolderRefused("invalid", `There is something at ${edit.path} already.`);
+      await this.disk(folder).mkdir(this.relative(edit.path), { recursive: true });
+      this.note(by, folder, { action: "make", path: edit.path });
+    } else if (edit.action === "move") {
+      const from = this.locate(folder, edit.from);
+      const to = this.writable(folder, edit.to);
+      if (!existsSync(from))
+        throw new FolderRefused("not_found", `There is nothing at ${edit.from}.`);
+      if (existsSync(to))
+        throw new FolderRefused("invalid", `There is something at ${edit.to} already.`);
+      if (from === folder.path)
+        throw new FolderRefused("invalid", "The connected folder itself stays.");
+      const rel = this.relative(edit.to);
+      if (rel.includes("/"))
+        await this.disk(folder).mkdir(rel.slice(0, rel.lastIndexOf("/")), { recursive: true });
+      await this.disk(folder).moveFile(this.relative(edit.from), rel, { overwrite: false });
+      this.note(by, folder, {
+        action: "move",
+        path: edit.to,
+        fromFolder: folder.id,
+        from: edit.from,
+      });
+    } else {
+      const fulls = edit.paths.map((path) => {
+        const full = this.locate(folder, path);
+        if (full === folder.path)
+          throw new FolderRefused("invalid", "The connected folder itself stays.");
+        if (!existsSync(full)) throw new FolderRefused("not_found", `There is nothing at ${path}.`);
+        return full;
+      });
+      edit.paths.forEach((path, index) => {
+        const kept = this.trash.put(fulls[index] as string);
+        this.note(by, folder, { action: "delete", path, kept });
+      });
+    }
+  }
+
+  /** A file the person dropped into the file browser: a new one, or a new version of one. */
+  async put(folder: Folder, path: string, bytes: Uint8Array): Promise<void> {
+    if (folder.access !== "write")
+      throw new FolderRefused("invalid", "The folder is connected for reading only.");
+    const full = this.writable(folder, path);
+    if (existsSync(full) && !statSync(full).isFile())
+      throw new FolderRefused("invalid", `${path} is a folder.`);
+    const kept = existsSync(full) ? this.trash.keep(full) : undefined;
+    await this.disk(folder).writeFile(this.relative(path), bytes, { recursive: true });
+    this.note({ turn: newId("fac") }, folder, {
+      action: kept ? "replace" : "write",
+      path,
+      bytes: bytes.byteLength,
+      ...(kept ? { kept } : {}),
+    });
   }
 
   private changed(): void {
