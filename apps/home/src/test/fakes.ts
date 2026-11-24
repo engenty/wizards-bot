@@ -50,6 +50,8 @@ export class FakeOllama {
     tools?: unknown[];
     context: string;
   }[] = [];
+  /** Answers the caller stopped reading before they were finished. */
+  aborted = 0;
   /** Whether the model says it takes pictures. */
   vision = true;
   private server: Server | undefined;
@@ -99,6 +101,9 @@ export class FakeOllama {
         }
         const hold = next.hold;
         if (!hold) return response.end(`${lines.map((line) => JSON.stringify(line)).join("\n")}\n`);
+        response.on("close", () => {
+          if (!response.writableEnded) this.aborted++;
+        });
         response.write(`${JSON.stringify(lines.shift())}\n`);
         void hold.then(() =>
           response.end(`${lines.map((line) => JSON.stringify(line)).join("\n")}\n`),
