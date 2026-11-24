@@ -154,6 +154,7 @@ const ADDED: [string, string, string][] = [
   ["folder", "allow", "text not null default 'ask'"],
   ["device", "admin_id", "text"],
   ["pairing", "admin_id", "text"],
+  ["artifact", "summary", "text"],
 ];
 
 export type Row = Record<string, SQLInputValue>;

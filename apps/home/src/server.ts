@@ -247,6 +247,11 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   home.tasks.routes(app as unknown as Hono);
   // An artifact's page, opened with its own key.
   home.artifacts.openRoutes(app as unknown as Hono);
+  // The host page of a connection's view and its bridge, opened with the artifact's key.
+  home.apps.openRoutes(app as unknown as Hono, () => {
+    const path = join(webDir, "app-host.html");
+    return existsSync(path) ? readFileSync(path, "utf8") : undefined;
+  });
   // A published link, opened by anyone who has it.
   home.sharing.openRoutes(app as unknown as Hono);
 

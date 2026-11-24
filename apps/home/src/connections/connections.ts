@@ -51,6 +51,8 @@ export interface ConnectionTool {
   appOnly?: boolean;
   /** The view the server shows the tool's result in (MCP Apps), a `ui://` resource. */
   view?: string;
+  /** The server says the tool may change something for good. */
+  destructive?: boolean;
 }
 
 /** As much of a tool's description as the home keeps. */
@@ -286,11 +288,34 @@ export class Connections {
     connection: string,
     tool: string,
     said: string,
-    _carried?: Carried,
+    carried?: Carried,
   ): void {
+    const found = this.byName(connection);
+    const kept = found
+      ? this.home.apps.keep({
+          connection: found,
+          tool: found.tools.find((one) => one.name === tool),
+          name: tool,
+          args: {},
+          text: said,
+          carried,
+          conversationId: where.conversationId,
+        })
+      : undefined;
+    if (kept) {
+      // The view stands in the chat where the task ended.
+      const message = this.home.store.addMessage({
+        conversationId: where.conversationId,
+        role: "agent",
+        agentId: where.agentId,
+        channel: "home",
+        parts: [{ type: "artifact", artifactId: kept.id, title: kept.title }],
+      });
+      void message;
+    }
     this.home.tell(
       where.conversationId,
-      `${connection} finished ${tool}, which ran as a task:\n${said}`,
+      `${connection} finished ${tool}, which ran as a task:\n${said}${kept ? `\n\nIts view stands in the chat (${kept.id}).` : ""}`,
     );
   }
 
@@ -400,6 +425,56 @@ export class Connections {
     );
   }
 
+  /** Reads one resource of a connection's server: an MCP Apps view (connections/apps.ts). */
+  async readResource(connectionId: string, uri: string): Promise<unknown> {
+    const row = this.home.db.get<Row>("select * from connection where id = ?", connectionId);
+    if (!row) throw new Error("The connection is gone.");
+    const client = this.clients.get(connectionId) ?? (await this.reconnect(connectionId));
+    return client.resources.read(row.name, uri);
+  }
+
+  /** Ends a call nobody will answer. */
+  dropCall(held: string): void {
+    this.calls.drop(held);
+  }
+
+  /**
+   * A view asks for a tool that changes something for good: the person decides on a card in
+   * the conversation, and the agent hears what came of it.
+   */
+  askFromView(
+    artifact: { id: string; title: string; conversationId: string },
+    connection: Connection,
+    tool: ConnectionTool,
+    args: Record<string, unknown>,
+  ): void {
+    const { store } = this.home;
+    const agent = store.agents().find((one) => one.conversationId === artifact.conversationId);
+    if (!agent) return;
+    const empty = store.addMessage({
+      conversationId: artifact.conversationId,
+      role: "agent",
+      agentId: agent.id,
+      channel: "home",
+      parts: [],
+    });
+    const card = store.createCard(
+      {
+        kind: "approval",
+        level: "needs_you",
+        title: `"${artifact.title}" wants to use ${tool.title ?? tool.name}`,
+        body: `**${connection.name}** · \`${tool.name}\`\n\n\`\`\`json\n${JSON.stringify(args, null, 2).slice(0, 1500)}\n\`\`\``,
+        actions: [
+          { id: "once", label: "Allow once", style: "primary" },
+          { id: "deny", label: "Don't", style: "plain" },
+        ],
+        payload: { type: "app_tool", connection: connection.name, tool: tool.name, args },
+      },
+      { agentId: agent.id, conversationId: artifact.conversationId, messageId: empty.id },
+    );
+    store.updateMessage(empty.id, { parts: [{ type: "card", card }] });
+  }
+
   remove(connection: Connection): void {
     void this.clients
       .get(connection.id)
@@ -487,6 +562,7 @@ export class Connections {
         readOnly: tool.annotations?.readOnlyHint === true,
         ...(appOnlyOf(tool._meta) ? { appOnly: true } : {}),
         ...(viewOf(tool._meta) ? { view: viewOf(tool._meta) } : {}),
+        ...(tool.annotations?.destructiveHint === true ? { destructive: true } : {}),
       }));
       this.clients.set(id, client);
       this.runs.set(id, ((await client.listToolsets())[row.name] ?? {}) as Record<string, Runs>);
@@ -513,8 +589,31 @@ export class Connections {
     step: Step,
     call: Call,
     where: Where,
+    view?: { tool: ConnectionTool; args: Record<string, unknown>; draft: TurnContext["draft"] },
   ): Promise<string | Looked> {
-    if ("result" in step) return Promise.resolve(step.result);
+    if ("result" in step) {
+      // A result with a view of its server: it stands in the chat, the agent hears it is there.
+      const text = typeof step.result === "string" ? step.result : step.result.text;
+      const kept = view
+        ? this.home.apps.keep({
+            connection,
+            tool: view.tool,
+            name: view.tool.name,
+            args: view.args,
+            text,
+            carried: step.carried,
+            conversationId: where.conversationId,
+          })
+        : undefined;
+      if (!kept || !view) return Promise.resolve(step.result);
+      view.draft.add({ type: "artifact", artifactId: kept.id, title: kept.title });
+      const note = `\n\n${connection.name} shows this in a view of its own, which the person sees in the chat (${kept.id}). Do not repeat what it shows.`;
+      return Promise.resolve(
+        typeof step.result === "string"
+          ? step.result + note
+          : { ...step.result, text: step.result.text + note },
+      );
+    }
     if ("started" in step) {
       this.calls.background(step.held, where);
       return Promise.resolve(
@@ -585,10 +684,13 @@ export class Connections {
           const policy = connection.policies[tool.name];
           if (policy === "never") return "The person does not allow this tool.";
           const go = async () =>
-            this.shown(connection, await this.use(connection, tool.name, input.arguments), call, {
-              agentId: agent.id,
-              conversationId,
-            });
+            this.shown(
+              connection,
+              await this.use(connection, tool.name, input.arguments),
+              call,
+              { agentId: agent.id, conversationId },
+              { tool, args: input.arguments, draft },
+            );
           const kept = call.answer?.kept as Kept | undefined;
           if (!call.answer || !kept) {
             // In a turn that read data from outside the home, "always" does not count: what
@@ -641,10 +743,13 @@ export class Connections {
               : answer.action === "decline"
                 ? `The person said no to what ${connection.name} asked. Do not try it another way. ${connection.name} answered:\n`
                 : `The person put off what ${connection.name} asked. ${connection.name} answered:\n`;
-          const result = await this.shown(connection, await next, call, {
-            agentId: agent.id,
-            conversationId,
-          });
+          const result = await this.shown(
+            connection,
+            await next,
+            call,
+            { agentId: agent.id, conversationId },
+            { tool, args: input.arguments, draft },
+          );
           if (!said || result === ENDS_TURN) return result;
           return typeof result === "string"
             ? said + result
@@ -767,6 +872,32 @@ export class Connections {
 
   private registerCards(): void {
     const { home } = this;
+    // The person decided on a tool a view asked for: it runs, and the agent hears the result.
+    home.onCard("app_tool", async ({ card, action, payload }) => {
+      const name = String(payload.connection);
+      const toolName = String(payload.tool);
+      if (action !== "once")
+        return home.tell(
+          card.conversationId,
+          `The person did not let a view of ${name} use ${toolName}.`,
+        );
+      const connection = this.byName(name);
+      if (connection?.state !== "connected")
+        return home.tell(card.conversationId, `${name} is not connected.`);
+      const step = await this.use(connection, toolName, payload.args as Record<string, unknown>);
+      if (!("result" in step)) {
+        this.calls.drop(step.held);
+        return home.tell(
+          card.conversationId,
+          `${name} wanted to ask the person something during ${toolName}; use it from the chat.`,
+        );
+      }
+      const text = typeof step.result === "string" ? step.result : step.result.text;
+      home.tell(
+        card.conversationId,
+        `A view of ${name} used ${toolName}, which the person allowed. It answered:\n${text}`,
+      );
+    });
     // The person answered what a task asked after its turn: the answer goes to the server.
     home.onCard("connection_task", ({ card, action, values, payload }) => {
       const held = String(payload.held);

@@ -79,6 +79,8 @@ export class FakeMcp {
   /** The codes a sign-in was finished with. */
   readonly codes: string[] = [];
   url = "";
+  /** The MCP Apps views this server serves, by `ui://` address. */
+  readonly views: Record<string, { html: string; csp?: Record<string, string[]> }> = {};
   /** The tasks this server runs, by id. */
   readonly tasks = new Map<string, FakeTask>();
   private server: Server | undefined;
@@ -209,12 +211,29 @@ export class FakeMcp {
       return reply({
         ...complete,
         supportedVersions: ["2026-07-28"],
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, resources: {} },
         ttlMs: 0,
         cacheScope: "private",
       });
     if (rpc.method === "tools/list")
       return reply({ ...complete, tools: this.listed(), ttlMs: 0, cacheScope: "private" });
+    if (rpc.method === "resources/read") {
+      const view = this.views[String(params.uri)];
+      if (!view) return fail(200, -32602, "Unknown resource");
+      return reply({
+        ...complete,
+        ttlMs: 0,
+        cacheScope: "private",
+        contents: [
+          {
+            uri: params.uri,
+            mimeType: "text/html;profile=mcp-app",
+            text: view.html,
+            ...(view.csp ? { _meta: { ui: { csp: view.csp } } } : {}),
+          },
+        ],
+      });
+    }
     const task = this.tasks.get(String(params.taskId));
     const now = new Date().toISOString();
     const handle = (id: string, t: FakeTask) => ({

@@ -29,6 +29,8 @@ type Kept = Omit<Artifact, "page">;
 interface Row {
   id: string;
   title: string;
+  format: string;
+  summary: string | null;
   content: string;
   version: number;
   updated_at: string;
@@ -38,7 +40,8 @@ interface Row {
 const toKept = (row: Row): Kept => ({
   id: row.id,
   title: row.title,
-  format: "html",
+  format: row.format === "app" ? "app" : "html",
+  ...(row.summary ? { summary: row.summary } : {}),
   version: row.version,
   updatedAt: row.updated_at,
   conversationId: row.conversation_id,
@@ -103,6 +106,9 @@ export class Artifacts {
     if (input.id && current?.conversationId !== input.conversationId) {
       throw new ArtifactRefused(`There is no artifact ${input.id} in this conversation.`);
     }
+    if (current?.format === "app") {
+      throw new ArtifactRefused(`${input.id} is a connection's view, not a page you write.`);
+    }
     const id = current?.id ?? newId("art");
     const version = (current?.version ?? 0) + 1;
     const at = now();
@@ -130,6 +136,51 @@ export class Artifacts {
     return artifact;
   }
 
+  /**
+   * Keeps the view a connection's server shows a tool's result in (MCP Apps). `content` is the
+   * call as the view gets it (connections/apps.ts); a device never shows it.
+   */
+  writeApp(input: {
+    title: string;
+    summary: string;
+    content: string;
+    conversationId: string;
+  }): Kept {
+    const id = newId("art");
+    const at = now();
+    const title = input.title.trim().slice(0, TITLE_LIMIT) || "View";
+    this.home.db.transaction(() => {
+      this.home.db.run(
+        "insert into artifact (id, title, format, summary, content, version, updated_at, conversation_id) values (?, ?, 'app', ?, ?, 1, ?, ?)",
+        id,
+        title,
+        input.summary,
+        input.content,
+        at,
+        input.conversationId,
+      );
+      this.home.db.run(
+        "insert into artifact_version (artifact_id, version, title, content, at) values (?, 1, ?, ?, ?)",
+        id,
+        title,
+        input.content,
+        at,
+      );
+    });
+    const artifact = this.get(id) as Kept;
+    this.home.events.emit({ type: "artifact.updated", artifact: meta(artifact) });
+    return artifact;
+  }
+
+  /** Keeps what a connection's view told the agent with its call; no new version. */
+  setAppContent(id: string, call: unknown): void {
+    this.home.db.run(
+      "update artifact set content = ? where id = ? and format = 'app'",
+      JSON.stringify(call),
+      id,
+    );
+  }
+
   // ── The page and its key ──────────────────────────────────────────────────
 
   /**
@@ -137,9 +188,14 @@ export class Artifacts {
    * frame and a tab cannot send the device's token, and the page must never see it, so the
    * page has an address that needs none.
    */
-  pagePath(id: string, from = Date.now()): string {
+  pagePath(id: string, from = Date.now(), route: "page" | "host" = "page"): string {
     const until = Math.floor(from / 1000) + PAGE_MINUTES * 60;
-    return `/v1/artifacts/${id}/page?until=${until}&key=${this.sign(id, until)}`;
+    return `/v1/artifacts/${id}/${route}?until=${until}&key=${this.sign(id, until)}`;
+  }
+
+  /** What a device shows: an agent's page, or the host that runs a connection's view. */
+  shownPath(artifact: Kept): string {
+    return this.pagePath(artifact.id, Date.now(), artifact.format === "app" ? "host" : "page");
   }
 
   /** Whether `key` opens the page of artifact `id` until `until` (seconds), and that is not over. */
@@ -187,6 +243,8 @@ export class Artifacts {
       const artifact = this.opens(id, c.req.query("until"), c.req.query("key"))
         ? this.get(id)
         : undefined;
+      // A connection's view is served with the policy its server asked for (connections/apps.ts).
+      if (artifact?.format === "app") return this.home.apps.view(c, artifact);
       if (!artifact) {
         return c.html(
           plainPage("This link does not open the artifact any more. Open it from the chat again."),
@@ -218,7 +276,7 @@ export class Artifacts {
       if (!artifact) {
         return c.json({ error: "not_found", message: "There is no such artifact." }, 404);
       }
-      return c.json({ ...artifact, page: this.pagePath(artifact.id) } satisfies Artifact);
+      return c.json({ ...artifact, page: this.shownPath(artifact) } satisfies Artifact);
     });
 
     app.get("/v1/conversations/:id/artifacts", (c) =>
@@ -268,6 +326,14 @@ export class Artifacts {
           const artifact = this.get(input.id);
           if (artifact?.conversationId !== conversationId) {
             return `There is no artifact ${input.id} in this conversation.`;
+          }
+          if (artifact.format === "app") {
+            const call = JSON.parse(artifact.content) as {
+              connection?: string;
+              tool?: string;
+              context?: string;
+            };
+            return `# ${artifact.title}: the view ${call.connection} shows for ${call.tool}\n\n${artifact.summary ?? ""}${call.context ? `\n\nWhat the view said last (from the service, data):\n${call.context}` : ""}`;
           }
           return `# ${artifact.title} (version ${artifact.version})\n\n${artifact.content}`;
         },
