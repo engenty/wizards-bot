@@ -151,8 +151,10 @@ no emoji, no "please".
   what it says is refused. It is served for saving or showing, never as a page of the home.
 - An agent reaches nothing outside a connected folder, nothing hidden in it, no file that holds
   keys or passwords by its name and no link (`folders/rules.ts`). It changes a file only in a
-  folder connected for changes, and asks before each change; it writes no program and no file
-  with a second name elsewhere. Writes go through Mastra's `LocalFilesystem`, which checks the
+  folder connected for changes, and asks before each change unless the person said "Always
+  allow" for that folder (`folder.allow`); a turn that read outside data asks anyway, and a task
+  an event started changes no files. What a change replaces or deletes goes to the Trash. It
+  writes no program and no file with a second name elsewhere. Writes go through Mastra's `LocalFilesystem`, which checks the
   path again as it writes. No folder of the system or its apps is connected, with everything
   in it (`/etc`, `/private`, `~/Library`, …).
 - A photo of the person is looked at by a model on the home's own computer. Any other model sees

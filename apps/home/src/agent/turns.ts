@@ -35,8 +35,11 @@ export interface Trigger {
    * conversation) and none of the person's tools.
    */
   room?: { name: string; members: string[] };
-  /** The turn runs a task of the agent: which one, what it is called, and whether it is quiet. */
-  task?: { id: string; title: string; quiet: boolean };
+  /**
+   * The turn runs a task of the agent: which one, what it is called, whether it is quiet, and
+   * whether an event started it (mail, a webhook, a connection, a folder) rather than a time.
+   */
+  task?: { id: string; title: string; quiet: boolean; event?: boolean };
   /** The text carries data from outside the home. What leaves the home in this turn asks first. */
   outside?: boolean;
   /**
@@ -91,6 +94,8 @@ export interface TurnContext {
   trigger: Trigger;
   /** Whether the turn read data from outside the home, in its first message or a later one. */
   outside(): boolean;
+  /** Whether a task an event started is among what the turn answers. It changes no files. */
+  byEvent(): boolean;
   /** Ends a quiet task's run with one line for the person to find, instead of an answer. */
   leaveNote(line: string): void;
   /**
@@ -165,6 +170,7 @@ class Turn {
       draft,
       trigger,
       outside: () => this.outside,
+      byEvent: () => this.triggers.some((each) => each.task?.event),
       leaveNote: (line) => {
         this.note = line;
       },

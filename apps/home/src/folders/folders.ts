@@ -19,6 +19,7 @@ import type { Home } from "../home.ts";
 import { newId, now } from "../ids.ts";
 import { langOf, say, w } from "../setup/words.ts";
 import { documentKind, documentText, piece } from "../skills/office/read.ts";
+import { changeTools } from "./changes.ts";
 import {
   badPart,
   executable,
@@ -28,13 +29,12 @@ import {
   sharedFile,
   visible,
 } from "./rules.ts";
+import { Trash } from "./trash.ts";
 
 // Folders of the home's computer that agents may use. The files stay where they are: the
 // home reads them in place when an agent asks, and copies nothing. An agent changes a file
 // only in a folder connected for that, and only after the person said yes to that change.
 
-const ENDS_TURN =
-  "The card is in the chat. End your turn now with at most one short sentence. The answer arrives as the next message.";
 /** The meta key that names the agents' own folder by its id. */
 const OWN = "folders.own";
 /** The name of the agents' own folder the setup suggests in the person's home folder. */
@@ -51,6 +51,18 @@ const LIST_LIMIT = 300;
 const SEARCH_FILES = 4000;
 const SEARCH_HITS = 40;
 
+/** One change in a folder's activity: what was done where, and where the old one went. */
+export interface FolderChange {
+  action: "make" | "write" | "replace" | "edit" | "copy" | "move" | "delete";
+  path: string;
+  /** A copy's or a move's source, `<folder>/<path>`. */
+  from?: string;
+  bytes?: number;
+  /** Where the old version or the deleted file is now, in the Trash. */
+  kept?: string;
+  at?: string;
+}
+
 export class FolderRefused extends Error {
   readonly code: "not_found" | "invalid";
   constructor(code: FolderRefused["code"], message: string) {
@@ -64,6 +76,7 @@ interface Row {
   name: string;
   path: string;
   access: string;
+  allow: string;
   created_at: string;
 }
 
@@ -107,11 +120,13 @@ function attachedDisks(): Place[] {
 export class Folders {
   private readonly home: Home;
   private readonly disks = new Map<string, LocalFilesystem>();
+  /** Where what agents replace or delete goes: the computer's Trash, on a server the home's own. */
+  readonly trash: Trash;
 
   constructor(home: Home) {
     this.home = home;
+    this.trash = new Trash(home.config.dataDir, Boolean(home.config.filesDir));
     home.addTools((context) => this.tools(context));
-    this.registerCards();
     // On a server the folder of files is the agents' own from the start.
     if (home.config.filesDir && !this.own())
       this.connect({ path: this.places().home, access: "write", own: true });
@@ -216,6 +231,29 @@ export class Folders {
     const full = this.planned(path);
     mkdirSync(full, { recursive: true });
     return realpathSync(full);
+  }
+
+  byId(id: string): Folder | undefined {
+    return this.list().find((folder) => folder.id === id);
+  }
+
+  /** A connected folder by its name, or the agents' own folder without one. Throws for none. */
+  named(name?: string): Folder {
+    if (!name) {
+      const own = this.own();
+      if (!own) throw new Error("You have no folder of your own. Name a connected folder.");
+      return own;
+    }
+    const folder = this.byName(name);
+    if (!folder) {
+      const known = this.list().map((each) => each.name);
+      throw new Error(
+        known.length
+          ? `There is no connected folder ${name}. Connected: ${known.join(", ")}.`
+          : "No folder is connected.",
+      );
+    }
+    return this.byId(folder.id) as Folder;
   }
 
   byName(name: string): Folder | undefined {
@@ -330,6 +368,13 @@ export class Folders {
     return this.list().find((each) => each.id === folder.id) as Folder;
   }
 
+  /** "Always allow": agents change files in the folder without a card, except deleting. */
+  setAllow(id: string, allow: Folder["allow"]): Folder | undefined {
+    this.home.db.run("update folder set allow = ? where id = ?", allow, id);
+    this.changed();
+    return this.byId(id);
+  }
+
   setAccess(id: string, access: Folder["access"]): Folder | undefined {
     this.home.db.run("update folder set access = ? where id = ?", access, id);
     this.changed();
@@ -370,6 +415,11 @@ export class Folders {
     return path.split(/[\\/]+/).filter((part) => part && part !== ".");
   }
 
+  /** A path inside a folder as Mastra's filesystem takes it: relative, with `/`. */
+  relative(path: string): string {
+    return this.parts(path).join("/") || ".";
+  }
+
   /**
    * Mastra's filesystem for a connected folder: it checks every path again, link by link, as it
    * reads or writes, and refuses every write in a folder connected for reading.
@@ -390,11 +440,10 @@ export class Folders {
   }
 
   /**
-   * Writes a file in a folder connected for changes, after the home's own checks: no file that
-   * runs when it is opened, no file with a second name elsewhere. Missing folders on the way
-   * are made.
+   * A path an agent may write: inside the folder, no program, no file with a second name
+   * elsewhere. Throws otherwise; the full path on the disk when it may.
    */
-  async write(folder: Folder, path: string, content: string | Uint8Array): Promise<void> {
+  writable(folder: Folder, path: string): string {
     const full = this.locate(folder, path);
     if (executable(basename(full)))
       throw new FolderRefused("invalid", `${path} would be a program. No agent writes one.`);
@@ -403,6 +452,16 @@ export class Folders {
         "invalid",
         `${path} has a second name in another place: changing it would change that one too.`,
       );
+    return full;
+  }
+
+  /**
+   * Writes a file in a folder connected for changes, after the home's own checks: no file that
+   * runs when it is opened, no file with a second name elsewhere. Missing folders on the way
+   * are made.
+   */
+  async write(folder: Folder, path: string, content: string | Uint8Array): Promise<void> {
+    this.writable(folder, path);
     await this.disk(folder).writeFile(this.parts(path).join("/"), content, { recursive: true });
   }
 
@@ -487,6 +546,41 @@ export class Folders {
       throw new FolderRefused("invalid", "A hidden folder cannot be connected.");
   }
 
+  /**
+   * Notes what a turn did in a folder: one row per turn and folder, with how many files it read
+   * and each change, so a change can be taken back.
+   */
+  noted(context: TurnContext, folder: Folder, change?: FolderChange, read = 0): void {
+    const turn = context.draft.id;
+    const row = this.home.db.get<{ id: string; read: number; changes: string }>(
+      "select id, read, changes from folder_activity where folder_id = ? and turn = ?",
+      folder.id,
+      turn,
+    );
+    const changes = [...(row ? (JSON.parse(row.changes) as FolderChange[]) : [])];
+    if (change) changes.push({ ...change, at: now() });
+    if (row)
+      this.home.db.run(
+        "update folder_activity set read = ?, changes = ?, at = ? where id = ?",
+        row.read + read,
+        JSON.stringify(changes),
+        now(),
+        row.id,
+      );
+    else
+      this.home.db.run(
+        "insert into folder_activity (id, folder_id, agent_id, conversation_id, turn, read, changes, at) values (?, ?, ?, ?, ?, ?, ?, ?)",
+        newId("fac"),
+        folder.id,
+        context.agent.id,
+        context.conversationId,
+        turn,
+        read,
+        JSON.stringify(changes),
+        now(),
+      );
+  }
+
   private changed(): void {
     this.home.events.emit({ type: "folders.updated", folders: this.list() });
   }
@@ -494,20 +588,8 @@ export class Folders {
   // ── What the agents can do ────────────────────────────────────────────────
 
   private tools(context: TurnContext): Tool[] {
-    const { home, agent, conversationId, draft } = context;
-    const where = { agentId: agent.id, conversationId, messageId: draft.id };
-    const named = (name: string): Folder => {
-      const folder = this.byName(name);
-      if (!folder) {
-        const known = this.list().map((each) => each.name);
-        throw new Error(
-          known.length
-            ? `There is no connected folder ${name}. Connected: ${known.join(", ")}.`
-            : "No folder is connected.",
-        );
-      }
-      return folder;
-    };
+    const { home } = context;
+    const named = (name: string): Folder => this.named(name);
     const use: Tool[] = [
       defineTool({
         name: "folder_list",
@@ -560,6 +642,7 @@ export class Folders {
           if (stat.size > (document ? DOCUMENT_BYTES : READ_BYTES))
             return `${input.path} is too large to read here (${Math.round(stat.size / 1024 / 1024)} MB).`;
           const bytes = readFileSync(file);
+          this.noted(context, folder, undefined, 1);
           if (document) {
             try {
               const text = (await documentText(input.path, bytes)) ?? "";
@@ -617,6 +700,7 @@ export class Folders {
               lines.push(`${path} is not a picture.`);
               continue;
             }
+            this.noted(context, folder, undefined, 1);
             const picture = await forModel(path, mime, bytes);
             if (typeof picture === "string") lines.push(picture);
             else {
@@ -670,50 +754,7 @@ export class Folders {
           return hits.length ? hits.join("\n") : `Nothing found for “${input.query}”.`;
         },
       }),
-      defineTool({
-        name: "folder_write",
-        description:
-          "Write a text file in a connected folder: a new file, or the new full text of one that exists. Only in a folder the person connected for changes. Without `folder`, your own folder, where new files for the person go. Asks the person first. Ends your turn.",
-        input: z.object({
-          folder: z.string().optional().describe("The folder's name; your own folder without one."),
-          path: z.string(),
-          content: z.string().describe("The file's full text."),
-          why: z.string().describe("One sentence for the person: what this changes."),
-        }),
-        label: (input) => `Asking to change ${String(input.path ?? "a file")}`,
-        run: async (input) => {
-          const own = this.own();
-          if (!input.folder && !own)
-            return "You have no folder of your own. Name a connected folder.";
-          const folder = input.folder ? named(input.folder) : (own as Folder);
-          if (folder.access !== "write")
-            return `${folder.name} is connected for reading only. The person can allow changes in the list of folders.`;
-          const file = this.locate(folder, input.path);
-          const exists = existsSync(file);
-          if (exists && !statSync(file).isFile()) return `${input.path} is a folder.`;
-          const card = home.store.createCard(
-            {
-              kind: "approval",
-              level: "needs_you",
-              title: input.why,
-              body: `${exists ? "Changes" : "New file"} in **${folder.name}**: \`${input.path}\`\n\n\`\`\`\n${input.content.slice(0, 1200)}${input.content.length > 1200 ? "\n…" : ""}\n\`\`\``,
-              actions: [
-                { id: "write", label: exists ? "Change file" : "Write file", style: "primary" },
-                { id: "keep", label: "Don’t", style: "plain" },
-              ],
-              payload: {
-                type: "folder_write",
-                folderId: folder.id,
-                path: input.path,
-                content: input.content,
-              },
-            },
-            where,
-          );
-          draft.add({ type: "card", card });
-          return ENDS_TURN;
-        },
-      }),
+      ...changeTools(this, context),
     ];
     return [
       ...(this.list().length ? use : []),
@@ -840,33 +881,6 @@ export class Folders {
       }),
     ];
   }
-
-  private registerCards(): void {
-    const { home } = this;
-    home.onCard("folder_write", async ({ card, action, payload }) => {
-      const folder = this.list().find((each) => each.id === payload.folderId);
-      const path = String(payload.path);
-      if (action !== "write")
-        return home.tell(
-          card.conversationId,
-          `The person said no to changing ${path}. Do not try it another way.`,
-        );
-      if (folder?.access !== "write")
-        return home.tell(card.conversationId, `The folder is not connected for changes any more.`);
-      try {
-        await this.write(folder, path, String(payload.content));
-      } catch (error) {
-        return home.tell(
-          card.conversationId,
-          `${path} was not written: ${(error as Error).message}`,
-        );
-      }
-      home.tell(
-        card.conversationId,
-        `${path} in ${folder.name} is written. Say so in one sentence.`,
-      );
-    });
-  }
 }
 
 /**
@@ -889,6 +903,7 @@ function toFolder(row: Row): Folder {
     name: row.name,
     path: row.path,
     access: row.access as Folder["access"],
+    allow: row.allow === "always" ? "always" : "ask",
     createdAt: row.created_at,
   };
 }

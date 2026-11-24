@@ -182,6 +182,7 @@ describe("applyEvent", () => {
       name: "Trips",
       path: "/Users/ada/Documents/Trips",
       access: "read" as const,
+      allow: "ask" as const,
       createdAt: "2026-11-21T09:12:00.000Z",
     };
     applyEvent(client, { type: "folders.updated", folders: [folder] });

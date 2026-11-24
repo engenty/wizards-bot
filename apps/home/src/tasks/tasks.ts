@@ -327,7 +327,7 @@ export class Tasks {
       conversationId: agent.conversationId,
       text: `[home] ${text}${quiet ? `\n${QUIET}` : ""}`,
       channel: "home",
-      task: { id: row.id, title: titleOf(row), quiet },
+      task: { id: row.id, title: titleOf(row), quiet, ...(outside ? { event: true } : {}) },
       outside: outside || undefined,
     });
   }

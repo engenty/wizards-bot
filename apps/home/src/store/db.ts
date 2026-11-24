@@ -59,6 +59,11 @@ create table if not exists file (
 create table if not exists folder (
   id text primary key, name text not null unique, path text not null, access text not null,
   created_at text not null);
+create table if not exists folder_activity (
+  id text primary key, folder_id text not null, agent_id text, conversation_id text,
+  turn text not null, read integer not null default 0, changes text not null default '[]',
+  undone text not null default '[]', at text not null);
+create index if not exists folder_activity_folder on folder_activity(folder_id, at);
 create table if not exists connection (
   id text primary key, name text not null unique, url text not null, state text not null,
   tools text not null default '[]', policies text not null default '{}', created_at text not null);
@@ -140,6 +145,7 @@ const ADDED: [string, string, string][] = [
   ["contact", "person_id", "text"],
   ["contact", "person_key", "text"],
   ["contact", "person_seq", "integer"],
+  ["folder", "allow", "text not null default 'ask'"],
 ];
 
 export type Row = Record<string, SQLInputValue>;

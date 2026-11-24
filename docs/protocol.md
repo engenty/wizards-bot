@@ -1074,7 +1074,7 @@ connected from a chat: that chat's agent is told and answers there) → `Folder`
 `access` says. A folder that is not there yet is made first, inside the person's home folder
 only (400 `invalid` elsewhere). There is one own folder at most: another one takes the mark,
 and the one before stays connected as it was. Disconnecting it leaves the agents without one. `PATCH /v1/folders/:id` with
-`{ "access": "read" | "write" }` → `Folder`. `DELETE /v1/folders/:id` disconnects it; nothing on
+`{ "access"?: "read" | "write", "allow"?: "ask" | "always" }` (`UpdateFolder`) → `Folder`. `DELETE /v1/folders/:id` disconnects it; nothing on
 the disk changes.
 
 ```json
@@ -1083,6 +1083,7 @@ the disk changes.
   "name": "Trips",
   "path": "/Users/ada/Documents/Trips",
   "access": "read",
+  "allow": "ask",
   "own": false,
   "createdAt": "…"
 }
@@ -1093,6 +1094,21 @@ The event `folders.updated` carries the whole list after each change.
 The agents' own folder is where they put what they make for the person, unless the person
 names another place: `folder_write` without a folder writes there, after the person said yes
 to that change as in every connected folder.
+
+### An agent changes files
+
+In a folder connected for changes an agent makes folders (`folder_make`), writes a text or a
+file of the conversation (`folder_write`), changes a passage (`folder_edit`) and copies
+(`folder_copy`). Each change is an `approval` card with the agent's sentence as its title, what
+changes in the body (a file's text, a diff), and the actions `once` (primary), `always` ("Always
+allow in <folder>") and `deny`. `always` does the change and sets the folder's `allow` to
+`always`: from then on these changes go without a card, at most 50 files and 500 MB in one turn.
+A turn that read data from outside the home (a mail, a page, what a connection or a contact
+sent) asks anyway. A task that an event started (mail, a webhook, a connection, a folder)
+changes no files at all. What a change replaces goes to the Trash first: the Mac's Trash, the
+freedesktop Trash on Linux, on a server a `trash` folder in the data folder kept 30 days. No
+agent writes a program, a file larger than 10 MB, a file with a second name elsewhere, or
+anything when the disk would keep less than 1 GB.
 
 ### An agent asks for a folder
 
