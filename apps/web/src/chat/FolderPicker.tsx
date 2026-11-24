@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { FolderListing, FolderPreview } from "@wizards-bot/protocol";
-import { ChevronRight, Folder, FolderPlus, House } from "lucide-react";
+import { ChevronRight, Folder, FolderPlus, HardDrive, House } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { formatBytes } from "../lib/files";
@@ -262,6 +262,13 @@ function Browser({
   const [making, setMaking] = useState<string | null>(null);
   const [refused, setRefused] = useState<string | null>(null);
   const atHome = listing.path === listing.home;
+  // At a place the picker starts, the others are a click away: the home folder and the disks.
+  const places =
+    listing.parent === null && listing.disks.length
+      ? [{ name: nameOf(listing.home), path: listing.home, disk: false }].concat(
+          listing.disks.map((disk) => ({ ...disk, disk: true })),
+        )
+      : [];
   const make = async (e: FormEvent) => {
     e.preventDefault();
     if (!making?.trim()) {
@@ -286,7 +293,7 @@ function Browser({
         aria-label={t("folder.where")}
         className="flex flex-wrap items-center gap-0.5 border-border-soft border-b px-2 py-1.5 text-[0.8125rem]"
       >
-        {crumbs(listing.path, listing.home).map((step, index, all) => (
+        {crumbs(listing.path, listing.root).map((step, index, all) => (
           <span key={step.path} className="flex min-w-0 items-center gap-0.5">
             {index ? <ChevronRight className="size-3.5 shrink-0 text-ink-4" /> : null}
             <button
@@ -295,12 +302,39 @@ function Browser({
               onClick={() => onOpen(step.path)}
               className="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-ink-2 hover:bg-accent disabled:font-medium disabled:text-ink coarse:py-2"
             >
-              {index ? null : <House className="size-3.5 shrink-0" aria-hidden="true" />}
+              {index ? null : listing.root === listing.home ? (
+                <House className="size-3.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <HardDrive className="size-3.5 shrink-0" aria-hidden="true" />
+              )}
               <span className="truncate">{step.name}</span>
             </button>
           </span>
         ))}
       </nav>
+      {places.length ? (
+        <nav
+          aria-label={t("folder.places")}
+          className="flex flex-wrap gap-1 border-border-soft border-b px-2 py-1.5"
+        >
+          {places.map((place) => (
+            <button
+              key={place.path}
+              type="button"
+              aria-pressed={place.path === listing.root}
+              onClick={() => onOpen(place.path)}
+              className="flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-[0.8125rem] text-ink-2 hover:bg-accent aria-pressed:bg-ember-tint aria-pressed:text-ink coarse:py-2"
+            >
+              {place.disk ? (
+                <HardDrive className="size-3.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <House className="size-3.5 shrink-0" aria-hidden="true" />
+              )}
+              <span className="truncate">{place.name}</span>
+            </button>
+          ))}
+        </nav>
+      ) : null}
       <ul className="max-h-56 overflow-y-auto p-1">
         {listing.folders.map((folder) => (
           <li key={folder.path}>

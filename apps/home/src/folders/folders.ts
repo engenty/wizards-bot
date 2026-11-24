@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { homedir, userInfo } from "node:os";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { LocalFilesystem } from "@mastra/core/workspace";
 import {
   type ConnectFolder,
@@ -19,7 +19,15 @@ import type { Home } from "../home.ts";
 import { newId, now } from "../ids.ts";
 import { langOf, say, w } from "../setup/words.ts";
 import { documentKind, documentText, piece } from "../skills/office/read.ts";
-import { badPart, executable, noLinks, refusedFolder, sharedFile, visible } from "./rules.ts";
+import {
+  badPart,
+  executable,
+  inside,
+  noLinks,
+  refusedFolder,
+  sharedFile,
+  visible,
+} from "./rules.ts";
 
 // Folders of the home's computer that agents may use. The files stay where they are: the
 // home reads them in place when an agent asks, and copies nothing. An agent changes a file
@@ -59,22 +67,42 @@ interface Row {
   created_at: string;
 }
 
-/**
- * A folder the picker may show: the person's home folder `top` or one inside it, with no
- * hidden folder on the way.
- */
-function inHome(top: string, real: string): string {
-  const inside = relative(top, real);
-  if (inside.startsWith("..") || isAbsolute(inside))
-    throw new FolderRefused("invalid", "Only folders in your home folder are shown here.");
-  if (inside.split(sep).some((part) => part && !visible(part)))
-    throw new FolderRefused("invalid", "A hidden folder is not shown here.");
-  return real;
+/** A place the picker starts at: the person's home folder or a disk. */
+interface Place {
+  name: string;
+  path: string;
 }
 
-/** `~` and `~/…` as the person's home folder. */
-const expand = (path: string): string =>
-  path === "~" ? homedir() : path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
+/**
+ * The disks besides the computer's own, where the person keeps files too: `/Volumes/*` on a
+ * Mac (without the link to the computer's own disk), `/media/<user>/*` and `/mnt/*` on Linux.
+ */
+function attachedDisks(): Place[] {
+  const found: Place[] = [];
+  const look = (dir: string) => {
+    let names: string[];
+    try {
+      names = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name of names) {
+      if (!visible(name)) continue;
+      try {
+        const real = realpathSync(join(dir, name));
+        if (real !== "/" && statSync(real).isDirectory()) found.push({ name, path: real });
+      } catch {
+        // A disk that went away while it was looked at.
+      }
+    }
+  };
+  if (process.platform === "darwin") look("/Volumes");
+  if (process.platform === "linux") {
+    look(join("/media", userInfo().username));
+    look("/mnt");
+  }
+  return found.sort((a, b) => a.name.localeCompare(b.name));
+}
 
 export class Folders {
   private readonly home: Home;
@@ -84,6 +112,9 @@ export class Folders {
     this.home = home;
     home.addTools((context) => this.tools(context));
     this.registerCards();
+    // On a server the folder of files is the agents' own from the start.
+    if (home.config.filesDir && !this.own())
+      this.connect({ path: this.places().home, access: "write", own: true });
   }
 
   list(): Folder[] {
@@ -104,12 +135,87 @@ export class Folders {
    */
   ownPlace(): { path: string; connected: boolean; exists: boolean } {
     const own = this.own();
-    const path = own?.path ?? join(realpathSync(homedir()), OWN_NAME);
+    const { home } = this.places();
+    const path = own?.path ?? (this.home.config.filesDir ? home : join(home, OWN_NAME));
     return {
       path,
       connected: Boolean(own),
       exists: existsSync(path) && statSync(path).isDirectory(),
     };
+  }
+
+  /**
+   * Where folders are picked, made and connected: the person's home folder and their disks, or
+   * on a server the one folder of files.
+   */
+  places(): { home: string; disks: Place[] } {
+    const files = this.home.config.filesDir;
+    if (files) {
+      mkdirSync(files, { recursive: true });
+      return { home: realpathSync(files), disks: [] };
+    }
+    return { home: realpathSync(homedir()), disks: attachedDisks() };
+  }
+
+  /** `~` and `~/…` as the home folder of `places()`; a path without a `/` before it is inside it. */
+  private expand(path: string): string {
+    const { home } = this.places();
+    const typed = path.trim();
+    if (typed === "~") return home;
+    return resolve(home, typed.startsWith("~/") ? typed.slice(2) : typed);
+  }
+
+  /**
+   * The place a real path is in, when the picker may show it: inside the home folder or a disk,
+   * with no hidden folder on the way.
+   */
+  private placeOf(real: string): string {
+    const { home, disks } = this.places();
+    const root = [home, ...disks.map((disk) => disk.path)].find((place) => inside(place, real));
+    if (!root)
+      throw new FolderRefused(
+        "invalid",
+        this.home.config.filesDir
+          ? "Only folders in the Bot Server’s folder of files are shown here."
+          : "Only folders in your home folder or on your disks are shown here.",
+      );
+    if (
+      relative(root, real)
+        .split(sep)
+        .some((part) => part && !visible(part))
+    )
+      throw new FolderRefused("invalid", "A hidden folder is not shown here.");
+    return root;
+  }
+
+  /**
+   * A folder that is not there yet, as the full path it would get, when the home may make it:
+   * the nearest folder that is there is one the picker shows, the rest are plain names, and the
+   * folder could then be connected.
+   */
+  planned(path: string): string {
+    let known = this.expand(path);
+    const missing: string[] = [];
+    while (!existsSync(known)) {
+      missing.unshift(basename(known));
+      known = dirname(known);
+    }
+    if (!statSync(known).isDirectory())
+      throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
+    const real = realpathSync(known);
+    this.placeOf(real);
+    if (missing.some((name) => /[/\\:]/.test(name) || !visible(name)))
+      throw new FolderRefused("invalid", "A folder’s name cannot start with a dot or hold / or :.");
+    const full = join(real, ...missing);
+    this.refuse(full);
+    return full;
+  }
+
+  /** Makes a folder `planned` allows, with the folders on the way, and returns its real path. */
+  make(path: string): string {
+    const full = this.planned(path);
+    mkdirSync(full, { recursive: true });
+    return realpathSync(full);
   }
 
   byName(name: string): Folder | undefined {
@@ -121,28 +227,29 @@ export class Folders {
   }
 
   /**
-   * The folders inside a folder, for the folder picker. Only the person's home folder and what
-   * is in it, only folders, nothing hidden; without a path it starts at the home folder. A path
-   * whose last part is not a folder yet (a half-typed name) lists its parent.
+   * The folders inside a folder, for the folder picker. Only the person's home folder, their
+   * disks and what is in them, only folders, nothing hidden; without a path it starts at the
+   * home folder. A path whose last part is not a folder yet (a half-typed name) lists its parent.
    */
   browse(path?: string): FolderListing {
-    const top = realpathSync(homedir());
-    const wanted = resolve(top, expand(path?.trim() || top));
+    const { home, disks } = this.places();
+    const wanted = this.expand(path?.trim() || home);
     const at = existsSync(wanted) && statSync(wanted).isDirectory() ? wanted : dirname(wanted);
     if (!existsSync(at) || !statSync(at).isDirectory())
       throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
-    const real = inHome(top, realpathSync(at));
+    const real = realpathSync(at);
+    const root = this.placeOf(real);
     const folders = safeEntries(real)
       .filter((entry) => entry.isDirectory())
       .map((entry) => ({ name: entry.name, path: join(real, entry.name) }))
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, LIST_LIMIT);
-    return { path: real, parent: real === top ? null : dirname(real), home: top, folders };
+    return { path: real, parent: real === root ? null : dirname(real), home, root, disks, folders };
   }
 
-  /** Makes a new folder in a folder of the person's home folder, and lists it. */
+  /** Makes a new folder in a folder the picker shows, and lists it. */
   makeFolder(input: MakeFolder): FolderListing {
-    const wanted = resolve(realpathSync(homedir()), expand(input.parent.trim()));
+    const wanted = this.expand(input.parent);
     if (!existsSync(wanted) || !statSync(wanted).isDirectory())
       throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
     const parent = this.browse(wanted);
@@ -208,16 +315,14 @@ export class Folders {
    * it was. A folder that is not there yet is made, inside the person's home folder only.
    */
   private connectOwn(path: string): Folder {
-    const top = realpathSync(homedir());
-    const wanted = resolve(top, expand(path.trim()));
+    const wanted = this.expand(path);
     if (!existsSync(wanted)) {
       if (!existsSync(dirname(wanted)))
         throw new FolderRefused(
           "not_found",
           "There is no such folder on the Bot Server’s computer.",
         );
-      inHome(top, join(realpathSync(dirname(wanted)), basename(wanted)));
-      mkdirSync(wanted);
+      this.make(wanted);
     }
     const folder = this.connect({ path: wanted, access: "write" });
     this.home.db.setMeta(OWN, folder.id);
@@ -335,11 +440,33 @@ export class Folders {
 
   /** The folder's real path, when a home may connect it. */
   private allowed(path: string): string {
-    const wanted = resolve(expand(path.trim()));
+    const wanted = this.expand(path);
     if (!existsSync(wanted) || !statSync(wanted).isDirectory()) {
       throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
     }
     const real = realpathSync(wanted);
+    this.refuse(real);
+    return real;
+  }
+
+  /** Throws when a home connects no folder at this real path, also one not made yet. */
+  private refuse(real: string): void {
+    const files = this.home.config.filesDir;
+    if (files) {
+      // On a server there is one folder of files: it and what is inside it, nothing else.
+      if (!inside(this.places().home, real))
+        throw new FolderRefused(
+          "invalid",
+          "On this Bot Server, folders are inside its folder of files only.",
+        );
+      if (
+        relative(this.places().home, real)
+          .split(sep)
+          .some((part) => part.startsWith("."))
+      )
+        throw new FolderRefused("invalid", "A hidden folder cannot be connected.");
+      return;
+    }
     const refused = refusedFolder(real, this.home.config.dataDir);
     if (refused === "whole")
       throw new FolderRefused(
@@ -358,7 +485,6 @@ export class Folders {
       );
     if (refused === "hidden")
       throw new FolderRefused("invalid", "A hidden folder cannot be connected.");
-    return real;
   }
 
   private changed(): void {
@@ -589,13 +715,12 @@ export class Folders {
         },
       }),
     ];
-    if (!agent.main) return this.list().length ? use : [];
     return [
       ...(this.list().length ? use : []),
       defineTool({
         name: "folder_connect",
         description:
-          "Connect a folder of the Bot Server's computer, so agents can read its files (`read`) or also change them after asking (`write`). Shows the person a card where they pick the folder and say yes in one go. Leave out `path` unless the person wrote the exact path: never ask for a path, in a question or otherwise. Ends your turn.",
+          "Connect a folder of the Bot Server's computer, so agents can read its files (`read`) or also change them after asking (`write`). Shows the person a card where they pick the folder and say yes in one go. Leave out `path` unless the person wrote the exact path, or you propose a new folder with `create`: never ask for a path, in a question or otherwise, and never ask the person to make a folder. Ends your turn.",
         input: z.object({
           purpose: z
             .string()
@@ -606,7 +731,15 @@ export class Folders {
           path: z
             .string()
             .optional()
-            .describe("Only a path the person wrote. The card then starts with that folder."),
+            .describe(
+              "A path the person wrote, or with `create` the new folder you propose, e.g. ~/code/wizards/data. The card then starts with that folder.",
+            ),
+          create: z
+            .boolean()
+            .optional()
+            .describe(
+              "`path` is not there yet: the Bot Server makes it, with the folders on the way, when the person says yes.",
+            ),
         }),
         label: () => "Asking to connect a folder",
         asks: true,
@@ -616,63 +749,82 @@ export class Folders {
             if (call.answer.action !== "connect" || typeof picked !== "string" || !picked)
               return "The person did not connect a folder. Do not ask for its path.";
             const chosen = call.answer.values.access;
+            // The folder the card proposed is made now; one the person picked is there already.
+            const made = call.answer.kept === picked ? this.make(picked) : undefined;
             const folder = this.connect({
-              path: picked,
+              path: made ?? picked,
               access: chosen === "read" || chosen === "write" ? chosen : input.access,
             });
             return `The folder ${folder.name} is connected (${folder.access === "write" ? "read and change after asking" : "read only"}). Go on with what the person wanted.`;
           }
           let start: string | undefined;
+          let planned: string | undefined;
+          const lang = langOf(home.db);
           if (input.path) {
             try {
-              start = this.preview(input.path).path;
+              if (input.create && !existsSync(this.expand(input.path)))
+                start = planned = this.planned(input.path);
+              else start = this.preview(input.path).path;
             } catch (error) {
               return `${(error as Error).message} Call \`folder_connect\` again without \`path\`: the person picks the folder.`;
             }
           }
-          const lang = langOf(home.db);
-          return call.ask({
-            kind: "question",
-            level: "needs_you",
-            title: input.purpose,
-            body: say(
-              w("The files stay where they are.", "Die Dateien bleiben, wo sie sind."),
-              lang,
-            ),
-            fields: [
-              {
-                id: "folder",
-                label: say(w("Folder", "Ordner"), lang),
-                type: "folder",
-                required: true,
-                ...(start ? { value: start } : {}),
-              },
-              {
-                id: "access",
-                label: say(
-                  w("What may your agents do in it?", "Was dürfen deine Agenten darin?"),
-                  lang,
-                ),
-                type: "choice",
-                required: true,
-                value: input.access,
-                options: [
-                  { id: "read", label: say(w("Read only", "Nur lesen"), lang) },
-                  {
-                    id: "write",
-                    label: say(
-                      w("Read and change, after asking", "Lesen und ändern, nach Rückfrage"),
-                      lang,
-                    ),
-                  },
-                ],
-              },
-            ],
-            actions: [
-              { id: "connect", label: say(w("Connect", "Verbinden"), lang), style: "primary" },
-              { id: "keep", label: say(w("Don’t", "Nicht verbinden"), lang), style: "plain" },
-            ],
-          });
+          return call.ask(
+            {
+              kind: "question",
+              level: "needs_you",
+              title: input.purpose,
+              body: say(
+                w("The files stay where they are.", "Die Dateien bleiben, wo sie sind."),
+                lang,
+              ),
+              fields: [
+                {
+                  id: "folder",
+                  label: say(w("Folder", "Ordner"), lang),
+                  type: "folder",
+                  required: true,
+                  ...(start ? { value: start } : {}),
+                  ...(planned
+                    ? {
+                        placeholder: say(
+                          w(
+                            "Your Bot Server makes this folder when you connect it.",
+                            "Dein Bot Server legt diesen Ordner an, wenn du ihn verbindest.",
+                          ),
+                          lang,
+                        ),
+                      }
+                    : {}),
+                },
+                {
+                  id: "access",
+                  label: say(
+                    w("What may your agents do in it?", "Was dürfen deine Agenten darin?"),
+                    lang,
+                  ),
+                  type: "choice",
+                  required: true,
+                  value: input.access,
+                  options: [
+                    { id: "read", label: say(w("Read only", "Nur lesen"), lang) },
+                    {
+                      id: "write",
+                      label: say(
+                        w("Read and change, after asking", "Lesen und ändern, nach Rückfrage"),
+                        lang,
+                      ),
+                    },
+                  ],
+                },
+              ],
+              actions: [
+                { id: "connect", label: say(w("Connect", "Verbinden"), lang), style: "primary" },
+                { id: "keep", label: say(w("Don’t", "Nicht verbinden"), lang), style: "plain" },
+              ],
+            },
+            planned,
+          );
         },
       }),
       defineTool({

@@ -129,6 +129,10 @@ export const CardField = z.object({
    */
   type: z.enum(["text", "secret", "choice", "multi", "folder"]),
   options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
+  /**
+   * A text field's hint. On a `folder` field that starts with a folder not made yet, the line
+   * that says the home makes it; it is shown while that folder is the one chosen.
+   */
   placeholder: z.string().optional(),
   required: z.boolean().optional(),
   /** What the field starts with. The person may change it; it is sent like a typed value. */
@@ -720,15 +724,22 @@ export const FolderPreview = z.object({
 export type FolderPreview = z.infer<typeof FolderPreview>;
 
 /**
- * The folders inside a folder of the person's home folder on the home's computer, for the
- * folder picker. Only folders, nothing hidden, nothing outside the home folder.
+ * The folders inside a folder of the person's home folder or one of their disks on the home's
+ * computer, for the folder picker. Only folders, nothing hidden, nothing outside those places.
  */
 export const FolderListing = z.object({
   path: z.string(),
-  /** The folder one up; null at the person's home folder, where the picker starts. */
+  /** The folder one up; null at the person's home folder or a disk, where the picker starts. */
   parent: z.string().nullable(),
   /** The person's home folder: where the picker starts and what `~` stands for. */
   home: z.string(),
+  /** The home folder or the disk this folder is in: the first of its crumbs. */
+  root: z.string(),
+  /**
+   * The disks besides the computer's own (`/Volumes/*` on a Mac), where the picker also starts.
+   * None on a server, where the home folder is its one folder of files.
+   */
+  disks: z.array(z.object({ name: z.string(), path: z.string() })),
   folders: z.array(z.object({ name: z.string(), path: z.string() })),
 });
 export type FolderListing = z.infer<typeof FolderListing>;

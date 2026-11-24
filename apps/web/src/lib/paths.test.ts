@@ -6,6 +6,8 @@ const listing: FolderListing = {
   path: "/Users/ada",
   parent: "/Users",
   home: "/Users/ada",
+  root: "/Users/ada",
+  disks: [],
   folders: [
     { name: "Desktop", path: "/Users/ada/Desktop" },
     { name: "Documents", path: "/Users/ada/Documents" },
@@ -35,6 +37,8 @@ describe("completions", () => {
       path: "C:\\Users\\ada",
       parent: "C:\\Users",
       home: "C:\\Users\\ada",
+      root: "C:\\Users\\ada",
+      disks: [],
       folders: [{ name: "Documents", path: "C:\\Users\\ada\\Documents" }],
     };
     expect(completions(windows, "C:\\Users\\ada\\Doc")).toHaveLength(1);

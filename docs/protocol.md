@@ -1027,25 +1027,33 @@ only says which folder.
 
 A device never asks the person to type a path first. It offers a folder picker:
 
-| Where the person is                                     | The picker                                                                                                        |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| the Mac app, with the home on the same Mac              | the Mac's own folder panel (`NSOpenPanel`, folders only, a new folder allowed), through the app's bridge          |
-| a browser, the Mac app with a home elsewhere, the phone | the home's folder browser below: the person's home folder, one level at a time, with breadcrumbs and a new folder |
+| Where the person is                                     | The picker                                                                                                                  |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| the Mac app, with the home on the same Mac              | the Mac's own folder panel (`NSOpenPanel`, folders only, a new folder allowed), through the app's bridge                    |
+| a browser, the Mac app with a home elsewhere, the phone | the home's folder browser below: the person's home folder and disks, one level at a time, with breadcrumbs and a new folder |
 
 Typing the path stays possible as a second way where a device offers it.
 
 `GET /v1/folders/browse?path=<path>` → `FolderListing`: the folders inside `path`, for the folder
 browser. Without `path` it starts at the person's home folder (`home`); `~` stands for it, and a
 relative path is read from it. A path whose last part is not a folder yet (a half-typed name)
-lists its parent. Only the home folder and what is in it is shown, only folders (no files and
-nothing of what they hold), nothing hidden, and no link that leads out: anything else is 400
-`invalid`; 404 `not_found` when there is no such folder. `parent` is null at the home folder.
+lists its parent. Only the home folder, the person's other disks (`disks`: `/Volumes/*` on a
+Mac, `/media/<user>/*` and `/mnt/*` on Linux) and what is in them is shown, only folders (no
+files and nothing of what they hold), nothing hidden, and no link that leads out: anything else
+is 400 `invalid`; 404 `not_found` when there is no such folder. `root` is the home folder or
+the disk the folder is in, the first of its breadcrumbs; `parent` is null there.
+
+A home on a server (`WIZARDS_BOT_FILES`, `/files` in the Docker image) has one folder of files:
+it is `home`, the agents' own folder from the start, connected for changes, and there are no
+disks. Folders are picked, made and connected inside it only.
 
 ```json
 {
   "path": "/Users/ada/Documents",
   "parent": "/Users/ada",
   "home": "/Users/ada",
+  "root": "/Users/ada",
+  "disks": [{ "name": "Archiv", "path": "/Volumes/Archiv" }],
   "folders": [{ "name": "Trips", "path": "/Users/ada/Documents/Trips" }]
 }
 ```
@@ -1055,8 +1063,10 @@ new folder. The same bounds as above; a name that starts with a dot, holds `/`, 
 taken already is 400 `invalid`.
 
 `POST /v1/folders/preview` with `{ "path": "…" }` → `FolderPreview`. 404 `not_found` when there
-is no such folder; 400 `invalid` for a folder that cannot be connected (the whole disk, a system
-folder, the whole home folder, a hidden folder). A device shows it under the chosen folder.
+is no such folder; 400 `invalid` for a folder that cannot be connected (the whole disk, a folder
+of the system or its apps with everything in it, such as `/etc`, `/private` or `~/Library`, the
+whole home folder, the home's data folder, a hidden folder). A device shows it under the chosen
+folder.
 
 `POST /v1/folders` with `ConnectFolder` (`path`, `access`, and `conversationId` when it is
 connected from a chat: that chat's agent is told and answers there) → `Folder`. With
@@ -1090,7 +1100,15 @@ An agent that needs a folder asks with one card (`folder_connect`), never with a
 the path. The card is a `question`: its title is the agent's one line of what the folder is for,
 a field of type `folder`, the access as a `choice` set to what the agent asked, and the actions
 `connect` and `keep`. The folder field carries `value` when the agent knows the path from the
-person; the device then shows that folder chosen.
+person; the device then shows that folder chosen. Every agent of the person may ask; an agent
+in a room or answering someone else has no folder tools.
+
+An agent may propose a folder that is not there yet (`create: true` with its path, e.g.
+`~/code/wizards/data`): the field's `value` is that path and its `placeholder` the line that the
+Bot Server makes it, which a device shows under the chosen folder while it is the one chosen.
+When the person connects that folder, the home makes it with the folders on the way, then
+connects it; another folder the person picks instead must be there. The home makes no folder a
+picker would not show or the home would not connect.
 
 ```json
 {

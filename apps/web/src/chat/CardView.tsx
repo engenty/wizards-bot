@@ -56,6 +56,7 @@ function Field({
         <FolderPicker
           value={typeof value === "string" && value ? value : undefined}
           onChange={(path) => onChange(path ?? "")}
+          hint={value === field.value ? field.placeholder : undefined}
         />
       </fieldset>
     );

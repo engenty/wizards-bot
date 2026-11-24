@@ -548,7 +548,9 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         const path = body.values?.[field.id];
         if (field.type !== "folder" || typeof path !== "string" || !path) continue;
         try {
-          home.folders.preview(path);
+          // The folder the card proposed to make may not be there yet.
+          if (path === field.value && field.placeholder) home.folders.planned(path);
+          else home.folders.preview(path);
         } catch (error) {
           return folderProblem(c, error);
         }
