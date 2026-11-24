@@ -26,6 +26,8 @@ export interface ComposerHandle {
   /** Opens the file picker. */
   pick: () => void;
   focus: () => void;
+  /** Puts a text at the end of what is being written, and the cursor after it. */
+  insert: (text: string) => void;
 }
 
 /** Taller than this the field scrolls. */
@@ -76,6 +78,10 @@ export function Composer({
     add: attached.add,
     pick,
     focus: () => area.current?.focus(),
+    insert: (piece: string) => {
+      setText((was) => (was && !/\s$/.test(was) ? `${was} ${piece} ` : `${was}${piece} `));
+      requestAnimationFrame(() => area.current?.focus());
+    },
   }));
 
   // The height follows the text, typed or spoken, and the field's width. Empty, the field is one

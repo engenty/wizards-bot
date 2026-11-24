@@ -16,6 +16,7 @@ import { Chat } from "./chat/Chat";
 import { ConsentDialog } from "./chat/ConsentDialog";
 import { DocumentPane } from "./chat/DocumentPane";
 import { FolderDialog } from "./chat/FolderDialog";
+import { FolderPane } from "./chat/FolderPane";
 import { ItemsDialog } from "./chat/ItemsDialog";
 import { NewBotDialog } from "./chat/NewBotDialog";
 import { SearchDialog } from "./chat/SearchDialog";
@@ -205,6 +206,9 @@ export function Home() {
   // agent: one of the three stands beside the chat.
   const [artifactId, setArtifactId] = useState<string | null>(null);
   const [about, setAbout] = useState(false);
+  // A connected folder in the file browser, at a place inside it.
+  const [folderView, setFolderView] = useState<{ id: string; path: string } | null>(null);
+  const [reference, setReference] = useState<{ text: string; at: number }>();
   const [dialog, setDialog] = useState<Open | null>(null);
   /** The chat the folder dialog was opened from; none from the settings. */
   const [folderFrom, setFolderFrom] = useState<string>();
@@ -228,7 +232,7 @@ export function Home() {
   const listWidth = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, listChosen ?? SIDEBAR));
   const [resizingList, setResizingList] = useState(false);
   const [drawer, setDrawer] = useState(false);
-  const pane = Boolean(documentId || artifactId || about);
+  const pane = Boolean(documentId || artifactId || about || folderView);
   const side = sidebar(windowWidth, pane, collapsed);
   // ⌘K (Ctrl+K) opens the search, wherever the focus is.
   useEffect(() => {
@@ -260,9 +264,11 @@ export function Home() {
       ? `document:${documentId}`
       : artifactId
         ? `artifact:${artifactId}`
-        : about
-          ? "agent:about"
-          : null,
+        : folderView
+          ? `folder:${folderView.id}`
+          : about
+            ? "agent:about"
+            : null,
     180,
   );
   const parts = standing.value ? split(width, chosen) : null;
@@ -328,6 +334,7 @@ export function Home() {
     setDocumentId(null);
     setArtifactId(null);
     setAbout(false);
+    setFolderView(null);
     setDialog(null);
     setDrawer(false);
   };
@@ -438,6 +445,7 @@ export function Home() {
             onAgent={() => {
               setDocumentId(null);
               setArtifactId(null);
+              setFolderView(null);
               setAbout((open) => !open);
             }}
             unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
@@ -445,13 +453,16 @@ export function Home() {
             onDocument={(id) => {
               setArtifactId(null);
               setAbout(false);
+              setFolderView(null);
               setDocumentId(id);
             }}
             onArtifact={(id) => {
               setDocumentId(null);
               setAbout(false);
+              setFolderView(null);
               setArtifactId(id);
             }}
+            reference={reference}
             onFolder={() => {
               setFolderFrom(agent.conversationId);
               setDialog("folder");
@@ -492,6 +503,15 @@ export function Home() {
                   {...paneProps}
                   onClose={() => setArtifactId(null)}
                 />
+              ) : paneKind === "folder" ? (
+                <FolderPane
+                  key={paneId}
+                  id={paneId}
+                  start={folderView?.path ?? ""}
+                  {...paneProps}
+                  onAsk={(text) => setReference({ text, at: Date.now() })}
+                  onClose={() => setFolderView(null)}
+                />
               ) : (
                 <AgentPane
                   key={agent.id}
@@ -500,6 +520,10 @@ export function Home() {
                   onFolder={() => {
                     setFolderFrom(agent.conversationId);
                     setDialog("folder");
+                  }}
+                  onOpenFolder={(id) => {
+                    setAbout(false);
+                    setFolderView({ id, path: "" });
                   }}
                   onClose={() => setAbout(false)}
                 />

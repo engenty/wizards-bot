@@ -41,7 +41,12 @@ interface Api {
   /** The answer itself, for what is no JSON: the event stream, a file's bytes. */
   open(
     path: string,
-    init?: { headers?: Record<string, string>; signal?: AbortSignal },
+    init?: {
+      method?: string;
+      headers?: Record<string, string>;
+      body?: BodyInit;
+      signal?: AbortSignal;
+    },
   ): Promise<Response>;
 }
 

@@ -54,6 +54,7 @@ export function Chat({
   onDocument,
   onArtifact,
   onFolder,
+  reference,
 }: {
   agent: Agent;
   /** What needs the person, across all agents. */
@@ -73,11 +74,16 @@ export function Chat({
   onDocument: (id: string) => void;
   onArtifact: (id: string) => void;
   onFolder: () => void;
+  /** A file the person named in the file browser, to put into what they are writing. */
+  reference?: { text: string; at: number };
 }) {
   const client = useQueryClient();
   const thread = useThread(agent.conversationId);
   const [problem, flash] = useFlash();
   const composer = useRef<ComposerHandle>(null);
+  useEffect(() => {
+    if (reference) composer.current?.insert(reference.text);
+  }, [reference]);
   // Entering and leaving the children is counted, so the drop sign does not flicker.
   const [drag, setDrag] = useState(false);
   const depth = useRef(0);

@@ -158,6 +158,9 @@ export function applyEvent(client: QueryClient, event: Event) {
     case "folders.updated":
       client.setQueryData<Folder[]>(keys.folders(), event.folders);
       return;
+    case "folder.activity":
+      void client.invalidateQueries({ queryKey: keys.folder(event.folderId) });
+      return;
     case "devices.updated":
       client.setQueryData<Device[]>(keys.devices(), event.devices);
       return;

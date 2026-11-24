@@ -20,6 +20,10 @@ export const keys = {
   contacts: () => ["contacts"] as const,
   models: () => ["models"] as const,
   folders: () => ["folders"] as const,
+  /** All the file browser knows of one connected folder: its places and its activity. */
+  folder: (id: string) => ["folder", id] as const,
+  folderEntries: (id: string, path: string) => ["folder", id, "entries", path] as const,
+  folderActivity: (id: string) => ["folder", id, "activity"] as const,
   /** The person's home folder on the Bot Server's computer, where the folder picker starts. */
   folderHome: () => ["folderHome"] as const,
   /** What uses each secret of the home, never a value. */
