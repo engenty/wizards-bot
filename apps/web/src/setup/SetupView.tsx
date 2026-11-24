@@ -61,7 +61,7 @@ function Says({ children }: { children: ReactNode }) {
 /** A group of rows on a card, under a quiet label. */
 function Group({ label, children }: { label?: string; children: ReactNode }) {
   return (
-    <section className="mt-3 ml-[2.125rem]">
+    <section className="mt-3">
       {label ? <h3 className="mb-1.5 pl-0.5 text-[0.75rem] text-ink-3">{label}</h3> : null}
       <div className="rounded-xl bg-card px-3.5">{children}</div>
     </section>
@@ -375,7 +375,12 @@ export function SetupView({ setup }: { setup: Setup }) {
 
             {step === "models" ? (
               <>
-                <Says>{t(setup.hosted ? "setup.models.askHosted" : "setup.models.ask")}</Says>
+                <h1 className="font-display font-semibold text-[1.375rem] leading-tight">
+                  {t("setup.models.title")}
+                </h1>
+                <p className="mt-1 text-[0.9375rem] text-ink-3">
+                  {t(setup.hosted ? "setup.models.subtitleHosted" : "setup.models.subtitle")}
+                </p>
                 {here.length ? (
                   <Group label={t("setup.models.here")}>
                     <CheckList checks={here} onTest={(source) => void test(source)} />
@@ -398,37 +403,37 @@ export function SetupView({ setup }: { setup: Setup }) {
                     </div>
                   ) : null}
                 </Group>
-                <div className="ml-[2.125rem]">
-                  {alsoCan(setup).map((line) => (
-                    <p key={line} className="mt-2 text-[0.8125rem] text-ink-3">
-                      {line}
-                    </p>
-                  ))}
-                  {setup.hosted ? null : <TestAgain setup={setup} onTest={() => void test()} />}
-                  {setup.working || testing(setup) ? null : (
-                    <p role="status" className="mt-3 text-[0.8125rem] text-ink-3">
-                      {t("setup.models.gate")}
-                    </p>
-                  )}
-                </div>
+                {alsoCan(setup).map((line) => (
+                  <p key={line} className="mt-2 text-[0.8125rem] text-ink-3">
+                    {line}
+                  </p>
+                ))}
+                {setup.hosted ? null : <TestAgain setup={setup} onTest={() => void test()} />}
+                {setup.working || testing(setup) ? null : (
+                  <p role="status" className="mt-3 text-[0.8125rem] text-ink-3">
+                    {t("setup.models.gate")}
+                  </p>
+                )}
               </>
             ) : null}
 
             {step === "devices" ? (
               <>
                 <Says>{t("setup.phone.ask")}</Says>
-                <Group>
-                  {/* A new code once the address is on: the QR then leads to wizards.host. */}
-                  <AddPhone
-                    key={setup.address?.state === "on" ? "away" : "here"}
-                    onProblem={setProblem}
-                  />
-                </Group>
-                {setup.address && !setup.hosted ? (
+                <div className="ml-[2.125rem]">
                   <Group>
-                    <AwayAddress address={setup.address} onProblem={setProblem} />
+                    {/* A new code once the address is on: the QR then leads to wizards.host. */}
+                    <AddPhone
+                      key={setup.address?.state === "on" ? "away" : "here"}
+                      onProblem={setProblem}
+                    />
                   </Group>
-                ) : null}
+                  {setup.address && !setup.hosted ? (
+                    <Group>
+                      <AwayAddress address={setup.address} onProblem={setProblem} />
+                    </Group>
+                  ) : null}
+                </div>
               </>
             ) : null}
           </div>

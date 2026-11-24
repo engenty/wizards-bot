@@ -188,9 +188,9 @@ export const en = {
   "setup.gateway.choose": "Which gateway",
   "setup.gateway.add": "Add a key",
   "setup.gateway.saved": "The key is saved. Your Bot Server tests the gateway now.",
-  "setup.models.ask":
-    "Which model should your wizards think with? Each one I found gets a short test call.",
-  "setup.models.askHosted": "Which model should your wizards think with?",
+  "setup.models.title": "Choose your AI",
+  "setup.models.subtitle": "Your wizards think with it. Each one found gets a short test call.",
+  "setup.models.subtitleHosted": "Your wizards think with it.",
   "setup.models.here": "Found on this computer",
   "setup.models.account": "Or an account",
   "setup.phone.ask":
@@ -809,9 +809,10 @@ export const de: Record<Key, Line> = {
   "setup.gateway.choose": "Welches Gateway",
   "setup.gateway.add": "Schlüssel hinzufügen",
   "setup.gateway.saved": "Der Schlüssel ist gespeichert. Dein Bot Server testet das Gateway jetzt.",
-  "setup.models.ask":
-    "Mit welchem Modell sollen deine Wizards denken? Jedes, das ich gefunden habe, bekommt einen kurzen Testaufruf.",
-  "setup.models.askHosted": "Mit welchem Modell sollen deine Wizards denken?",
+  "setup.models.title": "Wähle deine KI",
+  "setup.models.subtitle":
+    "Damit denken deine Wizards. Jede gefundene bekommt einen kurzen Testaufruf.",
+  "setup.models.subtitleHosted": "Damit denken deine Wizards.",
   "setup.models.here": "Auf diesem Computer gefunden",
   "setup.models.account": "Oder ein Konto",
   "setup.phone.ask":
