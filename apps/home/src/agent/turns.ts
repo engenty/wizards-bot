@@ -113,6 +113,24 @@ const MAX_STEPS = 16;
 /** Turns in a row the home gives an agent for longer work before the person has to say go on. */
 export const WORK_TURNS = 8;
 const TURN = "turn";
+/** How long the home keeps reading a conversation's thread after its last turn. */
+const IDLE_MS = 60_000;
+/** How long, and how much of, a run's output is kept before its turn is known. */
+const EARLY_MS = 30_000;
+const EARLY_CHUNKS = 5_000;
+
+/** A chunk of a run as Mastra streams it on the thread; the kinds the home reads. */
+interface Chunk {
+  type: string;
+  runId?: string;
+  // biome-ignore lint/suspicious/noExplicitAny: Mastra's chunks are a wide union; a few kinds matter here
+  payload?: any;
+}
+
+interface Following {
+  subscription: { unsubscribe(): void };
+  idle: ReturnType<typeof setTimeout> | undefined;
+}
 
 /** One run of an agent: the message it writes and everything that was said to it meanwhile. */
 class Turn {
@@ -133,6 +151,13 @@ class Turn {
   /** Tool rounds the run took, and whether the last one still called tools. */
   steps = 0;
   open = false;
+  /** Mastra's run this turn reads, once Mastra said which. */
+  runId: string | undefined;
+  /** The engine the last step that did not fail ran on, and what went wrong. */
+  model: string | undefined;
+  problem = "";
+  /** The run's own output reached the turn: a status before it belongs to an earlier run. */
+  seen = false;
   private readonly home: Home;
   private readonly agent: AgentRecord;
   private readonly engines: Engine[];
@@ -217,6 +242,11 @@ class Turn {
 
   get begun(): boolean {
     return this.started !== undefined;
+  }
+
+  /** The agent lives in a contact's home or outside: no run of Mastra answers here. */
+  get shared(): boolean {
+    return this.agent.origin === "shared";
   }
 
   /** Which turn in a row this is. */
@@ -391,6 +421,15 @@ export class Turns {
   };
   /** The answer to a card, for the suspended call that is being resumed. */
   private readonly answers = new Map<string, Answer>();
+  /**
+   * Each conversation's thread as Mastra streams it: every run on it, however it started (a
+   * message that woke the agent, a card's answer that resumed it), read in one place.
+   */
+  private readonly threads = new Map<string, Promise<Following>>();
+  /** The turn of each run of Mastra the home reads, by the run's id. */
+  private readonly byRun = new Map<string, Turn>();
+  /** What a run streamed before the home knew its turn: Mastra streams before it names the run. */
+  private readonly early = new Map<string, Chunk[]>();
   private readonly home: Home;
 
   constructor(home: Home) {
@@ -454,15 +493,23 @@ export class Turns {
     );
     this.answers.set(card.id, answer);
     try {
-      const output = (await this.mastraAgent(agent).resumeStream({ answered: card.id }, {
+      await this.follow(agent, conversation.id);
+      // The run goes on under its own id: what it streams now is this turn's.
+      this.claim(turn, parked.runId, true);
+      this.runs.set(conversation.id, turn);
+      store.setWorking(conversation.id, true);
+      await this.mastraAgent(agent).resumeStream({ answered: card.id }, {
         runId: parked.runId,
         toolCallId: parked.toolCallId,
         memory: { thread: conversation.id, resource: agent.id },
         ...this.streamOptions(turn),
-      } as never)) as { fullStream: AsyncIterable<unknown> };
-      this.runs.set(conversation.id, turn);
-      store.setWorking(conversation.id, true);
-      await this.read(turn, output.fullStream);
+      } as never);
+      await turn.finished;
+    } catch (error) {
+      this.byRun.delete(parked.runId);
+      if (this.runs.get(conversation.id) === turn) this.runs.delete(conversation.id);
+      store.setWorking(conversation.id, false);
+      throw error;
     } finally {
       this.answers.delete(card.id);
     }
@@ -471,7 +518,6 @@ export class Turns {
   private streamOptions(turn: Turn): Record<string, unknown> {
     return {
       maxSteps: MAX_STEPS,
-      abortSignal: turn.controller.signal,
       modelSettings: { maxOutputTokens: 8000 },
       requestContext: new RequestContext([[TURN, turn]]),
       // Asked before every step: a skill loaded in one step brings its tools to the next.
@@ -501,11 +547,25 @@ export class Turns {
     return work;
   }
 
-  /** Stops the running turn, and with it the longer work it belongs to. */
+  /**
+   * Stops the running turn, and with it the longer work it belongs to. Mastra ends the run on
+   * the thread. What was said into the run and not read yet stays in the thread: clearing it
+   * (`clearPendingSignals`) would drop those words.
+   */
   stop(conversationId: string): void {
     const turn = this.runs.get(conversationId);
-    if (turn) turn.controller.abort();
-    else if (this.between.has(conversationId)) this.halted.add(conversationId);
+    if (turn) {
+      turn.controller.abort();
+      const agent = this.home.store.agent(
+        this.home.store.conversation(conversationId)?.agentId ?? "",
+      );
+      if (!turn.shared && agent) {
+        this.mastraAgent(agent).abortThreadStream({
+          resourceId: agent.id,
+          threadId: conversationId,
+        });
+      }
+    } else if (this.between.has(conversationId)) this.halted.add(conversationId);
   }
 
   /**
@@ -621,6 +681,7 @@ export class Turns {
 
     // A message that names a kind of document loads its skill before the model starts.
     if (!trigger.guest) this.home.skills.hear(conversation.id, trigger);
+    await this.follow(agent, conversation.id);
     const result = this.mastraAgent(agent).sendSignal(
       { type: "user", contents: await this.contents(trigger) } as never,
       {
@@ -633,15 +694,15 @@ export class Turns {
         },
       } as never,
     );
-    const accepted = (await result.accepted) as {
-      action: string;
-      output?: { fullStream: AsyncIterable<unknown> };
-    };
+    const accepted = (await result.accepted) as { action: string; runId?: string };
 
-    if (accepted.action === "wake" && accepted.output) {
+    // The run's output is read from the thread (`listen`), not from the stream Mastra hands back.
+    if (accepted.action === "wake" && accepted.runId) {
       this.runs.set(conversation.id, turn);
       store.setWorking(conversation.id, true);
-      return this.read(turn, accepted.output.fullStream);
+      this.claim(turn, accepted.runId);
+      await turn.finished;
+      return;
     }
     // The running turn reads it. This call is done when that turn is.
     const running = await this.running(conversation.id);
@@ -673,46 +734,115 @@ export class Turns {
     ];
   }
 
-  /** Reads a run's stream into the turn's message. */
-  private async read(turn: Turn, stream: AsyncIterable<unknown>): Promise<void> {
-    const { draft } = turn.parts;
-    let model: string | undefined;
-    let problem = "";
-    try {
-      // biome-ignore lint/suspicious/noExplicitAny: Mastra's chunks are a wide union; three kinds matter here
-      for await (const chunk of stream as AsyncIterable<any>) {
-        const payload = chunk.payload ?? chunk;
-        if (chunk.type === "text-delta") {
-          draft.write(payload.text ?? payload.delta ?? "");
-        } else if (chunk.type === "step-finish") {
-          turn.steps++;
-          turn.open = payload.stepResult?.reason === "tool-calls";
-          if (payload.stepResult?.reason !== "error") {
-            model = turn.refOf(payload.metadata?.modelProvider, payload.metadata?.modelId) ?? model;
-          }
-        } else if (chunk.type === "tool-call-suspended") {
-          // A tool asked the person: Mastra keeps the run until the card is answered.
-          const cardId = payload.suspendPayload?.cardId;
-          if (typeof cardId === "string" && chunk.runId)
-            this.parked.set(turn.trigger.conversationId, {
-              runId: chunk.runId,
-              toolCallId: payload.toolCallId,
-              cardId,
-            });
-        } else if (chunk.type === "error") {
-          problem = String(payload.error?.message ?? payload.error ?? "it stopped with an error");
-        }
+  /** Reads the conversation's thread from now on, if the home does not already. */
+  private async follow(agent: AgentRecord, conversationId: string): Promise<void> {
+    let following = this.threads.get(conversationId);
+    if (!following) {
+      following = this.mastraAgent(agent)
+        .subscribeToThread({ resourceId: agent.id, threadId: conversationId, withRunStatus: true })
+        .then((subscription) => {
+          void this.listen(subscription.stream as AsyncIterable<Chunk>).catch((error) =>
+            console.error("[turn] reading the thread:", error),
+          );
+          return { subscription, idle: undefined };
+        });
+      this.threads.set(conversationId, following);
+      following.catch(() => this.threads.delete(conversationId));
+    }
+    const entry = await following;
+    if (entry.idle) clearTimeout(entry.idle);
+    entry.idle = undefined;
+  }
+
+  /** Lets go of a conversation's thread a while after its last turn ended. */
+  private rest(conversationId: string): void {
+    void this.threads.get(conversationId)?.then((entry) => {
+      if (entry.idle) clearTimeout(entry.idle);
+      entry.idle = setTimeout(() => {
+        if (this.runs.has(conversationId)) return;
+        entry.subscription.unsubscribe();
+        this.threads.delete(conversationId);
+      }, IDLE_MS);
+      entry.idle.unref();
+    });
+  }
+
+  /** Every chunk of every run on one thread, handed to the run's turn. */
+  private async listen(stream: AsyncIterable<Chunk>): Promise<void> {
+    for await (const chunk of stream) {
+      const { runId } = chunk;
+      if (!runId) continue;
+      const turn = this.byRun.get(runId);
+      if (turn) {
+        this.take(turn, chunk, true);
+        continue;
       }
-    } catch (error) {
-      if (!turn.controller.signal.aborted) problem = String((error as Error)?.message ?? error);
+      // A run whose turn is not known yet, or one the home does not read (a guest's).
+      const kept = this.early.get(runId) ?? [];
+      if (!kept.length) setTimeout(() => this.early.delete(runId), EARLY_MS).unref();
+      if (kept.length < EARLY_CHUNKS) kept.push(chunk);
+      this.early.set(runId, kept);
     }
+  }
+
+  /**
+   * The run `runId` is this turn's: what it streamed before is read now. A status that came
+   * before any output of the run is an earlier part's (a run that waited for a card).
+   */
+  private claim(turn: Turn, runId: string, resumed = false): void {
+    turn.runId = runId;
+    this.byRun.set(runId, turn);
+    const kept = this.early.get(runId) ?? [];
+    this.early.delete(runId);
+    if (resumed) return;
+    for (const chunk of kept) this.take(turn, chunk, false);
+  }
+
+  /** One chunk of the turn's run into its message. */
+  private take(turn: Turn, chunk: Chunk, live: boolean): void {
+    if (chunk.type === "thread-run-status") {
+      if (turn.seen || live) this.settle(turn, chunk.payload?.status);
+      return;
+    }
+    turn.seen = true;
+    const { draft } = turn.parts;
+    const payload = chunk.payload ?? {};
+    if (chunk.type === "text-delta") {
+      draft.write(payload.text ?? payload.delta ?? "");
+    } else if (chunk.type === "step-finish") {
+      turn.steps++;
+      turn.open = payload.stepResult?.reason === "tool-calls";
+      if (payload.stepResult?.reason !== "error") {
+        turn.model =
+          turn.refOf(payload.metadata?.modelProvider, payload.metadata?.modelId) ?? turn.model;
+      }
+    } else if (chunk.type === "tool-call-suspended") {
+      // A tool asked the person: Mastra keeps the run until the card is answered.
+      const cardId = payload.suspendPayload?.cardId;
+      if (typeof cardId === "string" && chunk.runId)
+        this.parked.set(turn.trigger.conversationId, {
+          runId: chunk.runId,
+          toolCallId: payload.toolCallId,
+          cardId,
+        });
+    } else if (chunk.type === "error") {
+      turn.problem = String(payload.error?.message ?? payload.error ?? "it stopped with an error");
+    }
+  }
+
+  /** The turn's run ended, or waits for a card: its message is finished. */
+  private settle(turn: Turn, status: string | undefined): void {
+    if (turn.runId) this.byRun.delete(turn.runId);
+    const { draft } = turn.parts;
+    const stopped = turn.controller.signal.aborted || status === "aborted";
+    if (status === "aborted") turn.controller.abort();
+    let problem = turn.problem || (status === "failed" ? "it stopped with an error" : "");
     // A later engine may have answered after an earlier one failed.
-    if (model && !draft.empty) problem = "";
-    if (problem && !turn.controller.signal.aborted) {
+    if (turn.model && !draft.empty) problem = "";
+    if (problem && !stopped) {
       draft.write(`${draft.empty ? "" : "\n\n"}The model did not answer: ${problem}`);
-      return this.close(turn, "failed", model);
     }
-    this.close(turn, "done", model);
+    this.close(turn, problem && !stopped ? "failed" : "done", turn.model);
   }
 
   /**
@@ -749,6 +879,7 @@ export class Turns {
     }
     this.home.store.setWorking(conversationId, false);
     turn.end(message);
+    if (!turn.shared) this.rest(conversationId);
     // One reply per place it goes to, however many messages the turn read.
     const told = new Set<string>();
     for (const trigger of turn.triggers) {

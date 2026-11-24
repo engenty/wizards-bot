@@ -29,6 +29,17 @@ function slowTool(t: TestHome) {
   return { running, release };
 }
 
+/** Every tool call in the newest request is followed by its result. */
+function answeredCalls(t: TestHome): void {
+  const messages = (t.model.requests.at(-1)?.messages ?? []) as {
+    role: string;
+    tool_calls?: unknown[];
+  }[];
+  for (const [at, message] of messages.entries()) {
+    if (message.tool_calls?.length) assert.equal(messages[at + 1]?.role, "tool");
+  }
+}
+
 const said = (t: TestHome) =>
   (t.model.requests.at(-1)?.messages ?? []).map((message) => `${message.role}:${message.content}`);
 
@@ -56,6 +67,7 @@ describe("what is said to an agent", () => {
       const read = said(t);
       assert.ok(read.includes("user:Is the 7:10 on time?"), read.join("\n"));
       assert.equal(read.at(-1), "user:And?");
+      answeredCalls(t);
     } finally {
       t.stop();
     }
@@ -74,6 +86,8 @@ describe("what is said to an agent", () => {
       while (t.model.requests.length === 0) await new Promise((r) => setTimeout(r, 10));
       await new Promise((resolve) => setTimeout(resolve, 50));
       t.home.turns.stop(conversationId);
+      // The model's request ends with the turn, not when the model is done.
+      while (t.model.aborted === 0) await new Promise((r) => setTimeout(r, 10));
       release();
       await first;
 
@@ -131,6 +145,7 @@ describe("what is said to an agent", () => {
         read.some((line) => line.startsWith("user:Also book a seat.")),
         read.join("\n"),
       );
+      answeredCalls(t);
     } finally {
       t.stop();
     }
