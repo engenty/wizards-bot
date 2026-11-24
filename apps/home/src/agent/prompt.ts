@@ -146,7 +146,7 @@ export function systemPrompt(input: PromptInput): string {
           .join("\n")}`
       : "",
     input.folders?.length
-      ? `Connected folders of ${person}'s computer (read with \`folder_list\`, \`folder_read\`, \`folder_look\` for pictures, \`folder_search\`, \`folder_info\`; change with \`folder_make\`, \`folder_write\`, \`folder_edit\`, \`folder_copy\`). What is replaced goes to the Trash:\n${input.folders
+      ? `Connected folders of ${person}'s computer (read with \`folder_list\`, \`folder_read\`, \`folder_look\` for pictures, \`folder_search\`, \`folder_info\`; change with \`folder_make\`, \`folder_write\`, \`folder_edit\`, \`folder_copy\`, \`folder_move\`, \`folder_delete\`). What is replaced or deleted goes to the Trash:\n${input.folders
           .map(
             (folder) =>
               `- ${folder.name}: ${folder.own ? "your own folder: what you make for the person (a text, a list, a file) goes here unless they name another place; " : ""}${folder.access !== "write" ? "read only" : folder.allow === "always" ? "you may change files without asking; deleting asks" : "you may change files after asking"}`,

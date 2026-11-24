@@ -219,3 +219,76 @@ describe("changing files in a connected folder", () => {
     assert.equal(folder.access, "write");
   });
 });
+
+describe("moving and deleting in a connected folder", () => {
+  let t: TestHome;
+  let home: string;
+  let scans: string;
+  let was: string | undefined;
+
+  before(async () => {
+    t = await testHome("Ada");
+    home = realpathSync(mkdtempSync(join(tmpdir(), "wizards-bot-home-")));
+    was = process.env.HOME;
+    process.env.HOME = home;
+    scans = join(home, "Scans");
+    mkdirSync(scans);
+    for (const name of ["a.pdf", "b.pdf", "old.txt"]) writeFileSync(join(scans, name), name);
+    const folder = t.home.folders.connect({ path: scans, access: "write" });
+    t.home.folders.setAllow(folder.id, "always");
+  });
+  after(() => {
+    process.env.HOME = was;
+    return t.stop();
+  });
+
+  test("many files move in one call, here without a card", async () => {
+    t.model.script.push(
+      {
+        calls: [
+          {
+            name: "folder_move",
+            arguments: {
+              folder: "Scans",
+              moves: [
+                { from: "a.pdf", to: "2026/Q1/a.pdf" },
+                { from: "b.pdf", to: "2026/Q1/b.pdf" },
+              ],
+              why: "Sort the scans.",
+            },
+          },
+        ],
+      },
+      { text: "Sorted." },
+    );
+    await t.say("sort my scans");
+    assert.deepEqual(readdirSync(join(scans, "2026", "Q1")).sort(), ["a.pdf", "b.pdf"]);
+    assert.equal(existsSync(join(scans, "a.pdf")), false);
+  });
+
+  test("deleting asks every time, also where the person said always, and goes to the Trash", async () => {
+    t.model.script.push({
+      calls: [
+        {
+          name: "folder_delete",
+          arguments: { folder: "Scans", paths: ["old.txt"], why: "It is not needed." },
+        },
+      ],
+    });
+    await t.say("clean up");
+    const card = t.item();
+    assert.deepEqual(
+      card.actions.map((action) => [action.id, action.style]),
+      [
+        ["once", "danger"],
+        ["deny", "plain"],
+      ],
+    );
+    assert.equal(existsSync(join(scans, "old.txt")), true);
+    t.model.script.push({ text: "Gone." });
+    await t.answer(card.id, "once");
+    assert.equal(existsSync(join(scans, "old.txt")), false);
+    const trash = trashFolder(t.home.config.dataDir, false).files;
+    assert.ok(readdirSync(trash).includes("old.txt"));
+  });
+});
