@@ -5,6 +5,7 @@ import { Engenty } from "../engenty/Engenty";
 import type { Thread } from "../lib/events";
 import { t } from "../lib/i18n";
 import { askToNotify, canAskToNotify, notifyLater } from "../lib/notify";
+import { useThisDevice } from "../lib/queries";
 import { elapsed } from "../lib/time";
 import { Button, cn, Spinner } from "../ui";
 import { Markdown } from "../ui/Markdown";
@@ -151,6 +152,7 @@ function MessageView({
   onArtifact: (id: string) => void;
   onProblem: (text: string) => void;
 }) {
+  const me = useThisDevice();
   if (message.role === "note") {
     return (
       <div className="enter-rise flex flex-col items-center gap-2 text-center text-[0.8125rem] text-ink-3 [&_.prose-zen]:text-ink-3">
@@ -163,7 +165,12 @@ function MessageView({
       </div>
     );
   }
-  if (message.role === "you") {
+  // In a group home another admin's message stands on the other side, with their name.
+  const otherAdmin =
+    message.role === "you" &&
+    message.from?.admin !== undefined &&
+    message.from.admin !== me.data?.admin?.id;
+  if (message.role === "you" && !otherAdmin) {
     return (
       <div className="enter-rise ml-8 flex min-w-0 flex-col items-end gap-1.5 self-end">
         <Parts
@@ -200,7 +207,7 @@ function MessageView({
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-0.5">
         {message.from ? (
-          // In a room: who wrote it, and for an agent whose it is.
+          // In a room: who wrote it, and for an agent whose it is. In a group home: which admin.
           <p className="-mb-1.5 font-medium text-[0.8125rem] text-ink-2">
             {message.from.name}
             {message.from.of ? (

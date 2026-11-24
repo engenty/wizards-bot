@@ -305,6 +305,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   // ── Devices ───────────────────────────────────────────────────────────────
 
+  app.get("/v1/device", (c) => c.json(publicDevice(c.get("device"))));
+
   app.patch("/v1/device", async (c) => {
     const patch = UpdateDevice.parse(await c.req.json());
     const device = store.updateDevice(c.get("device").id, patch);

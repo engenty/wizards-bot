@@ -63,6 +63,7 @@ takes `WIZARDS_BOT_SETUP_CODE` once, for its first device, and only while it has
 }
 ```
 
+`GET /v1/device` → `Device`: the device that asks, as the home knows it.
 `PATCH /v1/device` with `UpdateDevice` → `Device`. Sets the push token, the name and quiet hours.
 `DELETE /v1/device` signs this device out. What a device keeps and offers its agents is in
 "Devices and what they keep".

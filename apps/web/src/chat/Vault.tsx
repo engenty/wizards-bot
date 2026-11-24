@@ -11,7 +11,7 @@ import { type ReactNode, useState } from "react";
 import { api } from "../lib/api";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
-import { useAgents, useVault } from "../lib/queries";
+import { useAgents, useHome, useVault } from "../lib/queries";
 import { Button, cn, Dialog, Input } from "../ui";
 import { Menu } from "../ui/Menu";
 
@@ -433,6 +433,7 @@ function line(item: VaultItem) {
 export function VaultSettings() {
   const vault = useVault();
   const agents = useAgents();
+  const home = useHome();
   const [open, setOpen] = useState<Open>(null);
   const [tab, setTab] = useState<Tab>("items");
   const [query, setQuery] = useState("");
@@ -447,6 +448,12 @@ export function VaultSettings() {
   const activity = vault.data?.activity ?? [];
   return (
     <>
+      {home.data?.group ? (
+        // A team's Vault is the team's: every admin sees and uses what is in it.
+        <p className="mb-3 text-[0.8125rem] text-ink-3">
+          {t("vault.group", { group: home.data.group.name })}
+        </p>
+      ) : null}
       {/* Two ways in, side by side and the same size; they scroll away with the list. */}
       <div className="mb-1 grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setOpen({ kind: "import" })} className={DOOR}>

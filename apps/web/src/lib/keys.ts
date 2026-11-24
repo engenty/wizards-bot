@@ -32,6 +32,8 @@ export const keys = {
   vault: () => ["vault"] as const,
   /** The plugins in the plugins folder, with whether each is on. */
   plugins: () => ["plugins"] as const,
+  /** This device as the home knows it; in a group home, with the admin it belongs to. */
+  device: () => ["device"] as const,
   /** The person's devices with what each keeps and offers its agents. */
   devices: () => ["devices"] as const,
   /** The files the person sent in a conversation. */

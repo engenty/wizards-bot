@@ -9,15 +9,16 @@ import { Frame } from "./setup/Frame";
 import { Button, Input } from "./ui";
 
 /**
- * The code of a pairing link, taken out of the address. It sits after the `#`, which a browser
- * sends to no one.
+ * The code of a pairing link, or the pass an admin of a group home brings from their account,
+ * taken out of the address. It sits after the `#`, which a browser sends to no one.
  */
-function takeLinkedCode(): string | null {
-  const code = /^#code=([A-Za-z0-9-]+)$/.exec(location.hash)?.[1] ?? null;
-  if (code) {
+function takeLinked(): { code: string } | { pass: string } | null {
+  const code = /^#code=([A-Za-z0-9-]+)$/.exec(location.hash)?.[1];
+  const pass = /^#admin=([A-Za-z0-9._-]+)$/.exec(location.hash)?.[1];
+  if (code || pass) {
     history.replaceState(null, "", location.pathname);
   }
-  return code;
+  return code ? { code } : pass ? { pass } : null;
 }
 
 /** Where a browser the home does not know starts: a pairing code makes it one of its devices. */
@@ -26,20 +27,29 @@ export function Pairing() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
-  const pair = async (entered: string) => {
+  const pair = async (entered: string | { pass: string }) => {
     setBusy(true);
     setProblem(null);
+    const name = macName() ?? t("pair.browser");
     try {
-      const paired = await api.post<PairResponse>("/v1/pair", {
-        code: entered,
-        name: macName() ?? t("pair.browser"),
-        kind: "browser",
-      });
+      const paired =
+        typeof entered === "string"
+          ? await api.post<PairResponse>("/v1/pair", { code: entered, name, kind: "browser" })
+          : await api.post<PairResponse>("/v1/pair/admin", {
+              pass: entered.pass,
+              name,
+              kind: "browser",
+            });
       setDeviceToken(paired.token);
     } catch (err) {
       const status = err instanceof ApiError ? err.status : -1;
+      // A refused pass says why: used, too old, or for someone who is no admin.
       setProblem(
-        status === 0 ? t("pair.down") : status === 401 ? t("pair.wrong") : (err as Error).message,
+        status === 0
+          ? t("pair.down")
+          : status === 401 && typeof entered === "string"
+            ? t("pair.wrong")
+            : (err as Error).message,
       );
       setBusy(false);
     }
@@ -50,9 +60,9 @@ export function Pairing() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: listens for as long as the page is shown
   useEffect(() => {
     const linked = () => {
-      const code = takeLinkedCode();
-      if (code) {
-        void pair(code);
+      const linked = takeLinked();
+      if (linked) {
+        void pair("code" in linked ? linked.code : linked);
       }
     };
     linked();

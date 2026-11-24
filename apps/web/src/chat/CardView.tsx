@@ -9,6 +9,7 @@ import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { nameOf } from "../lib/paths";
+import { useThisDevice } from "../lib/queries";
 import { Button, cn, Input } from "../ui";
 import { Markdown } from "../ui/Markdown";
 import { QrCode } from "../ui/Qr";
@@ -122,6 +123,7 @@ export function CardView({ card }: { card: Card }) {
   const [draft, setDraft] = useDraft(card.id);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const me = useThisDevice();
 
   if (card.state !== "open") {
     const action = card.actions.find((each) => each.id === card.answer?.action);
@@ -133,6 +135,9 @@ export function CardView({ card }: { card: Card }) {
         : action.label
       : undefined;
     const by = card.answer?.by;
+    // In a group home: another admin answered, and the card says who.
+    const admin = card.answer?.admin;
+    const other = admin && admin.id !== me.data?.admin?.id ? admin.name : undefined;
     return (
       <section className="rounded-xl bg-paper-2 px-4 py-3">
         <h3 className="font-medium text-[0.9375rem]">{card.title}</h3>
@@ -144,7 +149,9 @@ export function CardView({ card }: { card: Card }) {
               ? t("card.signedIn")
               : (chosen ?? t("card.answered"))}
           {by && by !== "sign-in" ? (
-            <span className="text-ink-3">· {t("card.by", { by })}</span>
+            <span className="text-ink-3">
+              · {other ? t("card.byAdmin", { name: other, by }) : t("card.by", { by })}
+            </span>
           ) : null}
         </p>
         {problem ? (

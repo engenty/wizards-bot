@@ -3,7 +3,7 @@ import type { Agent, Avatar } from "@wizards-bot/protocol";
 import { LogOut, Plus, Search, Settings, Smile } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { lang, t } from "../lib/i18n";
-import { useHome } from "../lib/queries";
+import { useHome, useThisDevice } from "../lib/queries";
 import { when } from "../lib/time";
 import { LangSwitch, ThemeSwitch } from "../setup/Frame";
 import { cn, IconButton } from "../ui";
@@ -183,15 +183,19 @@ export function Sidebar({
   onSignOut: () => void;
 }) {
   const home = useHome();
+  const me = useThisDevice();
   const listed = inOrder(agents);
-  const where = botServerName();
+  // In a group home the admin is named, and the Bot Server is the team's.
+  const admin = home.data?.group ? me.data?.admin : undefined;
+  const name = admin?.name ?? home.data?.name;
+  const where = admin ? `${home.data?.group?.name} · ${botServerName()}` : botServerName();
   const you = <StackedAvatar avatar={avatar ?? DEFAULT_AVATAR} size={1} view="head" follows />;
   /** The person's own things: their avatar, and signing this browser out. */
   const userMenu = {
-    label: home.data?.name ?? t("you.label"),
+    label: name ?? t("you.label"),
     head: (
       <>
-        <p className="truncate font-medium text-[0.875rem]">{home.data?.name}</p>
+        <p className="truncate font-medium text-[0.875rem]">{name}</p>
         <p className="truncate text-[0.75rem] text-ink-3">{where}</p>
         {/* The theme and the language, each on a line of its own, as in engenty wizards' menu. */}
         <div className="mt-3 flex items-center justify-between gap-3">
@@ -263,7 +267,7 @@ export function Sidebar({
         >
           <span className="flex shrink-0 justify-center">{you}</span>
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-medium text-[0.9375rem]">{home.data?.name}</span>
+            <span className="truncate font-medium text-[0.9375rem]">{name}</span>
             <span className="truncate text-[0.8125rem] text-ink-3">{where}</span>
           </span>
         </Menu>

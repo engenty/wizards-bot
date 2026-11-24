@@ -229,6 +229,15 @@ export function useDevices() {
   });
 }
 
+/** This device as the home knows it; in a group home it names its admin. */
+export function useThisDevice() {
+  return useQuery({
+    queryKey: keys.device(),
+    queryFn: ({ signal }) => api.get<Device>("/v1/device", signal),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
 /** The person's avatar; null while they have made none. */
 export function useAvatar() {
   return useQuery({
