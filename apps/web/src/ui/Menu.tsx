@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from ".";
 
@@ -5,18 +6,22 @@ export interface MenuItem {
   icon: ReactNode;
   label: string;
   onSelect: () => void;
+  /** For a choice of one: whether this is the one in effect. */
+  checked?: boolean;
 }
 
 /**
  * A small menu at its button: above it when the button is in the lower half of the window, as the
  * composer's + is, below it otherwise, as the person's card at the top of the list is; it ends at
  * the button's right edge when the button stands in the right half. A click beside it or Escape
- * closes it. `head` is shown above the items, e.g. who is signed in.
+ * closes it. `head` is shown above the items, e.g. who is signed in, `foot` below them.
  */
 export function Menu({
   label,
   head,
   items,
+  foot,
+  narrow = false,
   className,
   children,
 }: {
@@ -25,6 +30,9 @@ export function Menu({
   head?: ReactNode;
   /** `null` draws a line between groups. */
   items: (MenuItem | null)[];
+  foot?: ReactNode;
+  /** A menu of a few short items. */
+  narrow?: boolean;
   className?: string;
   /** What the button shows. */
   children: ReactNode;
@@ -101,7 +109,10 @@ export function Menu({
           role="menu"
           aria-label={label}
           style={{ top: at.top, bottom: at.bottom, left: at.left, right: at.right }}
-          className="enter-pop fixed z-50 w-72 max-w-[calc(100vw-2rem)] rounded-xl bg-card p-1 shadow-overlay ring-1 ring-border"
+          className={cn(
+            "enter-pop fixed z-50 max-w-[calc(100vw-2rem)] rounded-xl bg-card p-1 shadow-overlay ring-1 ring-border",
+            narrow ? "w-52" : "w-72",
+          )}
         >
           {head ? <div className="px-3 pt-2 pb-1.5">{head}</div> : null}
           {items.map((item, i) =>
@@ -109,7 +120,9 @@ export function Menu({
               <button
                 key={item.label}
                 type="button"
-                role="menuitem"
+                {...(item.checked === undefined
+                  ? { role: "menuitem" }
+                  : { role: "menuitemradio", "aria-checked": item.checked })}
                 onClick={() => {
                   setAt(null);
                   item.onSelect();
@@ -121,6 +134,7 @@ export function Menu({
               >
                 {item.icon}
                 <span className="flex-1">{item.label}</span>
+                {item.checked ? <Check className="size-4 shrink-0" /> : null}
               </button>
             ) : (
               <hr
@@ -129,6 +143,7 @@ export function Menu({
               />
             ),
           )}
+          {foot ? <div className="px-3 pt-1.5 pb-2">{foot}</div> : null}
         </div>
       ) : null}
     </>
