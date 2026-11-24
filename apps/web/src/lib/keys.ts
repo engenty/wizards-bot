@@ -20,6 +20,8 @@ export const keys = {
   contacts: () => ["contacts"] as const,
   models: () => ["models"] as const,
   folders: () => ["folders"] as const,
+  /** The person's home folder on the Bot Server's computer, where the folder picker starts. */
+  folderHome: () => ["folderHome"] as const,
   /** What uses each secret of the home, never a value. */
   secrets: () => ["secrets"] as const,
   /** The Vault: its logins, cards and notes without their secrets, and what was done with them. */

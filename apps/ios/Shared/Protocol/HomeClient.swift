@@ -187,17 +187,14 @@ nonisolated struct HomeClient: Sendable {
         return envelope.folders
     }
 
-    /// Opens the folder dialog of the home's computer. The home answers once the dialog is closed,
-    /// which can take minutes; cancelling the task gives up the wait.
-    func pickFolder() async throws -> FolderPick {
-        var request = request("POST", "/v1/folders/pick")
-        request.timeoutInterval = 900
-        return try Self.decode(try await data(for: request, in: Self.patientSession))
-    }
-
     /// The folders inside `path`; without one, the person's home folder on that computer.
     func browseFolders(_ path: String? = nil) async throws -> FolderListing {
         try await send("GET", "/v1/folders/browse", query: path.map { [URLQueryItem(name: "path", value: $0)] } ?? [])
+    }
+
+    /// Makes a new folder `name` inside `parent` and lists it.
+    func makeFolder(in parent: String, named name: String) async throws -> FolderListing {
+        try await send("POST", "/v1/folders/new", body: MakeFolder(parent: parent, name: name))
     }
 
     func previewFolder(_ path: String) async throws -> FolderPreview {

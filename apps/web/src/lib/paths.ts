@@ -23,3 +23,42 @@ export function completions(listing: FolderListing, typed: string): FolderListin
     (folder) => folder.name.toLowerCase().startsWith(stem) && folder.path !== typed,
   );
 }
+
+/** A path with the person's home folder as `~`, e.g. `~/Documents/Trips`. */
+export function tilde(path: string, home: string | undefined): string {
+  if (!home) {
+    return path;
+  }
+  const sep = separatorOf(home);
+  if (path === home) {
+    return "~";
+  }
+  return path.startsWith(home + sep) ? `~${sep}${path.slice(home.length + 1)}` : path;
+}
+
+/** The last part of a path: the folder's own name. */
+export function nameOf(path: string): string {
+  const parts = trimmedPath(path).split(separatorOf(path));
+  return parts.at(-1) || path;
+}
+
+/**
+ * The folders from the person's home folder down to `path`, each with its path: the breadcrumbs
+ * of the folder picker. The home folder itself comes first.
+ */
+export function crumbs(path: string, home: string): { name: string; path: string }[] {
+  const sep = separatorOf(home);
+  const steps = [{ name: nameOf(home), path: home }];
+  if (!path.startsWith(home + sep)) {
+    return steps;
+  }
+  let at = home;
+  for (const part of path
+    .slice(home.length + 1)
+    .split(sep)
+    .filter(Boolean)) {
+    at = `${at}${sep}${part}`;
+    steps.push({ name: part, path: at });
+  }
+  return steps;
+}

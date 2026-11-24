@@ -269,13 +269,6 @@ nonisolated struct ConnectFolder: Codable, Hashable, Sendable {
     var conversationId: String?
 }
 
-/// What the folder dialog of the home's computer gave. `dialog` false: that computer shows no
-/// dialog, and the device asks for the path. `path` nil with `dialog` true: the person closed it.
-nonisolated struct FolderPick: Codable, Hashable, Sendable {
-    var path: String?
-    var dialog: Bool
-}
-
 /// What a folder holds, shown before it is connected. Counting stops at a limit; `more` says the
 /// folder holds more than was counted.
 nonisolated struct FolderPreview: Codable, Hashable, Sendable {
@@ -287,16 +280,27 @@ nonisolated struct FolderPreview: Codable, Hashable, Sendable {
     var more: Bool
 }
 
-/// The folders inside a path, for a path field.
+/// The folders inside a folder of the person's home folder on the home's computer, for the
+/// folder picker. Only folders, nothing hidden, nothing outside the home folder.
 nonisolated struct FolderListing: Codable, Hashable, Sendable {
-    nonisolated struct Entry: Codable, Hashable, Sendable {
+    nonisolated struct Entry: Codable, Hashable, Sendable, Identifiable {
         var name: String
         var path: String
+        var id: String { path }
     }
 
     var path: String
+    /// The folder one up; nil at the person's home folder, where the picker starts.
     var parent: String?
+    /// The person's home folder: where the picker starts and what `~` stands for.
+    var home: String
     var folders: [Entry]
+}
+
+/// A new folder `name` inside `parent`.
+nonisolated struct MakeFolder: Codable, Hashable, Sendable {
+    var parent: String
+    var name: String
 }
 
 /// A key, token or password the person gave the home: what uses it and when it was set, never its value.

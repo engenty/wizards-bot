@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -9,14 +8,14 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, resolve, sep } from "node:path";
-import { promisify } from "node:util";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   type ConnectFolder,
   FOLDER_PREVIEW_LIMIT,
   type Folder,
   type FolderListing,
   type FolderPreview,
+  type MakeFolder,
 } from "@wizards-bot/protocol";
 import { z } from "zod";
 import { defineTool, type Tool } from "../agent/tool.ts";
@@ -25,13 +24,12 @@ import { isText, sniff } from "../files/check.ts";
 import { forModel, type Picture } from "../files/pictures.ts";
 import type { Home } from "../home.ts";
 import { newId, now } from "../ids.ts";
+import { langOf, say, w } from "../setup/words.ts";
 import { documentKind, documentText, piece } from "../skills/office/read.ts";
 
 // Folders of the home's computer that agents may use. The files stay where they are: the
 // home reads them in place when an agent asks, and copies nothing. An agent changes a file
 // only in a folder connected for that, and only after the person said yes to that change.
-
-const run = promisify(execFile);
 
 const ENDS_TURN =
   "The card is in the chat. End your turn now with at most one short sentence. The answer arrives as the next message.";
@@ -92,6 +90,19 @@ interface Row {
 const visible = (name: string): boolean =>
   !name.startsWith(".") && !name.startsWith("~$") && !SKIPPED.has(name);
 
+/**
+ * A folder the picker may show: the person's home folder `top` or one inside it, with no
+ * hidden folder on the way.
+ */
+function inHome(top: string, real: string): string {
+  const inside = relative(top, real);
+  if (inside.startsWith("..") || isAbsolute(inside))
+    throw new FolderRefused("invalid", "Only folders in your home folder are shown here.");
+  if (inside.split(sep).some((part) => part && !visible(part)))
+    throw new FolderRefused("invalid", "A hidden folder is not shown here.");
+  return real;
+}
+
 /** `~` and `~/…` as the person's home folder. */
 const expand = (path: string): string =>
   path === "~" ? homedir() : path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
@@ -118,49 +129,39 @@ export class Folders {
   }
 
   /**
-   * Opens the folder dialog of this computer. `dialog: false` where there is none, e.g. on
-   * a server: the device then asks for the path.
+   * The folders inside a folder, for the folder picker. Only the person's home folder and what
+   * is in it, only folders, nothing hidden; without a path it starts at the home folder. A path
+   * whose last part is not a folder yet (a half-typed name) lists its parent.
    */
-  async pick(): Promise<{ path: string | null; dialog: boolean }> {
-    try {
-      if (process.platform === "darwin") {
-        const { stdout } = await run(
-          "osascript",
-          [
-            "-e",
-            'POSIX path of (choose folder with prompt "Which folder should your agents use?")',
-          ],
-          { timeout: 5 * 60_000 },
-        );
-        return { path: stdout.trim().replace(/\/$/, "") || null, dialog: true };
-      }
-      if (process.platform === "linux" && process.env.DISPLAY) {
-        const { stdout } = await run("zenity", ["--file-selection", "--directory"], {
-          timeout: 5 * 60_000,
-        });
-        return { path: stdout.trim() || null, dialog: true };
-      }
-    } catch (error) {
-      // The person closed the dialog: the command ends with a failure and says nothing.
-      const failed = error as { code?: number | string; killed?: boolean };
-      if (typeof failed.code === "number" && !failed.killed) return { path: null, dialog: true };
-    }
-    return { path: null, dialog: false };
-  }
-
-  /** The folders inside a path, for a path field. Starts at the person's home folder. */
   browse(path?: string): FolderListing {
-    const wanted = resolve(expand(path?.trim() || homedir()));
-    // A half-typed name lists its parent, so the field can complete it.
+    const top = realpathSync(homedir());
+    const wanted = resolve(top, expand(path?.trim() || top));
     const at = existsSync(wanted) && statSync(wanted).isDirectory() ? wanted : dirname(wanted);
-    if (!existsSync(at))
+    if (!existsSync(at) || !statSync(at).isDirectory())
       throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
-    const folders = safeEntries(at)
+    const real = inHome(top, realpathSync(at));
+    const folders = safeEntries(real)
       .filter((entry) => entry.isDirectory())
-      .map((entry) => ({ name: entry.name, path: join(at, entry.name) }))
+      .map((entry) => ({ name: entry.name, path: join(real, entry.name) }))
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, LIST_LIMIT);
-    return { path: at, parent: at === dirname(at) ? null : dirname(at), folders };
+    return { path: real, parent: real === top ? null : dirname(real), home: top, folders };
+  }
+
+  /** Makes a new folder in a folder of the person's home folder, and lists it. */
+  makeFolder(input: MakeFolder): FolderListing {
+    const wanted = resolve(realpathSync(homedir()), expand(input.parent.trim()));
+    if (!existsSync(wanted) || !statSync(wanted).isDirectory())
+      throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
+    const parent = this.browse(wanted);
+    const name = input.name.trim();
+    if (/[/\\:]/.test(name) || !visible(name))
+      throw new FolderRefused("invalid", "A folder’s name cannot start with a dot or hold / or :.");
+    const target = join(parent.path, name);
+    if (existsSync(target))
+      throw new FolderRefused("invalid", `There is a folder or file named “${name}” already.`);
+    mkdirSync(target);
+    return this.browse(target);
   }
 
   /** What a folder holds, counted up to a limit. Throws `FolderRefused` for a folder no home connects. */
@@ -530,36 +531,84 @@ export class Folders {
       defineTool({
         name: "folder_connect",
         description:
-          "Connect a folder of the Bot Server's computer by its path, so agents can read its files (`read`) or also change them after asking (`write`). Asks the person first. Ends your turn.",
-        input: z.object({ path: z.string(), access: z.enum(["read", "write"]) }),
+          "Connect a folder of the Bot Server's computer, so agents can read its files (`read`) or also change them after asking (`write`). Shows the person a card where they pick the folder and say yes in one go. Leave out `path` unless the person wrote the exact path: never ask for a path, in a question or otherwise. Ends your turn.",
+        input: z.object({
+          purpose: z
+            .string()
+            .describe(
+              "One short line in the person's language: what the folder is for, e.g. “A folder for the legal texts Lex keeps”.",
+            ),
+          access: z.enum(["read", "write"]),
+          path: z
+            .string()
+            .optional()
+            .describe("Only a path the person wrote. The card then starts with that folder."),
+        }),
         label: () => "Asking to connect a folder",
-        run: async (input) => {
-          let preview: FolderPreview;
-          try {
-            preview = this.preview(input.path);
-          } catch (error) {
-            return (error as Error).message;
+        asks: true,
+        run: async (input, call) => {
+          if (call.answer) {
+            const picked = call.answer.values.folder;
+            if (call.answer.action !== "connect" || typeof picked !== "string" || !picked)
+              return "The person did not connect a folder. Do not ask for its path.";
+            const chosen = call.answer.values.access;
+            const folder = this.connect({
+              path: picked,
+              access: chosen === "read" || chosen === "write" ? chosen : input.access,
+            });
+            return `The folder ${folder.name} is connected (${folder.access === "write" ? "read and change after asking" : "read only"}). Go on with what the person wanted.`;
           }
-          const card = home.store.createCard(
-            {
-              kind: "approval",
-              level: "needs_you",
-              title: `Connect the folder “${preview.name}”?`,
-              body: `\`${preview.path}\`\n\n${preview.more ? "More than " : ""}${preview.files} files in ${preview.folders} folders. The files stay where they are. ${
-                input.access === "write"
-                  ? "Agents read them and ask before each change."
-                  : "Agents only read them."
-              }`,
-              actions: [
-                { id: "connect", label: "Connect folder", style: "primary" },
-                { id: "keep", label: "Don’t connect", style: "plain" },
-              ],
-              payload: { type: "folder_connect", path: preview.path, access: input.access },
-            },
-            where,
-          );
-          draft.add({ type: "card", card });
-          return ENDS_TURN;
+          let start: string | undefined;
+          if (input.path) {
+            try {
+              start = this.preview(input.path).path;
+            } catch (error) {
+              return `${(error as Error).message} Call \`folder_connect\` again without \`path\`: the person picks the folder.`;
+            }
+          }
+          const lang = langOf(home.db);
+          return call.ask({
+            kind: "question",
+            level: "needs_you",
+            title: input.purpose,
+            body: say(
+              w("The files stay where they are.", "Die Dateien bleiben, wo sie sind."),
+              lang,
+            ),
+            fields: [
+              {
+                id: "folder",
+                label: say(w("Folder", "Ordner"), lang),
+                type: "folder",
+                required: true,
+                ...(start ? { value: start } : {}),
+              },
+              {
+                id: "access",
+                label: say(
+                  w("What may your agents do in it?", "Was dürfen deine Agenten darin?"),
+                  lang,
+                ),
+                type: "choice",
+                required: true,
+                value: input.access,
+                options: [
+                  { id: "read", label: say(w("Read only", "Nur lesen"), lang) },
+                  {
+                    id: "write",
+                    label: say(
+                      w("Read and change, after asking", "Lesen und ändern, nach Rückfrage"),
+                      lang,
+                    ),
+                  },
+                ],
+              },
+            ],
+            actions: [
+              { id: "connect", label: say(w("Connect", "Verbinden"), lang), style: "primary" },
+              { id: "keep", label: say(w("Don’t", "Nicht verbinden"), lang), style: "plain" },
+            ],
+          });
         },
       }),
       defineTool({
@@ -578,18 +627,6 @@ export class Folders {
 
   private registerCards(): void {
     const { home } = this;
-    home.onCard("folder_connect", ({ card, action, payload }) => {
-      if (action !== "connect")
-        return home.tell(card.conversationId, `The person did not connect the folder.`);
-      const folder = this.connect({
-        path: String(payload.path),
-        access: payload.access === "write" ? "write" : "read",
-      });
-      home.tell(
-        card.conversationId,
-        `The folder ${folder.name} is connected (${folder.access}). Go on with what the person wanted.`,
-      );
-    });
     home.onCard("folder_write", ({ card, action, payload }) => {
       const folder = this.list().find((each) => each.id === payload.folderId);
       const path = String(payload.path);

@@ -137,6 +137,15 @@ import Testing
                 #expect(throws: Never.self) { try JSONDecoder().decode(DeviceResources.self, from: data) }
             } else if keys.isSuperset(of: ["deviceId", "agentName"]) {
                 #expect(throws: Never.self) { try JSONDecoder().decode(Handoff.self, from: data) }
+            } else if keys.isSuperset(of: ["home", "folders"]) {
+                #expect(throws: Never.self) { try JSONDecoder().decode(FolderListing.self, from: data) }
+            } else if keys.isSuperset(of: ["fields", "actions"]) {
+                // The part of a card an example shows: its fields and its actions.
+                let card = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+                let fields = try JSONSerialization.data(withJSONObject: card["fields"] ?? [])
+                let actions = try JSONSerialization.data(withJSONObject: card["actions"] ?? [])
+                #expect(throws: Never.self) { try JSONDecoder().decode([CardField].self, from: fields) }
+                #expect(throws: Never.self) { try JSONDecoder().decode([CardAction].self, from: actions) }
             } else if keys.isSuperset(of: ["access", "path"]) {
                 #expect(throws: Never.self) { try JSONDecoder().decode(Folder.self, from: data) }
             } else if keys.isSuperset(of: ["mime", "size"]), !keys.contains("type") {
@@ -808,13 +817,19 @@ import Testing
         """).folders
         #expect(folders.map(\.name) == ["ausgaben", "frida", "later"])
         #expect(folders.map(\.access) == [.read, .write, .unknown("append")])
-        #expect(try decode(FolderPick.self, #"{ "path": null, "dialog": true }"#) == FolderPick(path: nil, dialog: true))
-        #expect(try decode(FolderPick.self, #"{ "path": "/srv/data", "dialog": false }"#).path == "/srv/data")
         let preview = try decode(FolderPreview.self, #"{ "path": "/Users/ada/Trips", "name": "Trips", "files": 120, "folders": 8, "bytes": 4200000, "more": false }"#)
         #expect(preview.files == 120)
         #expect(preview.folders == 8)
-        let listing = try decode(FolderListing.self, #"{ "path": "/Users/ada", "parent": null, "folders": [ { "name": "Trips", "path": "/Users/ada/Trips" } ] }"#)
+        let listing = try decode(FolderListing.self, #"{ "path": "/Users/ada", "parent": null, "home": "/Users/ada", "folders": [ { "name": "Trips", "path": "/Users/ada/Trips" } ] }"#)
         #expect(listing.folders.first?.path == "/Users/ada/Trips")
+        #expect(listing.home == "/Users/ada")
+        let made = try JSONSerialization.jsonObject(with: JSONEncoder().encode(
+            MakeFolder(parent: "/Users/ada", name: "Gesetze")
+        )) as? [String: String]
+        #expect(made == ["parent": "/Users/ada", "name": "Gesetze"])
+        let field = try decode(CardField.self, #"{ "id": "folder", "label": "Ordner", "type": "folder", "required": true, "value": "/Users/ada/Trips" }"#)
+        #expect(field.type == .folder)
+        #expect(field.value == .text("/Users/ada/Trips"))
         let sent = try JSONSerialization.jsonObject(with: JSONEncoder().encode(
             ConnectFolder(path: "/Users/ada/Trips", access: .write, conversationId: "cnv_1")
         )) as? [String: String]

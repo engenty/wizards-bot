@@ -11,7 +11,7 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
-import type { Folder, FolderPreview } from "@wizards-bot/protocol";
+import type { Folder, FolderListing, FolderPreview } from "@wizards-bot/protocol";
 import { type TestHome, testHome, textOf } from "../test/fakes.ts";
 
 describe("a connected folder", () => {
@@ -64,20 +64,6 @@ describe("a connected folder", () => {
     assert.equal(
       (await t.request("/v1/folders", { body: { path: "/", access: "read" } })).status,
       400,
-    );
-  });
-
-  test("is listed for a path field", async () => {
-    const listing = (await (
-      await t.request(`/v1/folders/browse?path=${encodeURIComponent(join(root, "kra"))}`)
-    ).json()) as {
-      path: string;
-      folders: { name: string }[];
-    };
-    assert.equal(listing.path, root);
-    assert.deepEqual(
-      listing.folders.map((folder) => folder.name),
-      ["krakow"],
     );
   });
 
@@ -181,18 +167,130 @@ describe("a connected folder", () => {
     assert.equal(existsSync(join(outside, "escape.md")), false);
   });
 
-  test("an agent connects a folder only with the person's yes, and is gone when disconnected", async () => {
+  /** Lets the agent call a tool that asks: its run waits for the card's answer. */
+  const asks = async (args: Record<string, unknown>): Promise<void> => {
+    t.model.script.push({ calls: [{ name: "folder_connect", arguments: args }] });
+    await t.say("connect a folder");
+  };
+
+  test("an agent asks with one card where the person picks the folder and says yes", async () => {
     const second = realpathSync(mkdtempSync(join(tmpdir(), "wizards-bot-notes-")));
-    await call("folder_connect", { path: second, access: "read" });
+    await asks({ purpose: "A folder for the legal texts", access: "write" });
     const card = t.item();
-    assert.match(card.title, /^Connect the folder “wizards-bot-notes-/);
+    assert.equal(card.title, "A folder for the legal texts");
+    const [folder, access] = card.fields ?? [];
+    assert.equal(folder?.type, "folder");
+    assert.equal(folder?.value, undefined);
+    assert.deepEqual([access?.type, access?.value], ["choice", "write"]);
     assert.equal(t.home.folders.list().length, 1);
+
+    // A folder the home does not connect keeps the card open.
+    const refused = await t.request(`/v1/cards/${card.id}/answer`, {
+      body: { action: "connect", values: { folder: "/", access: "read" } },
+    });
+    assert.equal(refused.status, 400);
+    assert.equal(t.item().id, card.id);
+
     t.model.script.push({ text: "Connected." });
-    await t.answer(card.id, "connect");
-    assert.equal(t.home.folders.list().length, 2);
-    const added = t.home.folders.list().find((folder) => folder.path === second) as Folder;
+    await t.answer(card.id, "connect", { folder: second, access: "read" });
+    assert.equal(t.home.store.items().length, 0);
+    const added = t.home.folders.list().find((each) => each.path === second) as Folder;
+    assert.equal(added.access, "read");
+    assert.match(textOf(t.last()), /Connected\./);
+    const told = (t.model.requests.at(-1)?.messages ?? []) as { role: string; content: string }[];
+    assert.match(
+      told.findLast((message) => message.role === "tool")?.content ?? "",
+      /is connected \(read only\)/,
+    );
+
     assert.equal((await t.request(`/v1/folders/${added.id}`, { method: "DELETE" })).status, 204);
     assert.equal(t.home.folders.list().length, 1);
     assert.equal(existsSync(second), true);
+  });
+
+  test("a path the person wrote starts the card with that folder; a no connects nothing", async () => {
+    const third = realpathSync(mkdtempSync(join(tmpdir(), "wizards-bot-laws-")));
+    await asks({ purpose: "Laws", access: "read", path: third });
+    const card = t.item();
+    assert.equal(card.fields?.[0]?.value, third);
+    t.model.script.push({ text: "Fine." });
+    await t.answer(card.id, "keep", { folder: third, access: "read" });
+    assert.equal(
+      t.home.folders.list().some((each) => each.path === third),
+      false,
+    );
+    assert.match(
+      await call("folder_connect", { purpose: "Laws", access: "read", path: join(third, "nope") }),
+      /without `path`/,
+    );
+  });
+});
+
+describe("the folder picker", () => {
+  let t: TestHome;
+  let home: string;
+  let was: string | undefined;
+
+  before(async () => {
+    t = await testHome("Ada");
+    home = realpathSync(mkdtempSync(join(tmpdir(), "wizards-bot-home-")));
+    mkdirSync(join(home, "Documents", "Trips"), { recursive: true });
+    mkdirSync(join(home, ".ssh"));
+    writeFileSync(join(home, "Documents", "notes.md"), "# Notes\n");
+    was = process.env.HOME;
+    process.env.HOME = home;
+  });
+  after(() => {
+    process.env.HOME = was;
+    return t.stop();
+  });
+
+  const browse = (path?: string) =>
+    t.request(`/v1/folders/browse${path === undefined ? "" : `?path=${encodeURIComponent(path)}`}`);
+
+  test("starts at the home folder and lists folders only, nothing hidden", async () => {
+    const listing = (await (await browse()).json()) as FolderListing;
+    assert.deepEqual([listing.path, listing.parent, listing.home], [home, null, home]);
+    assert.deepEqual(
+      listing.folders.map((folder) => folder.name),
+      ["Documents"],
+    );
+    const inside = (await (await browse("~/Documents")).json()) as FolderListing;
+    assert.equal(inside.parent, home);
+    assert.deepEqual(
+      inside.folders.map((folder) => folder.name),
+      ["Trips"],
+    );
+  });
+
+  test("completes a half-typed name from its parent", async () => {
+    const listing = (await (await browse(join(home, "Documents", "Tr"))).json()) as FolderListing;
+    assert.equal(listing.path, join(home, "Documents"));
+  });
+
+  test("stays inside the home folder and out of hidden folders", async () => {
+    assert.equal((await browse(tmpdir())).status, 400);
+    assert.equal((await browse(join(home, ".."))).status, 400);
+    assert.equal((await browse("/")).status, 400);
+    assert.equal((await browse("~/.ssh")).status, 400);
+    symlinkSync(tmpdir(), join(home, "Documents", "out"));
+    assert.equal((await browse(join(home, "Documents", "out"))).status, 400);
+  });
+
+  test("makes a new folder there and lists it", async () => {
+    const made = await t.request("/v1/folders/new", {
+      body: { parent: join(home, "Documents"), name: "Gesetze" },
+    });
+    const listing = (await made.json()) as FolderListing;
+    assert.equal(listing.path, join(home, "Documents", "Gesetze"));
+    assert.deepEqual(listing.folders, []);
+    assert.equal(existsSync(join(home, "Documents", "Gesetze")), true);
+    const status = async (parent: string, name: string) =>
+      (await t.request("/v1/folders/new", { body: { parent, name } })).status;
+    assert.equal(await status(join(home, "Documents"), "Gesetze"), 400);
+    assert.equal(await status(join(home, "Documents"), ".hidden"), 400);
+    assert.equal(await status(join(home, "Documents"), "a/b"), 400);
+    assert.equal(await status(tmpdir(), "escape"), 400);
+    assert.equal(existsSync(join(tmpdir(), "escape")), false);
   });
 });

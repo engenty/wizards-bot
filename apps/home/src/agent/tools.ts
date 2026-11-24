@@ -19,7 +19,7 @@ export function buildTools(context: TurnContext): Tool[] {
     defineTool({
       name: "ask",
       description:
-        "Ask the person for a decision, an approval or a short answer with a card in the chat. Give choices for a decision (the first is the one you would pick) or a field for free text. Ends your turn.",
+        "Ask the person for a decision, an approval or a short answer with a card in the chat. Give choices for a decision (the first is the one you would pick) or a field for free text. Never ask for the path of a folder: the person picks a folder on the card of `folder_connect`. Ends your turn.",
       input: z.object({
         title: z.string().describe("The question, one sentence."),
         body: z.string().optional().describe("What the person needs to know to answer. Markdown."),

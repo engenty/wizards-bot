@@ -30,6 +30,23 @@ struct CardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.fill.quaternary, in: .rect(cornerRadius: 20))
         .accessibilityElement(children: .contain)
+        .onAppear(perform: start)
+    }
+
+    /// The fields start with what the card gives them.
+    private func start() {
+        for field in card.fields ?? [] {
+            switch (field.type, field.value) {
+            case (.choice, .text(let value)?), (.multi, .text(let value)?):
+                if choices[field.id] == nil { choices[field.id] = [value] }
+            case (.multi, .many(let values)?):
+                if choices[field.id] == nil { choices[field.id] = Set(values) }
+            case (_, .text(let value)?):
+                if texts[field.id] == nil { texts[field.id] = value }
+            default:
+                break
+            }
+        }
     }
 
     // MARK: Open
@@ -182,8 +199,10 @@ struct CardView: View {
     private var closed: some View {
         if card.state == .answered {
             if let chosen = card.chosen {
-                QuietLine(symbol: "checkmark", text: Text(chosen.label))
-                    .accessibilityLabel(Text("Answered: \(chosen.label)"))
+                // A folder the person picked on the card is named beside the yes.
+                let label = pickedFolder(chosen).map { "\(chosen.label) · \(FolderField.name(of: $0))" } ?? chosen.label
+                QuietLine(symbol: "checkmark", text: Text(verbatim: label))
+                    .accessibilityLabel(Text("Answered: \(label)"))
             } else if card.answer?.by == Card.signIn {
                 // The home answered it itself when the sign-in was done.
                 QuietLine(symbol: "checkmark", text: Text("signed in"))
@@ -193,6 +212,16 @@ struct CardView: View {
         } else {
             QuietLine(symbol: "clock", text: Text("no longer open"))
         }
+    }
+}
+
+extension CardView {
+    /// The folder picked on an answered card, with its main action.
+    fileprivate func pickedFolder(_ chosen: CardAction) -> String? {
+        guard chosen.style == .primary,
+              let field = card.fields?.first(where: { $0.type == .folder }),
+              case .text(let path)? = card.answer?.values?[field.id], !path.isEmpty else { return nil }
+        return path
     }
 }
 
@@ -225,6 +254,8 @@ private struct FieldView: View {
                         chosen.formSymmetricDifference([option.id])
                     }
                 }
+            case .folder:
+                FolderField(path: $text)
             default:
                 TextField(text: $text, prompt: Text(verbatim: field.placeholder ?? ""), axis: .vertical) { Text(verbatim: field.label) }
                     .lineLimit(1 ... 5)

@@ -71,9 +71,13 @@ nonisolated enum CardState: OpenEnum {
 
 nonisolated enum FieldType: OpenEnum {
     case text, secret, choice, multi
+    /// A folder of the home's computer the person picks; its value is the folder's path.
+    case folder
     case unknown(String)
 
-    static let known: [String: FieldType] = ["text": .text, "secret": .secret, "choice": .choice, "multi": .multi]
+    static let known: [String: FieldType] = [
+        "text": .text, "secret": .secret, "choice": .choice, "multi": .multi, "folder": .folder,
+    ]
     var unknownValue: String? { if case .unknown(let raw) = self { raw } else { nil } }
 }
 
@@ -97,6 +101,8 @@ nonisolated struct CardField: Codable, Hashable, Sendable, Identifiable {
     var options: [FieldOption]?
     var placeholder: String?
     var required: Bool?
+    /// What the field starts with. The person may change it; it is sent like a typed value.
+    var value: FieldValue?
 }
 
 nonisolated struct CardAction: Codable, Hashable, Sendable, Identifiable {

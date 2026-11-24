@@ -224,6 +224,11 @@ card as answered.
 first. This is the list of what needs the person. A device answers them in place with the same
 route. `Agent.open` counts them per agent.
 
+A field of type `folder` is a folder of the home's computer: the device shows its folder picker
+(see Folders), never a bare text field, and sends the chosen folder's path as the value. With the
+card's main action the home checks that it may connect that folder: 400 `invalid` or 404
+`not_found` otherwise, and the card stays open.
+
 A field may carry `value`: what it starts with. The device shows it typed or picked, and sends
 it like a typed value unless the person changes it. A card of another kind than `connect` may
 carry `url` as well: a page the person opens in the system browser ("Open page"), with the
@@ -284,7 +289,7 @@ A tool of the home that needs the person asks with a card and stops (`call.ask` 
 A message that arrives while a run is suspended ends that run, so the message is read at once.
 The card stays open and is then answered the second way. A start of the home ends nothing:
 Mastra kept the run and goes on with it when the answer comes. What the person typed travels beside Mastra to the tool: Mastra keeps the card's id, not
-the answer. `ask` and `connection_call` ask this way; the other cards still start a new turn
+the answer. `ask`, `connection_call` and `folder_connect` ask this way; the other cards still start a new turn
 through `home.onCard`.
 
 ## Documents
@@ -1020,20 +1025,38 @@ only says which folder.
 
 `GET /v1/folders` → `{ "folders": Folder[] }`.
 
-`POST /v1/folders/pick` → `{ "path": string | null, "dialog": boolean }`. Opens the folder
-dialog of the home's computer. `dialog: false`: that computer shows no dialog (a server), and the
-device asks for the path. `path: null` with `dialog: true`: the person closed the dialog. The
-home answers only when the dialog is closed, which can take minutes, and a device cannot know
-whether the person sits at that computer: it offers the path field meanwhile and may give up the
-request.
+A device never asks the person to type a path first. It offers a folder picker:
 
-`GET /v1/folders/browse?path=<path>` → `FolderListing`: the folders inside `path`, for a path
-field. Without `path` it starts at the person's home folder. A path whose last part is not a
-folder yet (a half-typed name) lists its parent; `~` stands for the home folder.
+| Where the person is                                     | The picker                                                                                                        |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| the Mac app, with the home on the same Mac              | the Mac's own folder panel (`NSOpenPanel`, folders only, a new folder allowed), through the app's bridge          |
+| a browser, the Mac app with a home elsewhere, the phone | the home's folder browser below: the person's home folder, one level at a time, with breadcrumbs and a new folder |
+
+Typing the path stays possible as a second way where a device offers it.
+
+`GET /v1/folders/browse?path=<path>` → `FolderListing`: the folders inside `path`, for the folder
+browser. Without `path` it starts at the person's home folder (`home`); `~` stands for it, and a
+relative path is read from it. A path whose last part is not a folder yet (a half-typed name)
+lists its parent. Only the home folder and what is in it is shown, only folders (no files and
+nothing of what they hold), nothing hidden, and no link that leads out: anything else is 400
+`invalid`; 404 `not_found` when there is no such folder. `parent` is null at the home folder.
+
+```json
+{
+  "path": "/Users/ada/Documents",
+  "parent": "/Users/ada",
+  "home": "/Users/ada",
+  "folders": [{ "name": "Trips", "path": "/Users/ada/Documents/Trips" }]
+}
+```
+
+`POST /v1/folders/new` with `{ "parent": "…", "name": "Gesetze" }` → the `FolderListing` of the
+new folder. The same bounds as above; a name that starts with a dot, holds `/`, `\` or `:`, or is
+taken already is 400 `invalid`.
 
 `POST /v1/folders/preview` with `{ "path": "…" }` → `FolderPreview`. 404 `not_found` when there
 is no such folder; 400 `invalid` for a folder that cannot be connected (the whole disk, a system
-folder).
+folder, the whole home folder, a hidden folder). A device shows it under the chosen folder.
 
 `POST /v1/folders` with `ConnectFolder` (`path`, `access`, and `conversationId` when it is
 connected from a chat: that chat's agent is told and answers there) → `Folder`. `PATCH /v1/folders/:id` with
@@ -1051,6 +1074,44 @@ the disk changes.
 ```
 
 The event `folders.updated` carries the whole list after each change.
+
+### An agent asks for a folder
+
+An agent that needs a folder asks with one card (`folder_connect`), never with a question for
+the path. The card is a `question`: its title is the agent's one line of what the folder is for,
+a field of type `folder`, the access as a `choice` set to what the agent asked, and the actions
+`connect` and `keep`. The folder field carries `value` when the agent knows the path from the
+person; the device then shows that folder chosen.
+
+```json
+{
+  "kind": "question",
+  "title": "Ein Ordner für die Gesetzestexte von Lex",
+  "body": "Die Dateien bleiben, wo sie sind.",
+  "fields": [
+    { "id": "folder", "label": "Ordner", "type": "folder", "required": true },
+    {
+      "id": "access",
+      "label": "Was dürfen deine Agenten darin?",
+      "type": "choice",
+      "required": true,
+      "value": "write",
+      "options": [
+        { "id": "read", "label": "Nur lesen" },
+        { "id": "write", "label": "Lesen und ändern, nach Rückfrage" }
+      ]
+    }
+  ],
+  "actions": [
+    { "id": "connect", "label": "Verbinden", "style": "primary" },
+    { "id": "keep", "label": "Nicht verbinden", "style": "plain" }
+  ]
+}
+```
+
+The pick and the yes are one answer: `{ "action": "connect", "values": { "folder": "/Users/ada/Gesetze", "access": "write" } }`
+connects the folder, and no second card follows. A folder the home would not connect is 400
+`invalid` (or 404 `not_found`), and the card stays open for another pick.
 
 ## Devices and what they keep
 
