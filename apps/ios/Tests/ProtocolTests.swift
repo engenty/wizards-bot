@@ -98,6 +98,20 @@ import Testing
         #expect(again == message)
     }
 
+    @Test func viewCardExample() throws {
+        let card = try decode(Card.self, """
+        {"id":"c1","kind":"question","level":"needs_you","state":"answered","title":"When suits you?",
+         "view":{"program":"root = Column([f])\\nf = Form([d], \\"Send\\")","library":"engenty:core/1"},
+         "actions":[],"agentId":"a","conversationId":"v","messageId":"m","createdAt":"2026-11-24T10:00:00.000Z",
+         "answer":{"action":"view","message":"Send","state":{"when":"Mon","people":3,"ok":true},"by":"iPhone","at":"2026-11-24T10:01:00.000Z"}}
+        """)
+        #expect(card.view?.library == "engenty:core/1")
+        #expect(card.view?.program.hasPrefix("root = Column") == true)
+        #expect(card.answer?.state?["when"] == .string("Mon"))
+        #expect(card.answer?.state?["people"] == .number(3))
+        #expect(card.answer?.state?["ok"] == .bool(true))
+    }
+
     @Test func pushExample() throws {
         let payload = try #require(try JSONSerialization.jsonObject(with: Data(Self.push.utf8)) as? [String: Any])
         let actions = try #require(CardNotifications.actions(in: payload))
@@ -340,6 +354,11 @@ import Testing
         #expect(answer["action"] as? String == "ok")
         #expect((answer["values"] as? [String: Any])?["days"] as? [String] == ["mo"])
         #expect(try json(AnswerCard(action: "yes"))["values"] == nil)
+
+        let view = try json(AnswerCard(action: "view", message: "Send", state: ["when": .string("Mon"), "people": .number(3)]))
+        #expect(view["message"] as? String == "Send")
+        #expect((view["state"] as? [String: Any])?["people"] as? Double == 3)
+        #expect(try json(AnswerCard(action: "yes"))["state"] == nil)
 
         let imported = try json(ImportMessages(messages: [
             .init(role: .agent, text: "Hi", createdAt: "2026-11-21T09:12:00.000Z", model: "apple:on-device", clientId: "c2"),

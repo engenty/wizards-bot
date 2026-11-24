@@ -154,8 +154,30 @@ export const CardAction = z.object({
 });
 export type CardAction = z.infer<typeof CardAction>;
 
+/**
+ * A view an agent shows in a card (`show_view`): key figures, a list, cards, a form. `program` is
+ * OpenUI Lang, written for the components of `library` (`engenty:core/1`, @engenty/chatviews),
+ * and checked by the home before the card is stored. A device draws it with that library; one
+ * that knows no such library shows the card's title and body.
+ */
+export const ViewProgram = z.object({
+  program: z.string(),
+  library: z.string(),
+});
+export type ViewProgram = z.infer<typeof ViewProgram>;
+
+/** The `action` of an answer that comes from a card's view rather than one of its actions. */
+export const VIEW_ANSWER = "view";
+
 export const CardAnswer = z.object({
   action: z.string(),
+  /**
+   * A view's answer: what the person says with it, a button's message or a form's send button
+   * ("Plan Wednesday", "Send").
+   */
+  message: z.string().optional(),
+  /** A view's answer: the form's values by field name, as the person left them. */
+  state: z.record(z.string(), z.unknown()).optional(),
   /** Field values by field id. A secret field reads "•••" here. */
   values: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
   /** Device name or channel the answer came from. */
@@ -176,6 +198,8 @@ export const Card = z.object({
   /** Markdown. */
   body: z.string().optional(),
   fields: z.array(CardField).optional(),
+  /** A view drawn in the card, in place of fields; its own buttons answer it. */
+  view: ViewProgram.optional(),
   actions: z.array(CardAction),
   url: z.string().optional(),
   /** Text to draw as a QR code. */
