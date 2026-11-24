@@ -134,8 +134,51 @@ nonisolated enum FieldValue: Codable, Hashable, Sendable {
     }
 }
 
+/// A view an agent shows in a card: OpenUI Lang written for the components of `library`
+/// (`engenty:core/1`), drawn by the web page the app carries (`ViewCard`).
+nonisolated struct ViewProgram: Codable, Hashable, Sendable {
+    var program: String
+    var library: String
+}
+
+/// A value of JSON as it came: what a view's form holds.
+nonisolated enum JSONValue: Codable, Hashable, Sendable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case array([JSONValue])
+    case object([String: JSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let v = try? c.decode(Bool.self) { self = .bool(v) }
+        else if let v = try? c.decode(Double.self) { self = .number(v) }
+        else if let v = try? c.decode(String.self) { self = .string(v) }
+        else if let v = try? c.decode([JSONValue].self) { self = .array(v) }
+        else { self = .object(try c.decode([String: JSONValue].self)) }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .string(let v): try c.encode(v)
+        case .number(let v): try c.encode(v)
+        case .bool(let v): try c.encode(v)
+        case .array(let v): try c.encode(v)
+        case .object(let v): try c.encode(v)
+        case .null: try c.encodeNil()
+        }
+    }
+}
+
 nonisolated struct CardAnswer: Codable, Hashable, Sendable {
     var action: String
+    /// A view's answer: what the person says with it ("Plan Wednesday", "Send").
+    var message: String? = nil
+    /// A view's answer: the form's values by field name.
+    var state: [String: JSONValue]? = nil
     /// Field values by field id. A secret field reads "•••" here.
     var values: [String: FieldValue]?
     /// Device name or channel the answer came from.
@@ -160,6 +203,8 @@ nonisolated struct Card: Codable, Hashable, Sendable, Identifiable {
     /// Markdown.
     var body: String?
     var fields: [CardField]?
+    /// A view drawn in the card, in place of fields; its own buttons answer it.
+    var view: ViewProgram? = nil
     var actions: [CardAction]
     var url: String?
     /// Text to draw as a QR code.
@@ -192,6 +237,9 @@ nonisolated struct Card: Codable, Hashable, Sendable, Identifiable {
 nonisolated struct AnswerCard: Codable, Hashable, Sendable {
     var action: String
     var values: [String: FieldValue]?
+    /// A view's answer (`action` is "view"): its message and its form's values.
+    var message: String? = nil
+    var state: [String: JSONValue]? = nil
 }
 
 // MARK: - Messages

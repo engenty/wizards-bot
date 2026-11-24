@@ -259,6 +259,24 @@ it like a typed value unless the person changes it. A card of another kind than 
 carry `url` as well: a page the person opens in the system browser ("Open page"), with the
 card's actions beside it.
 
+### Views in a card
+
+A card may carry `view`: a view an agent wrote with `show_view` (key figures, a list, cards, a
+form), in place of `fields`. `view.program` is OpenUI Lang, written for the components of
+`view.library` (`engenty:core/1`, from engenty wizards' `@engenty/chatviews`). The home checks it
+before the card is stored: what is shown is what was checked. The device draws it with that
+library; a device that knows no such library shows `title` and `body`, which the home always
+fills. A view never asks for passwords, card numbers or other secrets: those are `secret` cards.
+
+A view that only shows is an `info` card. One with a form, or with a button that asks the agent,
+is a `question` card and waits for the person. Its buttons answer it, not `actions` (which may be
+empty):
+
+`POST /v1/cards/:id/answer` with `{ "action": "view", "message": "<what the person says>",
+"state": { "<field name>": <value> } }`. `message` is the button's or the form's send label,
+`state` the form's values as the person left them (texts, numbers, yes/no, lists). The answer
+reaches the agent as the person's message, and the first answer wins as for every card.
+
 ### What a connection asks
 
 A connection is an account or app the home reaches over MCP (Streamable HTTP, with Mastra's
