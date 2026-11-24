@@ -266,9 +266,13 @@ nonisolated enum Part: Codable, Hashable, Sendable {
     case artifact(id: String, title: String)
     /// One line about what the agent is doing.
     case activity(label: String, state: ActivityState)
+    /// What the model thought before it answered. Grows by `message.delta` like text; not the answer.
+    case reasoning(String)
+    /// A page the answer draws on, named by the model.
+    case source(url: String, title: String?)
     case unknown(type: String, title: String?)
 
-    private enum Key: String, CodingKey { case type, text, card, documentId, title, label, state, file, artifactId }
+    private enum Key: String, CodingKey { case type, text, card, documentId, title, label, state, file, artifactId, url }
 
     init(from decoder: Decoder) throws {
         guard let container = try? decoder.container(keyedBy: Key.self),
@@ -315,6 +319,16 @@ nonisolated enum Part: Codable, Hashable, Sendable {
                 self = .activity(label: label, state: state)
                 return
             }
+        case "reasoning":
+            if let text = try? container.decode(String.self, forKey: .text) {
+                self = .reasoning(text)
+                return
+            }
+        case "source":
+            if let url = try? container.decode(String.self, forKey: .url) {
+                self = .source(url: url, title: title)
+                return
+            }
         default:
             break
         }
@@ -345,6 +359,13 @@ nonisolated enum Part: Codable, Hashable, Sendable {
             try container.encode("activity", forKey: .type)
             try container.encode(label, forKey: .label)
             try container.encode(state, forKey: .state)
+        case .reasoning(let text):
+            try container.encode("reasoning", forKey: .type)
+            try container.encode(text, forKey: .text)
+        case .source(let url, let title):
+            try container.encode("source", forKey: .type)
+            try container.encode(url, forKey: .url)
+            try container.encodeIfPresent(title, forKey: .title)
         case .unknown(let type, let title):
             try container.encode(type, forKey: .type)
             try container.encodeIfPresent(title, forKey: .title)
