@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import type { CallOptions } from "@engenty/local-models/ollama";
 import {
   ASKED_OPTION,
+  type ClientEvent,
   type ClientSessions,
   type ClientTurn,
   clientModel,
@@ -206,6 +207,63 @@ describe("Claude's output in a turn", () => {
         message: { model: "claude", content: [{ type: "text", text: "Done." }] },
       }),
       [{ kind: "text", text: "Done." }],
+    );
+  });
+});
+
+describe("what a client's model thinks", () => {
+  /** The parts a client model streams for one turn of a client that sends these events. */
+  async function streamed(events: ClientEvent[]) {
+    const model = clientModel({
+      provider: "claude",
+      model: "default",
+      mcpToken: "token",
+      run: async (_turn, onEvent) => {
+        for (const event of events) onEvent(event);
+      },
+    });
+    const { stream } = await model.doStream({
+      prompt: prompt([["user", "Plan it"]]),
+    } as CallOptions);
+    const parts: string[] = [];
+    for await (const part of stream) {
+      if (part.type === "reasoning-delta") parts.push(`thinks:${part.delta}`);
+      else if (part.type === "text-delta") parts.push(`says:${part.delta}`);
+      else if (part.type === "reasoning-start" || part.type === "reasoning-end")
+        parts.push(part.type);
+    }
+    return parts;
+  }
+
+  test("streams as reasoning before the answer", async () => {
+    assert.deepEqual(
+      await streamed([
+        { kind: "thinkingStart" },
+        { kind: "thinking", text: "Trains " },
+        { kind: "thinking", text: "first." },
+        { kind: "delta", text: "The 7:10." },
+      ]),
+      ["reasoning-start", "thinks:Trains ", "thinks:first.", "reasoning-end", "says:The 7:10."],
+    );
+  });
+
+  test("is taken whole where the client does not stream it, and not twice", async () => {
+    assert.deepEqual(
+      await streamed([
+        { kind: "thinkingStart" },
+        { kind: "thinking", text: "Trains first.", whole: true },
+        { kind: "thinkingStart" },
+        { kind: "thinking", text: "Then " },
+        { kind: "thinking", text: "Then seats.", whole: true },
+      ]),
+      [
+        "reasoning-start",
+        "thinks:Trains first.",
+        "reasoning-end",
+        "reasoning-start",
+        "thinks:Then ",
+        "reasoning-end",
+      ],
     );
   });
 });

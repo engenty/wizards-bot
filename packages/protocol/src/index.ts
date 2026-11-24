@@ -242,6 +242,13 @@ export const Part = z.discriminatedUnion("type", [
     label: z.string(),
     state: z.enum(["running", "done", "failed"]),
   }),
+  /**
+   * What the model thought before it answered, as far as it shows it. Grows by `message.delta`
+   * like text; shown folded away once the message is done.
+   */
+  z.object({ type: z.literal("reasoning"), text: z.string() }),
+  /** A page the model's answer draws on, given by the model itself (its own search). */
+  z.object({ type: z.literal("source"), url: z.string(), title: z.string().optional() }),
 ]);
 export type Part = z.infer<typeof Part>;
 
@@ -1261,7 +1268,7 @@ export type SwitchAddress = z.infer<typeof SwitchAddress>;
 
 export const Event = z.discriminatedUnion("type", [
   z.object({ type: z.literal("message.created"), message: Message }),
-  /** Appends `text` to the text part at `part`. Not replayed after a reconnect. */
+  /** Appends `text` to the text or reasoning part at `part`. Not replayed after a reconnect. */
   z.object({
     type: z.literal("message.delta"),
     conversationId: z.string(),

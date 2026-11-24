@@ -877,6 +877,10 @@ export class Turns {
     const payload = chunk.payload ?? {};
     if (chunk.type === "text-delta") {
       draft.write(payload.text ?? payload.delta ?? "");
+    } else if (chunk.type === "reasoning-delta") {
+      draft.reason(payload.text ?? payload.delta ?? "");
+    } else if (chunk.type === "source" && payload.sourceType === "url" && payload.url) {
+      draft.source(String(payload.url), payload.title ? String(payload.title) : undefined);
     } else if (chunk.type === "step-finish") {
       turn.steps++;
       turn.open = payload.stepResult?.reason === "tool-calls";

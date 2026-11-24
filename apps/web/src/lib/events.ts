@@ -29,14 +29,14 @@ export function withMessage(thread: Thread, message: Message): Thread {
   };
 }
 
-/** The thread with more text on one text part of a message that is being written. */
+/** The thread with more text on one text or reasoning part of a message that is being written. */
 export function withDelta(
   thread: Thread,
   delta: Extract<Event, { type: "message.delta" }>,
 ): Thread {
   const message = thread.messages.find((m) => m.id === delta.messageId);
   const part = message?.parts[delta.part];
-  if (!message || part?.type !== "text") {
+  if (!message || (part?.type !== "text" && part?.type !== "reasoning")) {
     return thread;
   }
   const parts = message.parts.map((p, i) =>

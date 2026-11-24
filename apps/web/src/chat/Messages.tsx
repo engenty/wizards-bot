@@ -79,6 +79,8 @@ function Parts({
   const mine = message.role === "you";
   const files = message.parts.flatMap((part) => (part.type === "file" ? [part.file] : []));
   const firstFile = message.parts.findIndex((part) => part.type === "file");
+  const sources = message.parts.flatMap((part) => (part.type === "source" ? [part] : []));
+  const firstSource = message.parts.findIndex((part) => part.type === "source");
   return message.parts.map((part, i) => {
     // The message is one list for as long as it stands: a part keeps its place.
     const key = `${part.type}-${i}`;
@@ -96,6 +98,12 @@ function Parts({
         );
       case "activity":
         return <Activity key={key} part={part} />;
+      case "reasoning":
+        return part.text ? (
+          <Reasoning key={key} text={part.text} live={message.state === "streaming"} />
+        ) : null;
+      case "source":
+        return i === firstSource ? <Sources key={key} sources={sources} /> : null;
       case "card":
         return <CardView key={part.card.id} card={part.card} />;
       case "file":
@@ -129,6 +137,48 @@ function Parts({
       }
     }
   });
+}
+
+/**
+ * What the model thought before it answered: open while the message is written, folded away
+ * once it is done.
+ */
+function Reasoning({ text, live }: { text: string; live: boolean }) {
+  return (
+    <details open={live} className="group max-w-full text-[0.8125rem] text-ink-3">
+      <summary className="cursor-pointer list-none select-none text-ink-4 hover:text-ink-3">
+        {live ? t("chat.reasoningLive") : t("chat.reasoning")}
+      </summary>
+      <Markdown
+        text={text}
+        className="mt-1.5 border-border-soft border-l-2 pl-3 text-[0.8125rem]"
+      />
+    </details>
+  );
+}
+
+/** The pages the answer draws on, as the model named them: web addresses only. */
+function Sources({ sources }: { sources: { url: string; title?: string }[] }) {
+  const pages = sources.filter((source) => /^https?:\/\//i.test(source.url));
+  if (!pages.length) {
+    return null;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[0.75rem]">
+      <span className="text-ink-4">{t("chat.sources")}</span>
+      {pages.map((source) => (
+        <a
+          key={source.url}
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="max-w-[16rem] truncate rounded-full bg-paper-2 px-2.5 py-1 text-ink-3 hover:text-ink"
+        >
+          {source.title || new URL(source.url).hostname}
+        </a>
+      ))}
+    </div>
+  );
 }
 
 function MessageView({
