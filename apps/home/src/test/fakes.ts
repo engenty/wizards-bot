@@ -14,6 +14,10 @@ import { createServer } from "../server.ts";
 export interface Scripted {
   text?: string;
   calls?: { name: string; arguments: Record<string, unknown> }[];
+  /** The model writes its first word, then waits for this before it goes on. */
+  hold?: Promise<void>;
+  /** The model fails with this status instead of answering. */
+  fail?: number;
 }
 
 /** Where the context the home adds to the newest user message begins (`agent/cache.ts`). */
@@ -89,7 +93,16 @@ export class FakeOllama {
           });
         }
         lines.push({ done: true, done_reason: "stop", prompt_eval_count: 1, eval_count: 1 });
-        response.end(`${lines.map((line) => JSON.stringify(line)).join("\n")}\n`);
+        if (next.fail) {
+          response.statusCode = next.fail;
+          return response.end(JSON.stringify({ error: "the model failed" }));
+        }
+        const hold = next.hold;
+        if (!hold) return response.end(`${lines.map((line) => JSON.stringify(line)).join("\n")}\n`);
+        response.write(`${JSON.stringify(lines.shift())}\n`);
+        void hold.then(() =>
+          response.end(`${lines.map((line) => JSON.stringify(line)).join("\n")}\n`),
+        );
       });
     });
     const server = this.server;
