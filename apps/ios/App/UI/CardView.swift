@@ -195,12 +195,20 @@ struct CardView: View {
 
     // MARK: Answered or expired
 
+    /// The name of the admin who answered, when it was not this phone's admin.
+    private var otherAdmin: String? {
+        guard let admin = card.answer?.admin, admin.id != model.admin?.id else { return nil }
+        return admin.name
+    }
+
     @ViewBuilder
     private var closed: some View {
         if card.state == .answered {
             if let chosen = card.chosen {
                 // A folder the person picked on the card is named beside the yes.
-                let label = pickedFolder(chosen).map { "\(chosen.label) · \(FolderField.name(of: $0))" } ?? chosen.label
+                let picked = pickedFolder(chosen).map { "\(chosen.label) · \(FolderField.name(of: $0))" } ?? chosen.label
+                // In a group home: another admin answered, and the card says who.
+                let label = otherAdmin.map { "\(picked) · \($0)" } ?? picked
                 QuietLine(symbol: "checkmark", text: Text(verbatim: label))
                     .accessibilityLabel(Text("Answered: \(label)"))
             } else if card.answer?.by == Card.signIn {
