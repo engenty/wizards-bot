@@ -149,7 +149,7 @@ struct WindowLook: ViewModifier {
     func body(content: Content) -> some View {
         content
             .preferredColorScheme(native ? .dark : nil)
-            .toolbarBackground(native ? .hidden : .automatic, for: .windowToolbar)
+            .toolbarBackground(.hidden, for: .windowToolbar)
             .background(Probe(native: native))
     }
 
@@ -176,8 +176,9 @@ struct WindowLook: ViewModifier {
 
         private func apply() {
             guard let window else { return }
-            window.titleVisibility = native ? .hidden : .visible
-            window.backgroundColor = native ? Petrol.groundColor : .windowBackgroundColor
+            window.titleVisibility = .hidden
+            // Behind the web app the window takes the page's colour (WebHost.paintWindow).
+            if native { window.backgroundColor = Petrol.groundColor }
         }
     }
 }

@@ -9,6 +9,7 @@ final class WebHost: NSObject {
     let view: WKWebView
     private(set) var home: URL?
     private let bridge = Bridge()
+    private var ground: NSKeyValueObservation?
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -24,6 +25,15 @@ final class WebHost: NSObject {
         #if DEBUG
             view.isInspectable = true
         #endif
+        ground = view.observe(\.underPageBackgroundColor) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.paintWindow() }
+        }
+    }
+
+    /// The window takes the page's own background, so its title bar runs into the web app in
+    /// whichever ground the person picked.
+    func paintWindow() {
+        view.window?.backgroundColor = view.underPageBackgroundColor
     }
 
     /// The token handed to the web app last, so the same pairing is not loaded twice.
@@ -230,6 +240,7 @@ struct WebView: NSViewRepresentable {
 
     func updateNSView(_ container: NSView, context: Context) {
         if host.view.superview !== container { attach(to: container) }
+        DispatchQueue.main.async { host.paintWindow() }
     }
 
     private func attach(to container: NSView) {
