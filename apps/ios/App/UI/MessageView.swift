@@ -52,6 +52,8 @@ struct MessageView: View {
                 .buttonStyle(.plain)
             } else if model.isWaiting(message) {
                 QuietLine(symbol: "clock", text: Text("waits for your Bot Server"))
+            } else if message.queued == true {
+                QuietLine(symbol: "text.append", text: Text("After the answer"))
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)

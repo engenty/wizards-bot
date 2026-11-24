@@ -54,12 +54,26 @@ struct Composer: View {
 
                 microphone(voice)
 
-                if showsStop {
-                    round("stop.fill", label: Text("Stop the reply"), prominent: false) { model.stopReply() }
-                } else if voice.mode == .off, hasText || !model.attachments.isEmpty {
+                // While a reply is written an empty field offers Stop; something typed goes into the
+                // reply, or, held or with ⌘↩, waits for after it.
+                if voice.mode == .off, hasText || !model.attachments.isEmpty {
                     round("arrow.up", label: Text("Send"), prominent: true) { send() }
                         .disabled(!canSend)
                         .opacity(canSend ? 1 : 0.5)
+                        .contextMenu {
+                            if showsStop {
+                                Button("Send now", systemImage: "arrow.up") { send() }
+                                Button("Send after the answer", systemImage: "text.append") { send(later: true) }
+                            }
+                        }
+                        .background {
+                            Button("Send after the answer") { send(later: true) }
+                                .keyboardShortcut(.return, modifiers: .command)
+                                .disabled(!canSend || !showsStop)
+                                .hidden()
+                        }
+                } else if showsStop {
+                    round("stop.fill", label: Text("Stop the reply"), prominent: false) { model.stopReply() }
                 }
             }
         }
@@ -127,9 +141,9 @@ struct Composer: View {
         (hasText || !model.attachments.refs.isEmpty) && !model.attachments.isUploading
     }
 
-    private func send() {
+    private func send(later: Bool = false) {
         guard canSend else { return }
-        model.send(text, files: model.attachments.take())
+        model.send(text, files: model.attachments.take(), later: later && showsStop)
         text = ""
     }
 
