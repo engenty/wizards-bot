@@ -215,7 +215,13 @@ Rules for a device that draws messages:
 
 - Draw parts in order. Text is Markdown.
 - While a message is `streaming`, the home announces every new part with `message.updated` (a new
-  text part arrives empty) and then sends its text as `message.delta`.
+  text or reasoning part arrives empty) and then sends its text as `message.delta`.
+- A `reasoning` part (`{ "type": "reasoning", "text" }`) is what the model thought before it
+  answered, as far as it shows it, in Markdown. Draw it quiet, open while the message streams and
+  folded away once it is done. It is not the answer: a voice, a notification and a channel read
+  only the text parts.
+- `source` parts (`{ "type": "source", "url", "title"? }`) are pages the answer draws on, named by
+  the model itself. Draw them together, as links that open outside the app.
 - A part type or card kind the device does not know is drawn as its `title` or skipped; it never
   breaks the message.
 - A `document` part is a row that opens the document beside the chat (split screen on a wide

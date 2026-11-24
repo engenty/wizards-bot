@@ -15,10 +15,14 @@ export class Draft {
     this.conversationId = message.conversationId;
   }
 
-  /** Nothing the person could read has been written yet. */
+  /** Nothing the person could read has been written yet: no answer, whatever the model thought. */
   get empty(): boolean {
     return !this.parts.some(
-      (part) => part.type !== "activity" && (part.type !== "text" || part.text.trim()),
+      (part) =>
+        part.type !== "activity" &&
+        part.type !== "reasoning" &&
+        part.type !== "source" &&
+        (part.type !== "text" || part.text.trim()),
     );
   }
 
@@ -38,13 +42,28 @@ export class Draft {
   }
 
   write(delta: string): void {
+    this.grow("text", delta);
+  }
+
+  /** What the model thinks, as it streams: a part of its own, before the text it leads to. */
+  reason(delta: string): void {
+    this.grow("reasoning", delta);
+  }
+
+  /** A page the answer draws on, once per address. */
+  source(url: string, title?: string): void {
+    if (this.parts.some((part) => part.type === "source" && part.url === url)) return;
+    this.add({ type: "source", url, ...(title ? { title } : {}) });
+  }
+
+  private grow(type: "text" | "reasoning", delta: string): void {
     if (!delta) return;
     const last = this.parts.at(-1);
-    if (last?.type === "text") {
+    if (last?.type === type) {
       last.text += delta;
     } else {
-      // A new text part is announced whole, so a device knows where the deltas go.
-      this.parts.push({ type: "text", text: "" });
+      // A new part is announced whole, so a device knows where the deltas go.
+      this.parts.push({ type, text: "" });
       this.save();
       (this.parts.at(-1) as { text: string }).text = delta;
     }

@@ -64,6 +64,12 @@ const MCP_KEY_VAR = "WIZARDS_BOT_MCP_KEY";
 export type ClientEvent =
   | { kind: "text"; text: string }
   | { kind: "delta"; text: string }
+  /**
+   * What the client's model thinks: a new block, then its text as it streams, or `whole` once
+   * the block is done where the client does not stream it.
+   */
+  | { kind: "thinkingStart" }
+  | { kind: "thinking"; text: string; whole?: boolean }
   | { kind: "tool"; name: string; started: boolean }
   | { kind: "session"; id: string }
   | { kind: "failure"; detail: string }
@@ -180,8 +186,32 @@ export function clientModel(options: {
         let reply = "";
         let result = "";
         let session: string | undefined;
+        // What the client's model thinks, one block at a time: as it streams, or whole where the
+        // client hands it over only once it is done.
+        let thought: string | undefined;
+        let thoughts = 0;
+        let streamedThought = false;
+        const endThought = () => {
+          if (thought) controller.enqueue({ type: "reasoning-end", id: thought });
+          thought = undefined;
+        };
+        const think = (event: Extract<ClientEvent, { kind: "thinkingStart" | "thinking" }>) => {
+          if (event.kind === "thinkingStart") {
+            endThought();
+            streamedThought = false;
+            return;
+          }
+          if (!event.text || (event.whole && streamedThought)) return;
+          if (!thought) {
+            thought = `reasoning-${thoughts++}`;
+            controller.enqueue({ type: "reasoning-start", id: thought });
+          }
+          if (!event.whole) streamedThought = true;
+          controller.enqueue({ type: "reasoning-delta", id: thought, delta: event.text });
+        };
         const write = (delta: string) => {
           if (!delta) return;
+          endThought();
           if (!wrote) controller.enqueue({ type: "text-start", id: "0" });
           wrote = true;
           reply += delta;
@@ -200,6 +230,7 @@ export function clientModel(options: {
             },
             (event) => {
               if (event.kind === "delta") write(event.text);
+              else if (event.kind === "thinkingStart" || event.kind === "thinking") think(event);
               else if (event.kind === "text") write(`${wrote ? "\n\n" : ""}${event.text}`);
               else if (event.kind === "result") result = event.text;
               else if (event.kind === "session") session = event.id;
@@ -219,6 +250,7 @@ export function clientModel(options: {
           }
           if (!wrote) write(result);
           if (session && reply.trim()) options.sessions?.save({ id: session, last: digest(reply) });
+          endThought();
           if (wrote) controller.enqueue({ type: "text-end", id: "0" });
           controller.enqueue({
             type: "finish",
@@ -283,6 +315,8 @@ export function turnEvents(client: Client): (line: string) => ClientEvent[] {
         }
       } else if (event.kind === "text") {
         if (!streamed) out.push(event);
+      } else if (event.kind === "thinkingStart" || event.kind === "thinking") {
+        out.push(event);
       } else if (event.kind === "tool") {
         out.push({ kind: "tool", name: event.name, started: event.started });
       } else if (event.kind === "session" || event.kind === "failure" || event.kind === "result") {

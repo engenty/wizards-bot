@@ -78,6 +78,15 @@ describe("withDelta", () => {
     expect(start.messages[0]?.parts[0]).toEqual({ type: "text", text: "You are" });
   });
 
+  it("grows what the model thinks as it grows the answer", () => {
+    const start: Thread = {
+      messages: [message({ parts: [{ type: "reasoning", text: "Trains" }] })],
+      more: false,
+    };
+    const changed = withDelta(start, { ...delta, part: 0, text: " first." });
+    expect(changed.messages[0]?.parts[0]).toEqual({ type: "reasoning", text: "Trains first." });
+  });
+
   it("leaves out text for a part that is none, or for a message it does not have", () => {
     const start: Thread = {
       messages: [message({ parts: [{ type: "activity", label: "Reading", state: "running" }] })],
