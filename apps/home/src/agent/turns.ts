@@ -1,3 +1,4 @@
+import type { OpenBridge } from "@engenty/local-models/bridge";
 import { Agent } from "@mastra/core/agent";
 import {
   MASTRA_RESOURCE_ID_KEY,
@@ -11,7 +12,7 @@ import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
 import type { AgentRecord } from "../store/store.ts";
 import { Draft } from "./draft.ts";
 import { systemPrompt } from "./prompt.ts";
-import { type Answer, type Asking, mastraTools, runTool, type Tool } from "./tool.ts";
+import { type Answer, type Asking, bridgedTools, mastraTools, runTool, type Tool } from "./tool.ts";
 
 export interface Trigger {
   conversationId: string;
@@ -115,6 +116,8 @@ const TURN = "turn";
 class Turn {
   readonly controller = new AbortController();
   readonly mcpToken = newToken();
+  /** The turn's tools over MCP, open from the run's start to its end. */
+  private bridge: OpenBridge | undefined;
   /** The message that started the run, then those delivered into it. */
   readonly triggers: Trigger[];
   readonly finished: Promise<Message | undefined>;
@@ -206,7 +209,7 @@ class Turn {
       },
     };
     // A subscription's client reaches these tools over MCP with the turn's token.
-    home.mcp.open(this.mcpToken, { tools, draft, asking });
+    this.bridge = home.mcp.open(bridgedTools(tools, draft, asking), { token: this.mcpToken });
     this.started = { draft, context, tools, asking };
     return this.started;
   }
@@ -296,7 +299,7 @@ class Turn {
   }
 
   end(message: Message | undefined): void {
-    this.home.mcp.close(this.mcpToken);
+    this.bridge?.close();
     this.finish(message);
   }
 }

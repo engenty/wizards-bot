@@ -616,11 +616,12 @@ describe("a caller from outside", () => {
     }
     assert.equal((await t.request("/v1/agents", { token })).status, 401);
     assert.equal((await t.request(`/v1/agents/${travel.id}`, { token })).status, 401);
-    const tools = await answerOf(
-      await t.request("/mcp", { token, body: { jsonrpc: "2.0", id: 1, method: "tools/list" } }),
-    );
-    assert.equal(tools.result, undefined);
-    assert.equal(tools.error.message, "This turn is over.");
+    const tools = await t.request("/mcp", {
+      token,
+      body: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    });
+    assert.equal(tools.status, 404);
+    assert.equal(((await tools.json()) as { result?: unknown }).result, undefined);
     assert.equal(t.model.requests.length, requests);
   });
 

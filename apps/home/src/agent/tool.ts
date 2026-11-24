@@ -1,3 +1,4 @@
+import type { BridgeTool } from "@engenty/local-models/bridge";
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import type { Picture } from "../files/pictures.ts";
@@ -178,6 +179,25 @@ export function mastraTools(
     }) as ReturnType<typeof createTool>;
   }
   return byName;
+}
+
+/**
+ * The tools as a client that steps by itself reaches them over MCP, the turn's bridge
+ * (`@engenty/local-models/bridge`). Each call shows as a line of the message and may ask
+ * the person, as with Mastra; a failure is an error result the client reads.
+ */
+export function bridgedTools(tools: Tool[], draft: Draft, asking: Asking): BridgeTool[] {
+  return tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: inputSchemaOf(tool),
+    execute: async (input: unknown) => {
+      const { text, pictures, failed } = await runTool(tool, input, draft, asking);
+      if (failed) throw new Error(text);
+      return pictures.length ? { text, pictures } : text;
+    },
+    toModelOutput: modelOutput,
+  }));
 }
 
 /** A tool's input as JSON schema, for MCP. */

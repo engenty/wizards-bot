@@ -221,12 +221,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   home.sharing.openRoutes(app as unknown as Hono);
 
   // The home's tools for a client that steps by itself. The bearer is a turn's token.
-  app.post("/mcp", async (c) => {
-    const token = bearer(c);
-    const answer = await home.mcp.handle(token, await c.req.json());
-    return answer === undefined ? c.body(null, 202) : c.json(answer);
-  });
-  app.get("/mcp", (c) => c.body(null, 405));
+  app.on(["GET", "POST", "DELETE"], "/mcp", (c) => home.mcp.fetch(c.req.raw));
 
   // Where a service sends the person back after a sign-in.
   app.get("/oauth/callback", async (c) => {

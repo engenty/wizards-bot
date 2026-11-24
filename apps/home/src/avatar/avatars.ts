@@ -166,7 +166,7 @@ export class Avatars {
     // A subscription client asks for its tools over MCP even when it gets none.
     const mcpToken = newToken();
     const conversationId = `avatar-${mcpToken.slice(0, 12)}`;
-    home.mcp.open(mcpToken, { tools: [] });
+    const bridge = home.mcp.open([], { token: mcpToken });
     try {
       const { text } = await generateText({
         model: engine.model({ mcpToken, conversationId }) as never,
@@ -189,7 +189,7 @@ export class Avatars {
       console.error(`[avatar] ${ref} did not answer: ${(error as Error)?.message ?? error}`);
       return undefined;
     } finally {
-      home.mcp.close(mcpToken);
+      bridge.close();
       home.db.run("delete from meta where key like ?", `session.${conversationId}.%`);
     }
   }

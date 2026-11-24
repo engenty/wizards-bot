@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { hostname, networkInterfaces, userInfo } from "node:os";
+import { Bridges } from "@engenty/local-models/bridge";
 import type { Card, HomeInfo, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
-import { McpTurns } from "./agent/mcp.ts";
 import type { Tool } from "./agent/tool.ts";
 import { buildTools, registerCardHandlers } from "./agent/tools.ts";
 import { type Trigger, type TurnContext, Turns } from "./agent/turns.ts";
@@ -63,7 +63,8 @@ export class Home {
   readonly avatars: Avatars;
   readonly models: Models;
   readonly turns: Turns;
-  readonly mcp = new McpTurns();
+  /** The tools of a turn over MCP, for a subscription client that steps by itself. */
+  readonly mcp = new Bridges({ name: "home" });
   readonly notifier: Notifier;
   readonly connections: Connections;
   readonly browser: Browser;

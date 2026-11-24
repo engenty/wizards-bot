@@ -18,7 +18,7 @@
     "@ai-sdk/openai-compatible": "3.0.94",
     "@chat-adapter/slack": "^4.45.0",
     "@engenty/browser": "0.20.6",
-    "@engenty/local-models": "0.20.6",
+    "@engenty/local-models": "0.20.7",
     "@engenty/plugins": "0.20.6",
     "@engenty/vault": "0.20.6",
     "@wizards-bot/avatar": "workspace:*",
