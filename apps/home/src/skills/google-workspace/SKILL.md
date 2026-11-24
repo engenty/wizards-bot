@@ -10,7 +10,7 @@ Google Docs, Sheets and Slides are reached through a connection: the person's Go
 With a connection
 
 - Your instructions name the connected accounts and apps. A Google one is called after what it reaches: google-drive, google-docs, google-sheets, google-slides.
-- `connection_tools` with its name lists what it can do, with the inputs. Read that before the first call. Do not guess a tool's name or its inputs.
+- `connection_tools` with its name lists what it can do, one line per tool; with a tool's name as well it gives that tool in full, with its inputs. Read that before the first call. Do not guess a tool's name or its inputs.
 - `connection_call` uses one tool. Reading runs at once. A change shows the person an approval card and ends your turn; the result arrives as the next message.
 - Find the file first: search Drive by its name, or take the id from a link (the part between `/d/` and the next `/`). Read it, then change only what was asked.
 - Docs and Slides are changed with a list of requests, Sheets by ranges like `Sheet1!A1:C5`. Positions move when you insert or delete: work from the end of a document towards its start, or read again between two changes.
