@@ -1,7 +1,7 @@
 // From engenty wizards: the theme switch (apps/web/src/studio/ThemeSwitch.tsx) and the language
 // switch and legal links of its account pages (engenty-wizards-manage, apps/web/src/brand.tsx and
 // pages/legal.tsx).
-import { Check, ChevronDown, Moon, Palette, Sun } from "lucide-react";
+import { Check, ChevronDown, Droplet, Moon, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { PrivacyDialog } from "../chat/ConsentDialog";
 import { Engenty } from "../engenty/Engenty";
@@ -17,10 +17,11 @@ import {
   useThemeMode,
 } from "../lib/theme";
 import { cn } from "../ui";
+import { Menu } from "../ui/Menu";
 
 const THEMES = [
   { mode: "light", icon: Sun, label: "theme.light" },
-  { mode: "branded", icon: Palette, label: "theme.branded" },
+  { mode: "branded", icon: Droplet, label: "theme.branded" },
   { mode: "dark", icon: Moon, label: "theme.dark" },
 ] as const satisfies readonly { mode: ThemeMode; icon: typeof Sun; label: string }[];
 
@@ -175,6 +176,48 @@ export function LangSwitch() {
   );
 }
 
+const HEADER_BUTTON =
+  "grid size-9 cursor-pointer place-items-center rounded-full text-ink-2 transition-colors hover:bg-paper-2 hover:text-ink aria-expanded:bg-paper-2 aria-expanded:text-ink coarse:size-11";
+
+/** The theme as one button: the icon of the theme in effect; a click shows the next one. */
+function ThemeButton() {
+  const shown = useThemeMode();
+  const at = THEMES.findIndex((option) => option.mode === shown);
+  const now = THEMES[at] ?? THEMES[1];
+  const next = THEMES[(at + 1) % THEMES.length] ?? THEMES[0];
+  const label = t("theme.next", { now: t(now.label), next: t(next.label) });
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={() => setTheme(next.mode)}
+      className={HEADER_BUTTON}
+    >
+      <now.icon className="size-[1.125rem]" />
+    </button>
+  );
+}
+
+/** The language as one button: the one in effect. */
+function LangMenu() {
+  return (
+    <Menu
+      label={t("lang.label")}
+      narrow
+      className={cn(HEADER_BUTTON, "font-medium text-[0.8125rem]")}
+      items={LANGS.map((code) => ({
+        icon: <span className="w-5 text-[0.75rem] text-ink-3">{code.toUpperCase()}</span>,
+        label: LANG_NAMES[code],
+        checked: code === lang,
+        onSelect: () => setLang(code),
+      }))}
+    >
+      {lang.toUpperCase()}
+    </Menu>
+  );
+}
+
 /** The imprint and the terms are engenty's, on its site; the privacy policy is wizards.bot's own. */
 const SITE: Record<Lang, { imprint: string; terms: string }> = {
   en: { imprint: "https://engenty.ai/imprint", terms: "https://engenty.ai/terms" },
@@ -189,7 +232,8 @@ const LINK = "transition hover:text-ink";
 /**
  * The page around the first steps (pairing, setup): the logo at the left, the theme and the
  * language at the right, at the foot engenty's legal links on a hosted Bot Server (engenty runs
- * it) and a line with a link to wizards.bot on one on the person's own computer.
+ * it) and a line with a link to wizards.bot on one on the person's own computer, then the Bot
+ * Server's version.
  */
 export function Frame({ children }: { children: ReactNode }) {
   const [privacy, setPrivacy] = useState(false);
@@ -204,8 +248,10 @@ export function Frame({ children }: { children: ReactNode }) {
           </span>
         </span>
         <span className="flex-1" />
-        <ThemeSwitch />
-        <LangSwitch />
+        <span className="flex items-center gap-1">
+          <ThemeButton />
+          <LangMenu />
+        </span>
       </header>
       <div className="flex flex-1 flex-col">{children}</div>
       <footer className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 pt-6 pb-5 text-[0.75rem] text-ink-3">
@@ -238,6 +284,7 @@ export function Frame({ children }: { children: ReactNode }) {
             </a>
           </span>
         ) : null}
+        {home.data ? <span>v{home.data.version}</span> : null}
       </footer>
       <PrivacyDialog open={privacy} onClose={() => setPrivacy(false)} />
     </div>
