@@ -383,6 +383,8 @@ nonisolated struct Message: Codable, Hashable, Sendable, Identifiable {
     /// In a room: who wrote a message that is not the person's own.
     var from: Writer? = nil
     var createdAt: String
+    /// The person sent it for after the answer, and the agent has not started on it yet.
+    var queued: Bool? = nil
 
     /// All text parts, joined: what a preview or a voice reads.
     var text: String {
@@ -448,6 +450,8 @@ nonisolated struct SendMessage: Codable, Hashable, Sendable {
     var clientId: String?
     /// The ids of the files uploaded for it, at most `FileLimits.perMessage`. `text` may then be empty.
     var files: [String]?
+    /// For after the answer: the agent reads it when the reply being written is done.
+    var later: Bool? = nil
 }
 
 /// An exchange a phone had with its own model while the home was out of reach.

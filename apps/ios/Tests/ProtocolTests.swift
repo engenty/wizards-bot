@@ -349,6 +349,8 @@ import Testing
         #expect(send["text"] as? String == "Hello")
         #expect(send["spoken"] as? Bool == true)
         #expect(try json(SendMessage(text: "Hello"))["spoken"] == nil)
+        #expect(try json(SendMessage(text: "Hello", later: true))["later"] as? Bool == true)
+        #expect(try json(SendMessage(text: "Hello"))["later"] == nil)
 
         let answer = try json(AnswerCard(action: "ok", values: ["days": .many(["mo"]), "note": .text("mornings")]))
         #expect(answer["action"] as? String == "ok")
@@ -373,6 +375,15 @@ import Testing
         #expect(try json(UpdateDevice(push: .some(nil)))["push"] is NSNull)
         let push = try json(UpdateDevice(push: .some(Push(token: "ab", environment: .production, topic: "bot.wizards"))))
         #expect((push["push"] as? [String: Any])?["environment"] as? String == "production")
+    }
+
+    @Test func aMessageForAfterTheAnswer() throws {
+        let waiting = try decode(Message.self, """
+        { "id": "msg_…", "conversationId": "cnv_…", "role": "you", "channel": "app", "state": "done",
+          "queued": true, "createdAt": "2026-11-24T09:12:00.000Z", "parts": [{ "type": "text", "text": "And a seat." }] }
+        """)
+        #expect(waiting.queued == true)
+        #expect(try decode(Message.self, Self.message).queued == nil)
     }
 
     @Test func errors() {

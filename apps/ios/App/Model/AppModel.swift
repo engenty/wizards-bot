@@ -480,7 +480,8 @@ final class AppModel {
     // MARK: - Sending
 
     /// Sends what the person wrote or said to the agent on screen, with the files uploaded for it.
-    func send(_ text: String, files: [FileRef] = [], spoken: Bool = false) {
+    /// `later`: while a reply is written, the agent reads it after that reply instead of in it.
+    func send(_ text: String, files: [FileRef] = [], spoken: Bool = false, later: Bool = false) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || !files.isEmpty, let agent = currentAgent else { return }
         let conversationId = agent.conversationId
@@ -496,7 +497,8 @@ final class AppModel {
         }
         sending[conversationId, default: []].append(mine)
         let message = SendMessage(
-            text: text, spoken: spoken ? true : nil, clientId: clientId, files: files.isEmpty ? nil : files.map(\.id)
+            text: text, spoken: spoken ? true : nil, clientId: clientId, files: files.isEmpty ? nil : files.map(\.id),
+            later: later ? true : nil
         )
         Task {
             do {

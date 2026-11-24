@@ -3654,6 +3654,36 @@
           }
         }
       }
+    },
+    "After the answer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach der Antwort"
+          }
+        }
+      }
+    },
+    "Send now" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt senden"
+          }
+        }
+      }
+    },
+    "Send after the answer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach der Antwort senden"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
