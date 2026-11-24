@@ -38,7 +38,21 @@ export interface PromptInput {
   now?: Date;
 }
 
-export function systemPrompt(input: PromptInput): string {
+/**
+ * What an agent reads before the conversation, in two parts. `stable` changes only when the
+ * person changes something (the agent's task, its memory, a folder, a connection): it is the
+ * system prompt, and the provider keeps it in its prompt cache. `context` changes from one turn
+ * to the next (the time, the documents' versions, the cards that wait): it goes with the newest
+ * message (`cache.ts`), so it does not break the cached start of the prompt.
+ */
+export interface Prompt {
+  stable: string;
+  context: string;
+}
+
+const join = (parts: string[]): string => parts.filter(Boolean).join("\n\n");
+
+export function systemPrompt(input: PromptInput): Prompt {
   const { agent, person } = input;
   const date = (input.now ?? new Date()).toLocaleString("en-GB", {
     weekday: "long",
@@ -50,10 +64,10 @@ export function systemPrompt(input: PromptInput): string {
     timeZoneName: "short",
   });
   const others = input.agents.filter((other) => other.id !== agent.id && other.origin !== "room");
+  const now = `[home] It is ${date}.`;
   if (input.room) {
-    return [
+    const stable = join([
       `You are ${agent.name}, an agent of ${person}. ${person} put you into the room "${input.room.name}": a conversation of several people and agents, from more than one Bot Server. In it: ${input.room.members.join(", ")}.`,
-      `It is ${date}.`,
       "How you talk: plain, calm and short. No emoji, no exclamation marks. Answer in the language the room writes in.",
       [
         "How you work here:",
@@ -65,6 +79,9 @@ export function systemPrompt(input: PromptInput): string {
       ].join("\n"),
       agent.instructions.trim() ? `Your task:\n${agent.instructions.trim()}` : "",
       agent.memory.trim() ? `What you remember:\n${agent.memory.trim()}` : "",
+    ]);
+    const context = join([
+      now,
       input.documents?.length
         ? `Your documents (read one with \`document_read\`):\n${input.documents.map((document) => `- "${document.title}" (${document.id})`).join("\n")}`
         : "",
@@ -74,16 +91,14 @@ export function systemPrompt(input: PromptInput): string {
       input.files?.length
         ? `Files ${person} sent you (read one with \`file_read\`):\n${input.files.map((file) => `- ${file.name} (${file.id})`).join("\n")}`
         : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    ]);
+    return { stable, context };
   }
   if (input.guest) {
-    return [
+    const stable = join([
       input.guest.handle
         ? `You are ${agent.name}, an agent of ${person}. ${person} shares you with ${input.guest.name} (${input.guest.handle}), who is writing to you now.`
         : `You are ${agent.name}, an agent of ${person}. ${person} lets ${input.guest.name} write to you. It is another agent, not a person and not part of ${person}'s Bot Server, and it is writing to you now.`,
-      `It is ${date}.`,
       `How you talk: plain, calm and short. No emoji, no exclamation marks. Answer in the language ${input.guest.name} writes in.`,
       `You help ${input.guest.name} with your task and nothing else. Say nothing about ${person} beyond what your task needs.`,
       input.guest.handle
@@ -97,15 +112,14 @@ export function systemPrompt(input: PromptInput): string {
       input.guest.hears && agent.memory.trim()
         ? `What you know for your task:\n${agent.memory.trim()}`
         : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    ]);
+    return { stable, context: now };
   }
-  return [
+  // Memory last: a `remember` changes only the end of the cached part.
+  const stable = join([
     input.group
       ? `You are ${agent.name}, an agent of the group ${person}. You run on ${person}'s Bot Server, which the group's admins run: ${input.group.admins.join(", ") || "none yet"}. You work for the group, and each of them writes to you.`
       : `You are ${agent.name}, ${person}'s own agent. You run on ${person}'s Bot Server: a program on their own computer or server. You work for ${person} only.`,
-    `It is ${date}.`,
     input.group
       ? [
           `The group's admins:`,
@@ -118,12 +132,7 @@ export function systemPrompt(input: PromptInput): string {
       "How you talk:",
       `- Plain, calm and short. No emoji, no exclamation marks. Answer in the language ${person} writes in.`,
       "- Say what you did and what it means in one or two sentences. Do not describe your tool calls.",
-      input.spoken
-        ? `- ${person} is talking to you and listens to the answer: one to three short sentences, no lists, no Markdown.`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    ].join("\n"),
     [
       "How you work:",
       `- Everything happens in this conversation. There are no settings pages. When ${person} wants to set something up (a device, an account, a channel, a model, another agent, a contact), you do it with your tools.`,
@@ -140,7 +149,6 @@ export function systemPrompt(input: PromptInput): string {
       `- Work that does not fit into one turn: call \`go_on\` with what is done and what is next. The Bot Server gives you the next turn. Do not stop halfway and wait for ${person} to write.`,
     ].join("\n"),
     artifactRules(person),
-    `Your memory:\n${agent.memory.trim() || "(empty)"}`,
     agent.instructions.trim() ? `Your task:\n${agent.instructions.trim()}` : "",
     input.tasks?.length
       ? `What you do by yourself (see \`task_list\` for when each ran last):\n${input.tasks.join("\n")}`
@@ -149,6 +157,23 @@ export function systemPrompt(input: PromptInput): string {
       ? `${person}'s other agents:\n${others.map((other) => `- ${other.name} (${other.id}): ${other.about}${other.origin === "shared" ? ` It is not on this Bot Server: it answers from ${other.from}.` : ""}`).join("\n")}`
       : "",
     input.connections.length ? `Connected accounts and apps: ${input.connections.join(", ")}.` : "",
+    input.folders?.length
+      ? `Connected folders of ${person}'s computer (read with \`folder_list\`, \`folder_read\`, \`folder_look\` for pictures, \`folder_search\`, \`folder_info\`; change with \`folder_make\`, \`folder_write\`, \`folder_edit\`, \`folder_copy\`, \`folder_move\`, \`folder_delete\`). What is replaced or deleted goes to the Trash:\n${input.folders
+          .map(
+            (folder) =>
+              `- ${folder.name}: ${folder.own ? "your own folder: what you make for the person (a text, a list, a file) goes here unless they name another place; " : ""}${folder.access !== "write" ? "read only" : folder.allow === "always" ? "you may change files without asking; deleting asks" : "you may change files after asking"}`,
+          )
+          .join("\n")}`
+      : "",
+    input.shell ?? "",
+    input.skills ?? "",
+    `Your memory:\n${agent.memory.trim() || "(empty)"}`,
+  ]);
+  const context = join([
+    now,
+    input.spoken
+      ? `[home] ${person} is talking to you and listens to the answer: one to three short sentences, no lists, no Markdown.`
+      : "",
     input.documents?.length
       ? `Documents beside this chat (read one with \`document_read\` before you change it):\n${input.documents
           .map(
@@ -162,21 +187,10 @@ export function systemPrompt(input: PromptInput): string {
           .map((artifact) => `- "${artifact.title}" (${artifact.id}), version ${artifact.version}`)
           .join("\n")}`
       : "",
-    input.folders?.length
-      ? `Connected folders of ${person}'s computer (read with \`folder_list\`, \`folder_read\`, \`folder_look\` for pictures, \`folder_search\`, \`folder_info\`; change with \`folder_make\`, \`folder_write\`, \`folder_edit\`, \`folder_copy\`, \`folder_move\`, \`folder_delete\`). What is replaced or deleted goes to the Trash:\n${input.folders
-          .map(
-            (folder) =>
-              `- ${folder.name}: ${folder.own ? "your own folder: what you make for the person (a text, a list, a file) goes here unless they name another place; " : ""}${folder.access !== "write" ? "read only" : folder.allow === "always" ? "you may change files without asking; deleting asks" : "you may change files after asking"}`,
-          )
-          .join("\n")}`
-      : "",
     input.devices ?? "",
-    input.shell ?? "",
-    input.skills ?? "",
     input.waiting?.length
       ? `Cards that still wait for ${person}'s answer: ${input.waiting.map((title) => `"${title}"`).join(", ")}.`
       : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  ]);
+  return { stable, context };
 }

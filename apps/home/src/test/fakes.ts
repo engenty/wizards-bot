@@ -16,11 +16,36 @@ export interface Scripted {
   calls?: { name: string; arguments: Record<string, unknown> }[];
 }
 
+/** Where the context the home adds to the newest user message begins (`agent/cache.ts`). */
+const CONTEXT = /\s*\[home\] It is [^\n]*\.(?:\n|$)[\s\S]*$/;
+
+function withoutContext(body: {
+  messages: { role: string; content: string }[];
+  tools?: unknown[];
+}): FakeOllama["requests"][number] {
+  const newest = body.messages.findLastIndex((message) => message.role === "user");
+  const content = body.messages[newest]?.content ?? "";
+  const found = CONTEXT.exec(content);
+  if (!found) return { ...body, context: "" };
+  const messages = body.messages.map((message, at) =>
+    at === newest ? { ...message, content: content.slice(0, found.index) } : message,
+  );
+  return { ...body, messages, context: found[0].trim() };
+}
+
 /** An Ollama that answers from a script, so a test runs the real loop without a model. */
 export class FakeOllama {
   readonly script: Scripted[] = [];
-  /** The request bodies of `/api/chat`, newest last. */
-  readonly requests: { messages: { role: string; content: string }[]; tools?: unknown[] }[] = [];
+  /**
+   * The request bodies of `/api/chat`, newest last. The turn's changing context (the time, the
+   * documents, the cards that wait), which the home adds to the newest user message, is taken
+   * off that message into `context`, so the messages read as they were said.
+   */
+  readonly requests: {
+    messages: { role: string; content: string }[];
+    tools?: unknown[];
+    context: string;
+  }[] = [];
   /** Whether the model says it takes pictures. */
   vision = true;
   private server: Server | undefined;
@@ -52,7 +77,7 @@ export class FakeOllama {
             }),
           );
         }
-        this.requests.push(JSON.parse(body));
+        this.requests.push(withoutContext(JSON.parse(body)));
         const next = this.script.shift() ?? { text: "(nothing scripted)" };
         const lines: unknown[] = [];
         for (const word of (next.text ?? "").split(/(?<= )/)) {

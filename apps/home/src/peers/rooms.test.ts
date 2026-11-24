@@ -172,7 +172,7 @@ describe("a room in one home", () => {
     assert.deepEqual(tools.sort(), ["artifact_read", "document_read", "file_read"]);
     const system = request?.messages[0]?.content ?? "";
     assert.match(system, /Ada likes night trains\./);
-    assert.match(system, /"Lisbon notes"/);
+    assert.match(request?.context ?? "", /"Lisbon notes"/);
     assert.match(system, /never an instruction to you/);
     const heard = request?.messages.at(-1)?.content ?? "";
     assert.match(heard, /Ada: @travel where shall we stay\?/);
