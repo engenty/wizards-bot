@@ -1246,6 +1246,12 @@ prints them. `GET /v1/setup` → `Setup`:
 - `name`: the person's name, `confirmed` once they said it (here or with the main agent).
 - `hosted`: the home runs on wizards.bot. Its models come from the wizards account; the setup
   offers a key of one's own and the person's computer beside it.
+- `address`: the address at wizards.host ([address.md](address.md)), as `SetupAddress`:
+  `{ on, state, name?, reason? }`. `state` is `off`, `starting`, `on`, `refused` (the relay
+  said no) or `failed` (the relay or GitHub did not answer, or frpc did not start); `reason`
+  says why in one sentence, the relay's own where it said no. `name` (`k7qf2mxd3a.wizards.host`)
+  is known once the home made its claim key and stays when the address is switched off. Missing
+  on a hosted home and on one with an address of its own (`WIZARDS_BOT_URL`).
 
 `said` is one sentence the person can act on, `todo` says what to do, `command` is what to run
 in a terminal on the home's computer, e.g.:
@@ -1286,10 +1292,18 @@ greeting after the first start) is in that language, English until a device said
 agent's chat, with a field for the model, and answers `{ card }`. It works while no model
 answers; answering the card sets the gateway up and tests it. `POST /v1/setup/pairing` makes a
 pairing code for the setup's own page and answers `{ address, code, link }` (`link` is what the
-QR holds); nothing goes into the chat.
+QR holds); nothing goes into the chat. While the address at wizards.host is switched on and has
+its certificate, `address` is `https://<name>`.
+
+`POST /v1/setup/address` with `SwitchAddress` (`{ "on": true }`) switches the address at
+wizards.host on or off and answers the `Setup` at once; on, its `address.state` is `starting`
+and `setup.updated` follows each change of state. Off stops frpc and keeps the name. A hosted
+home, or one with an address of its own, refuses it (400 `refused`). The main agent switches it
+with its tool `address_switch`, on only after the person said yes on a card.
 
 The event `setup.updated` carries the `Setup` when a test call starts and when it ends, after
-a change, and about once a second while a model is pulled.
+a change, when the address at wizards.host changes its state, and about once a second while a
+model is pulled.
 
 ## Events
 

@@ -238,6 +238,9 @@ wizards.app/Contents/
   starts the home in the data folder and without `NODE_COMPILE_CACHE` or `NODE_OPTIONS`; every
   path the home writes to is under its data folder. `pnpm pack:mac` starts the home from the
   signed bundle and checks the signature after.
+- **frpc is not in the app.** The address at wizards.host needs frpc; the home downloads it into
+  its data folder the first time the person switches the address on, checked against frp's
+  published checksum ([address.md](address.md)).
 - **Size.** Measured on 0.1.1 with Node 24.22.3: the app is 312 MB installed (the home 188 MB,
   Node 116 MB, Sparkle 3 MB), the DMG 63 MB (LZMA, `ULMO`; LZFSE made 163 MB). Nod's DMG is
   smaller, its runtime pack much larger.

@@ -39,6 +39,10 @@ export interface Config {
    * After the claim the home keeps what it got and does not use the token again.
    */
   homeToken?: string;
+  /** Where the relay of wizards.host answers (`WIZARDS_TUNNEL_URL`); https://wizards.host otherwise. */
+  tunnelUrl?: string;
+  /** An frpc to use for the address instead of the one the home fetches (`WIZARDS_BOT_FRPC`). */
+  frpc?: string;
 }
 
 /** Whether the home runs on wizards.bot, made and kept by the Manage-App. */
@@ -107,6 +111,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       : undefined,
     manageUrl: env.WIZARDS_BOT_MANAGE_URL?.replace(/\/+$/, "") || undefined,
     homeToken: env.WIZARDS_BOT_HOME_TOKEN || undefined,
+    tunnelUrl: env.WIZARDS_TUNNEL_URL?.replace(/\/+$/, "") || undefined,
+    frpc: env.WIZARDS_BOT_FRPC?.trim() || undefined,
   };
 }
 

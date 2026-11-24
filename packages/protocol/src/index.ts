@@ -987,6 +987,19 @@ export const SetupPulling = z.object({
 });
 export type SetupPulling = z.infer<typeof SetupPulling>;
 
+/**
+ * The address at wizards.host that lets a phone reach a home away from home, switched on by the
+ * person. `name` is known once the home made its claim key: it stays the same when the address
+ * is switched off and on again. `reason` says why it is not on, in one sentence.
+ */
+export const SetupAddress = z.object({
+  on: z.boolean(),
+  state: z.enum(["off", "starting", "on", "refused", "failed"]),
+  name: z.string().optional(),
+  reason: z.string().optional(),
+});
+export type SetupAddress = z.infer<typeof SetupAddress>;
+
 export const Setup = z.object({
   /** The person went through the first start, or used the home before there was one. */
   done: z.boolean(),
@@ -1003,6 +1016,8 @@ export const Setup = z.object({
   capabilities: z.array(SetupCheck),
   /** The model the home pulls, or pulled last, while the home runs. */
   pulling: SetupPulling.optional(),
+  /** The address at wizards.host. Missing on a hosted home and on one with an address of its own. */
+  address: SetupAddress.optional(),
 });
 export type Setup = z.infer<typeof Setup>;
 
@@ -1027,6 +1042,10 @@ export const SetupGateway = z.object({
   provider: z.enum(["openrouter", "vercel", "openai", "anthropic"]),
 });
 export type SetupGateway = z.infer<typeof SetupGateway>;
+
+/** Switches the address at wizards.host on or off. */
+export const SwitchAddress = z.object({ on: z.boolean() });
+export type SwitchAddress = z.infer<typeof SwitchAddress>;
 
 // ── Events ──────────────────────────────────────────────────────────────────
 

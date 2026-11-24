@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Card, Setup, SetupCheck } from "@wizards-bot/protocol";
+import type { Card, Setup, SetupAddress, SetupCheck } from "@wizards-bot/protocol";
 import { KeyRound } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { CardView } from "../chat/CardView";
@@ -149,6 +149,93 @@ function AddPhone({ onProblem }: { onProblem: (text: string) => void }) {
           </li>
         ) : null}
       </ol>
+    </div>
+  );
+}
+
+/** What the address says while it is switched on: how far it is, or why it is not on. */
+function addressState(address: SetupAddress): { text: string; problem: boolean } | null {
+  if (!address.on) return null;
+  if (address.state === "on") return { text: t("setup.away.on"), problem: false };
+  if (address.state === "starting") {
+    return {
+      text: address.reason
+        ? t("setup.away.again", { why: address.reason })
+        : t("setup.away.starting"),
+      problem: false,
+    };
+  }
+  return {
+    text: t("setup.away.problem", { why: address.reason ?? address.state }),
+    problem: true,
+  };
+}
+
+/**
+ * The address at wizards.host, off until the person switches it on: then the phone reaches the
+ * Bot Server through the relay, also away from home.
+ */
+function AwayAddress({
+  address,
+  onProblem,
+}: {
+  address: SetupAddress;
+  onProblem: (text: string) => void;
+}) {
+  const client = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const toggle = () => {
+    setBusy(true);
+    api
+      .post<Setup>("/v1/setup/address", { on: !address.on })
+      .then(
+        (saved) => client.setQueryData(keys.setup(), saved),
+        (err: Error) => onProblem(err.message),
+      )
+      .finally(() => setBusy(false));
+  };
+  const state = addressState(address);
+  return (
+    <div className="py-3.5">
+      <div className="flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-[0.9375rem]">{t("setup.away.title")}</p>
+          {address.name ? (
+            <p className="break-all font-mono text-[0.75rem] text-ink-2">{address.name}</p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={address.on}
+          aria-label={t("setup.away.title")}
+          disabled={busy}
+          onClick={toggle}
+          className={cn(
+            "relative h-6 w-10 shrink-0 cursor-pointer rounded-full outline-none transition-colors disabled:cursor-default",
+            address.on ? "bg-ember" : "bg-paper-2",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-0.5 left-0.5 size-5 rounded-full bg-background shadow-sm transition-transform",
+              address.on && "translate-x-4",
+            )}
+          />
+        </button>
+      </div>
+      <p className="mt-1 text-[0.8125rem] text-ink-3 leading-snug">{t("setup.away.hint")}</p>
+      {state ? (
+        <p
+          role="status"
+          className={cn(
+            "mt-1.5 text-[0.8125rem] leading-snug",
+            state.problem ? "text-rose" : "text-ink-2",
+          )}
+        >
+          {state.text}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -331,8 +418,17 @@ export function SetupView({ setup }: { setup: Setup }) {
               <>
                 <Says>{t("setup.phone.ask")}</Says>
                 <Group>
-                  <AddPhone onProblem={setProblem} />
+                  {/* A new code once the address is on: the QR then leads to wizards.host. */}
+                  <AddPhone
+                    key={setup.address?.state === "on" ? "away" : "here"}
+                    onProblem={setProblem}
+                  />
                 </Group>
+                {setup.address && !setup.hosted ? (
+                  <Group>
+                    <AwayAddress address={setup.address} onProblem={setProblem} />
+                  </Group>
+                ) : null}
               </>
             ) : null}
           </div>

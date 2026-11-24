@@ -21,6 +21,7 @@ import {
   SaveDocument,
   SendMessage,
   SetupGateway,
+  SwitchAddress,
   TestSetup,
   UpdateDevice,
   VaultInput,
@@ -38,6 +39,7 @@ import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
 import { PullRefused } from "./setup/setup.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
+import { AddressRefused } from "./tunnel/tunnel.ts";
 import { VaultRefused } from "./vault/vault.ts";
 
 type Env = { Variables: { device: DeviceRecord } };
@@ -829,6 +831,18 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   });
 
   app.post("/v1/setup/pairing", (c) => c.json(home.setup.pairing()));
+
+  // The address at wizards.host: on only on the person's word, never on a hosted home.
+  app.post("/v1/setup/address", async (c) => {
+    const { on } = SwitchAddress.parse(await c.req.json());
+    try {
+      await home.tunnel.set(on);
+    } catch (error) {
+      if (error instanceof AddressRefused) return fail(c, 400, "refused", error.message);
+      throw error;
+    }
+    return c.json(await home.setup.view());
+  });
 
   // A model for Ollama on this computer, on the person's yes; it loads while the setup shows it.
   app.post("/v1/setup/pull", async (c) => {
