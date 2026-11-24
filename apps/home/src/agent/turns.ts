@@ -7,6 +7,7 @@ import {
 import type { Admin, Card, Channel, FileRef, Message } from "@wizards-bot/protocol";
 import type { Home } from "../home.ts";
 import { newToken } from "../ids.ts";
+import { ASKED_OPTION } from "../models/client-model.ts";
 import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
 import type { AgentRecord } from "../store/store.ts";
 import { cacheProcessor, markedInstructions } from "./cache.ts";
@@ -16,6 +17,13 @@ import { type Answer, type Asking, mastraTools, runTool, type Tool } from "./too
 
 export interface Trigger {
   conversationId: string;
+  /** The person's message in the home's store that this trigger carries. */
+  messageId?: string;
+  /**
+   * The person sent it for after the answer: while a reply is written, it waits for that turn
+   * to end instead of going into it.
+   */
+  later?: boolean;
   /** What the agent reads as the new message. */
   text: string;
   channel: Channel;
@@ -118,6 +126,19 @@ const IDLE_MS = 60_000;
 /** How long, and how much of, a run's output is kept before its turn is known. */
 const EARLY_MS = 30_000;
 const EARLY_CHUNKS = 5_000;
+
+/**
+ * The signal that starts a turn on a message stored before it. Marked, so that a subscription's
+ * client, which reads the conversation as text, reads the stored message as the new one
+ * (`clientPrompt`).
+ */
+const ASKED = {
+  type: "reactive",
+  tagName: "asked",
+  contents: "Answer the message above.",
+  transient: true,
+  providerOptions: { home: { [ASKED_OPTION]: true } },
+};
 
 /** A chunk of a run as Mastra streams it on the thread; the kinds the home reads. */
 interface Chunk {
@@ -548,9 +569,10 @@ export class Turns {
   }
 
   /**
-   * Stops the running turn, and with it the longer work it belongs to. Mastra ends the run on
-   * the thread. What was said into the run and not read yet stays in the thread: clearing it
-   * (`clearPendingSignals`) would drop those words.
+   * Stops the running turn, and with it the longer work it belongs to and what waits for after
+   * it. Mastra ends the run on the thread and drops its queue. What was said into the run and not
+   * read yet stays in the thread: clearing it (`clearPendingSignals`) would drop those words, and
+   * what waited in the queue was stored before it waited.
    */
   stop(conversationId: string): void {
     const turn = this.runs.get(conversationId);
@@ -560,10 +582,21 @@ export class Turns {
         this.home.store.conversation(conversationId)?.agentId ?? "",
       );
       if (!turn.shared && agent) {
-        this.mastraAgent(agent).abortThreadStream({
+        const mastra = this.mastraAgent(agent);
+        mastra.cancelQueuedMessages({
           resourceId: agent.id,
           threadId: conversationId,
+          queueOwnerId: conversationId,
         });
+        mastra.abortThreadStream({ resourceId: agent.id, threadId: conversationId });
+        for (const waiting of [...this.byRun.values()]) {
+          if (
+            waiting !== turn &&
+            !waiting.seen &&
+            waiting.trigger.conversationId === conversationId
+          )
+            this.drop(waiting);
+        }
       }
     } else if (this.between.has(conversationId)) this.halted.add(conversationId);
   }
@@ -682,24 +715,58 @@ export class Turns {
     // A message that names a kind of document loads its skill before the model starts.
     if (!trigger.guest) this.home.skills.hear(conversation.id, trigger);
     await this.follow(agent, conversation.id);
-    const result = this.mastraAgent(agent).sendSignal(
-      { type: "user", contents: await this.contents(trigger) } as never,
-      {
-        resourceId: agent.id,
-        threadId: conversation.id,
-        ifActive: { behavior: "deliver" },
-        ifIdle: {
-          behavior: "wake",
-          streamOptions: this.streamOptions(turn),
-        },
-      } as never,
-    );
+    const mastra = this.mastraAgent(agent);
+    const thread = { resourceId: agent.id, threadId: conversation.id };
+    const contents = await this.contents(trigger);
+    const streamOptions = this.streamOptions(turn);
+    // Mastra's queue: what waits there runs after the running turn, one turn each, in order.
+    const queue = {
+      ...thread,
+      queueOwnerId: conversation.id,
+      ifIdle: { behavior: "wake", streamOptions },
+    };
+    const later = trigger.later === true && this.runs.has(conversation.id);
+    let result: { accepted: Promise<unknown> };
+    if (later) {
+      // Stored first, so Stop can drop the wait without dropping the words; the turn itself
+      // starts on a signal that is not stored.
+      const kept = mastra.sendMessage(
+        { contents } as never,
+        {
+          ...thread,
+          ifActive: { behavior: "persist" },
+          ifIdle: { behavior: "persist" },
+        } as never,
+      );
+      await kept.accepted;
+      await kept.persisted;
+      result = mastra.queueSignal(ASKED as never, queue as never);
+    } else if (trigger.work) {
+      // Longer work goes on after what the person sent for after the answer.
+      result = mastra.queueSignal({ type: "user", contents } as never, queue as never);
+    } else {
+      result = mastra.sendSignal(
+        { type: "user", contents } as never,
+        {
+          ...thread,
+          ifActive: { behavior: "deliver" },
+          ifIdle: { behavior: "wake", streamOptions },
+        } as never,
+      );
+    }
     const accepted = (await result.accepted) as { action: string; runId?: string };
 
     // The run's output is read from the thread (`listen`), not from the stream Mastra hands back.
     if (accepted.action === "wake" && accepted.runId) {
       this.runs.set(conversation.id, turn);
       store.setWorking(conversation.id, true);
+      this.claim(turn, accepted.runId);
+      await turn.finished;
+      return;
+    }
+    // Waits in Mastra's queue: the turn begins with the first output of its run (`take`).
+    if ((later || trigger.work) && accepted.runId) {
+      if (trigger.messageId) store.updateMessage(trigger.messageId, { queued: true });
       this.claim(turn, accepted.runId);
       await turn.finished;
       return;
@@ -804,6 +871,7 @@ export class Turns {
       if (turn.seen || live) this.settle(turn, chunk.payload?.status);
       return;
     }
+    if (!turn.seen) this.begin(turn);
     turn.seen = true;
     const { draft } = turn.parts;
     const payload = chunk.payload ?? {};
@@ -828,6 +896,28 @@ export class Turns {
     } else if (chunk.type === "error") {
       turn.problem = String(payload.error?.message ?? payload.error ?? "it stopped with an error");
     }
+  }
+
+  /** A turn that waited in Mastra's queue starts: it is the conversation's running turn now. */
+  private begin(turn: Turn): void {
+    const { conversationId, messageId } = turn.trigger;
+    if (this.runs.get(conversationId) === turn) return;
+    this.runs.set(conversationId, turn);
+    this.between.delete(conversationId);
+    this.home.store.setWorking(conversationId, true);
+    if (messageId) this.home.store.updateMessage(messageId, { queued: false });
+  }
+
+  /** A turn that waited in Mastra's queue is not run: the person stopped what was before it. */
+  private drop(turn: Turn): void {
+    if (turn.runId) this.byRun.delete(turn.runId);
+    const { conversationId, messageId, work } = turn.trigger;
+    if (messageId) this.home.store.updateMessage(messageId, { queued: false });
+    if (work) {
+      this.between.delete(conversationId);
+      for (const trigger of turn.triggers) trigger.done?.(work.after);
+    }
+    turn.end(undefined);
   }
 
   /** The turn's run ended, or waits for a card: its message is finished. */
@@ -877,7 +967,8 @@ export class Turns {
       void this.enqueue(nextTurn(turn, message));
       return;
     }
-    this.home.store.setWorking(conversationId, false);
+    // A turn that waited behind this one may have begun already.
+    if (!this.runs.has(conversationId)) this.home.store.setWorking(conversationId, false);
     turn.end(message);
     if (!turn.shared) this.rest(conversationId);
     // One reply per place it goes to, however many messages the turn read.

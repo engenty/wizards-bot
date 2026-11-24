@@ -145,6 +145,7 @@ const ADDED: [string, string, string][] = [
   ["device", "resources", "text"],
   ["device", "agents", "text"],
   ["message", "sender", "text"],
+  ["message", "queued", "integer not null default 0"],
   ["contact", "limited", "integer not null default 0"],
   ["share", "memory", "text not null default 'none'"],
   ["invite", "memory", "text not null default 'none'"],

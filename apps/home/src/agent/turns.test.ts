@@ -187,3 +187,113 @@ describe("what is said to an agent", () => {
     }
   });
 });
+
+/** Sends a message as the person, as a device does. */
+async function send(t: TestHome, text: string, later?: boolean) {
+  const conversationId = t.home.store.mainAgent().conversationId;
+  const response = await t.request(`/v1/conversations/${conversationId}/messages`, {
+    body: { text, ...(later ? { later: true } : {}) },
+  });
+  return ((await response.json()) as { message: { id: string } }).message.id;
+}
+
+const replies = (t: TestHome) =>
+  t.home.store
+    .messages(t.home.store.mainAgent().conversationId, { limit: 20 })
+    .messages.filter((message) => message.role === "agent")
+    .map((message) => textOf(message));
+
+describe("a message for after the answer", () => {
+  test("waits for the running turn, then gets a turn of its own", async () => {
+    const t = await testHome("Ada");
+    try {
+      const slow = slowTool(t);
+      t.model.script.push(
+        { calls: [{ name: "look_up", arguments: {} }] },
+        { text: "The 7:10 is on time." },
+        { text: "Seat 12 is booked." },
+      );
+      await send(t, "Is the 7:10 on time?");
+      await slow.running;
+      const id = await send(t, "Book me a seat.", true);
+      assert.equal(t.home.store.message(id)?.queued, true);
+      slow.release();
+      await t.home.turns.idle();
+      assert.deepEqual(replies(t), ["The 7:10 is on time.", "Seat 12 is booked."]);
+      assert.equal(t.home.store.message(id)?.queued, undefined);
+      // The first turn did not read it; the second did, as stored.
+      const [first, , second] = t.model.requests.map((request) =>
+        request.messages.map((message) => `${message.role}:${message.content}`),
+      );
+      assert.ok(!first?.includes("user:Book me a seat."));
+      assert.equal(second?.at(-1), "user:Book me a seat.");
+      assert.equal(t.model.requests.at(-1)?.asked, true);
+    } finally {
+      t.stop();
+    }
+  });
+
+  test("is read at once when no reply is written", async () => {
+    const t = await testHome("Ada");
+    try {
+      t.model.script.push({ text: "Done." });
+      const id = await send(t, "Book me a seat.", true);
+      await t.home.turns.idle();
+      assert.deepEqual(replies(t), ["Done."]);
+      assert.equal(t.home.store.message(id)?.queued, undefined);
+    } finally {
+      t.stop();
+    }
+  });
+
+  test("does not run when the person stops the reply, and the next turn reads it", async () => {
+    const t = await testHome("Ada");
+    try {
+      const slow = slowTool(t);
+      t.model.script.push({ calls: [{ name: "look_up", arguments: {} }] });
+      await send(t, "Is the 7:10 on time?");
+      await slow.running;
+      const id = await send(t, "Book me a seat.", true);
+      const conversationId = t.home.store.mainAgent().conversationId;
+      t.home.turns.stop(conversationId);
+      slow.release();
+      await t.home.turns.idle();
+      assert.equal(t.home.store.message(id)?.queued, undefined);
+      const asked = t.model.requests.length;
+      assert.equal(asked, 1);
+
+      t.model.script.push({ text: "Which seat?" });
+      await t.say("And a window seat.");
+      const read = said(t);
+      assert.ok(read.includes("user:Book me a seat."), read.join("\n"));
+      assert.equal(read.at(-1), "user:And a window seat.");
+      answeredCalls(t);
+    } finally {
+      t.stop();
+    }
+  });
+
+  test("goes before the next turn of longer work", async () => {
+    const t = await testHome("Ada");
+    try {
+      const slow = slowTool(t);
+      t.model.script.push(
+        { calls: [{ name: "look_up", arguments: {} }] },
+        { calls: [{ name: "go_on", arguments: { done: "Looked it up.", next: "Book it" } }] },
+        { text: "Looked it up." },
+        { text: "Yes, the 7:10." },
+        { text: "Booked." },
+      );
+      await send(t, "Find a train and book it.");
+      await slow.running;
+      await send(t, "Is it the 7:10?", true);
+      slow.release();
+      await t.home.turns.idle();
+      assert.deepEqual(replies(t), ["Looked it up.", "Yes, the 7:10.", "Booked."]);
+      const last = said(t);
+      assert.match(last.at(-1) ?? "", /Go on with your work/);
+    } finally {
+      t.stop();
+    }
+  });
+});

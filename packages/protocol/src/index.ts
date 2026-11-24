@@ -278,6 +278,11 @@ export const Message = z.object({
   /** Which model wrote it, e.g. "ollama:qwen3.8:27b-mlx". */
   model: z.string().optional(),
   /**
+   * The person sent it for after the answer: the agent reads it once the reply being written is
+   * done. Cleared when that turn starts, and when the person stops the reply.
+   */
+  queued: z.boolean().optional(),
+  /**
    * Who wrote a message that is not the person's own: in a room, someone else (`kind` is set
    * when it is an agent, `of` then names whose agent it is); in a group home, the admin who
    * wrote a `you` message (`admin` is their id).
@@ -305,6 +310,11 @@ export const SendMessage = z.object({
   clientId: z.string().optional(),
   /** The person asks about a passage of a document of this conversation. */
   about: z.object({ documentId: z.string(), quote: z.string().min(1).max(4000) }).optional(),
+  /**
+   * For after the answer: the agent reads it when the reply being written is done, instead of
+   * in the middle of it. Without a reply being written it is read at once.
+   */
+  later: z.boolean().optional(),
 });
 export type SendMessage = z.infer<typeof SendMessage>;
 

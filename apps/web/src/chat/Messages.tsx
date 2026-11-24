@@ -174,6 +174,7 @@ function MessageView({
         {message.model === "apple:on-device" ? (
           <p className="text-[0.75rem] text-ink-4">{t("chat.onDevice")}</p>
         ) : null}
+        {message.queued ? <p className="text-[0.75rem] text-ink-4">{t("chat.queued")}</p> : null}
       </div>
     );
   }

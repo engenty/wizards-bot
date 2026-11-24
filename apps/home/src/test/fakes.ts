@@ -23,6 +23,9 @@ export interface Scripted {
 /** Where the context the home adds to the newest user message begins (`agent/cache.ts`). */
 const CONTEXT = /\s*\[home\] It is [^\n]*\.(?:\n|$)[\s\S]*$/;
 
+/** The signal that starts a turn on what was stored before it (`agent/turns.ts`). */
+const ASKED = "<asked>Answer the message above.</asked>";
+
 function withoutContext(body: {
   messages: { role: string; content: string }[];
   tools?: unknown[];
@@ -30,25 +33,28 @@ function withoutContext(body: {
   const newest = body.messages.findLastIndex((message) => message.role === "user");
   const content = body.messages[newest]?.content ?? "";
   const found = CONTEXT.exec(content);
-  if (!found) return { ...body, context: "" };
-  const messages = body.messages.map((message, at) =>
-    at === newest ? { ...message, content: content.slice(0, found.index) } : message,
-  );
-  return { ...body, messages, context: found[0].trim() };
+  const said = found ? content.slice(0, found.index) : content;
+  const asked = said === ASKED;
+  const messages = body.messages
+    .map((message, at) => (at === newest ? { ...message, content: said } : message))
+    .filter((_, at) => !(asked && at === newest));
+  return { ...body, messages, context: found ? found[0].trim() : "", asked };
 }
 
 /** An Ollama that answers from a script, so a test runs the real loop without a model. */
 export class FakeOllama {
   readonly script: Scripted[] = [];
   /**
-   * The request bodies of `/api/chat`, newest last. The turn's changing context (the time, the
-   * documents, the cards that wait), which the home adds to the newest user message, is taken
-   * off that message into `context`, so the messages read as they were said.
+   * The request bodies of `/api/chat`, newest last, with the messages as they were said: the
+   * signal that starts a turn on a stored message is taken out (`asked`), and the turn's
+   * changing context (the time, the documents, the cards that wait), which the home adds to the
+   * newest user message, is taken off it into `context`.
    */
   readonly requests: {
     messages: { role: string; content: string }[];
     tools?: unknown[];
     context: string;
+    asked: boolean;
   }[] = [];
   /** Answers the caller stopped reading before they were finished. */
   aborted = 0;

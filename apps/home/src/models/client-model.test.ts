@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { CallOptions } from "@engenty/local-models/ollama";
 import {
+  ASKED_OPTION,
   type ClientSessions,
   type ClientTurn,
   clientModel,
@@ -58,7 +59,7 @@ function fakeClient(replies: (string | Error)[]) {
     } as CallOptions);
     for await (const _ of stream);
   };
-  return { turns, ask, askParts, session: () => stored };
+  return { turns, ask, askParts, model, session: () => stored };
 }
 
 describe("a subscription client as a model", () => {
@@ -94,6 +95,23 @@ describe("a subscription client as a model", () => {
       { type: "text", text: "\n\n[home] It is Monday." },
     ]);
     assert.equal(client.turns[0]?.message, "What is on today?\n\n[home] It is Monday.");
+  });
+
+  test("reads a stored message as the new one when a signal asks for the turn", async () => {
+    const client = fakeClient(["Seat 12."]);
+    const { stream } = await client.model.doStream({
+      prompt: [
+        { role: "system", content: "Be brief." },
+        { role: "user", content: [{ type: "text", text: "Book me a seat." }] },
+        {
+          role: "user",
+          content: [{ type: "text", text: "<asked>Answer the message above.</asked>" }],
+          providerOptions: { home: { [ASKED_OPTION]: true } },
+        },
+      ],
+    } as CallOptions);
+    for await (const _ of stream);
+    assert.equal(client.turns[0]?.message, "Book me a seat.");
   });
 
   test("reads everything again when its last answer is not in what it is shown", async () => {

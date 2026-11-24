@@ -65,6 +65,7 @@ export const en = {
   "chat.older": "Show earlier messages",
   "chat.failed": "This answer did not finish.",
   "chat.onDevice": "Written on your phone while your Bot Server was out of reach",
+  "chat.queued": "After the answer",
   "chat.unknownPart": "Your Bot Server sent something this page can’t show.",
   "chat.drop": "Drop to attach to your message",
   "composer.message": "Message",
@@ -76,6 +77,7 @@ export const en = {
   "composer.folder": "Connect a folder",
   "composer.dictate": "Dictate",
   "composer.dictateStop": "Stop dictating",
+  "composer.later": "Message, {keys} for after the answer",
   "composer.listening": "Listening…",
   "composer.micDenied":
     "The microphone isn’t allowed for this page. Allow it in your browser’s site settings.",
@@ -732,6 +734,7 @@ export const de: Record<Key, Line> = {
   "chat.older": "Frühere Nachrichten zeigen",
   "chat.failed": "Diese Antwort wurde nicht fertig.",
   "chat.onDevice": "Auf deinem Telefon geschrieben, als dein Bot Server nicht erreichbar war",
+  "chat.queued": "Nach der Antwort",
   "chat.unknownPart": "Dein Bot Server hat etwas geschickt, das diese Seite nicht zeigen kann.",
   "chat.drop": "Loslassen, um es der Nachricht anzuhängen",
   "composer.message": "Nachricht",
@@ -743,6 +746,7 @@ export const de: Record<Key, Line> = {
   "composer.folder": "Ordner verbinden",
   "composer.dictate": "Diktieren",
   "composer.dictateStop": "Diktat beenden",
+  "composer.later": "Nachricht, {keys} für nach der Antwort",
   "composer.listening": "Ich höre zu …",
   "composer.micDenied":
     "Das Mikrofon ist für diese Seite nicht freigegeben. Erlaube es in den Website-Einstellungen deines Browsers.",
