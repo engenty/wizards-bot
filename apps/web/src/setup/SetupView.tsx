@@ -10,9 +10,10 @@ import { keys } from "../lib/keys";
 import { useItems } from "../lib/queries";
 import { Button, cn, Select, Spinner } from "../ui";
 import { QrCode } from "../ui/Qr";
-import { CheckList, Command, TestAgain, useTest } from "./Checks";
+import { CheckList, Command, useTest } from "./Checks";
 import { FoldersStep } from "./Folders";
 import { Frame } from "./Frame";
+import { ModelStep } from "./ModelStep";
 import { canGoOn, type Step, stepsOf, testing, testOnOpen } from "./steps";
 
 const GATEWAYS = [
@@ -306,11 +307,14 @@ export function SetupView({ setup }: { setup: Setup }) {
   const accounts = models.filter((check) => !onComputer(check));
   const link = setup.models.find((check) => check.id === "link");
   const last = at === steps.length - 1;
+  /** The models stand in two columns, as in engenty wizards. */
+  const wide = step === "models" && !setup.hosted;
 
-  // The models are tested once when their step opens, if they never were; later on request.
+  // A hosted home's account is tested once when its step opens, if it never was. On the person's
+  // computer they pick first, and the pick is tested.
   const tested = useRef(false);
   useEffect(() => {
-    if (step === "models" && !tested.current && testOnOpen(setup)) {
+    if (setup.hosted && step === "models" && !tested.current && testOnOpen(setup)) {
       tested.current = true;
       void test();
     }
@@ -349,8 +353,13 @@ export function SetupView({ setup }: { setup: Setup }) {
 
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <Frame>
-        <main className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 pt-6 pb-6 sm:px-6">
+      <Frame wide={wide}>
+        <main
+          className={cn(
+            "mx-auto flex w-full flex-1 flex-col px-4 pt-6 pb-6 sm:px-6",
+            wide ? "max-w-6xl" : "max-w-xl",
+          )}
+        >
           {steps.length > 1 ? <Dashes steps={steps} at={at} /> : null}
 
           <div className="mt-6">
@@ -379,13 +388,15 @@ export function SetupView({ setup }: { setup: Setup }) {
               </>
             ) : null}
 
-            {step === "models" ? (
+            {step === "models" && !setup.hosted ? <ModelStep setup={setup} /> : null}
+
+            {step === "models" && setup.hosted ? (
               <>
                 <h1 className="font-display font-semibold text-[1.375rem] leading-tight">
                   {t("setup.models.title")}
                 </h1>
                 <p className="mt-1 text-[0.9375rem] text-ink-3">
-                  {t(setup.hosted ? "setup.models.subtitleHosted" : "setup.models.subtitle")}
+                  {t("setup.models.subtitleHosted")}
                 </p>
                 {here.length ? (
                   <Group label={t("setup.models.here")}>
@@ -414,7 +425,6 @@ export function SetupView({ setup }: { setup: Setup }) {
                     {line}
                   </p>
                 ))}
-                {setup.hosted ? null : <TestAgain setup={setup} onTest={() => void test()} />}
                 {setup.working || testing(setup) ? null : (
                   <p role="status" className="mt-3 text-[0.8125rem] text-ink-3">
                     {t("setup.models.gate")}

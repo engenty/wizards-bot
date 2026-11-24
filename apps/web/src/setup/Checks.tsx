@@ -201,7 +201,7 @@ function UseOllama({ check }: { check: SetupCheck }) {
  * A model the Bot Server pulls into Ollama on its own computer, on a click, with how far it is.
  * When it is done the Bot Server tests Ollama again.
  */
-function Pull({ offer }: { offer: NonNullable<SetupCheck["pull"]> }) {
+export function Pull({ offer }: { offer: NonNullable<SetupCheck["pull"]> }) {
   const client = useQueryClient();
   const { data: setup } = useSetup();
   const [problem, setProblem] = useState<string | null>(null);

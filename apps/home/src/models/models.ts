@@ -111,6 +111,9 @@ export function accountModel(
   })(model);
 }
 
+/** The sources the person picked in the setup. */
+const PICKED = "models.picked";
+
 /** Whether the person picked Ollama: "on" or "off". */
 const OLLAMA = "models.ollama";
 
@@ -164,6 +167,7 @@ export class Models {
     const rest = this.gateways().filter((g) => g.id !== gateway.id);
     this.db.setMeta("models.gateways", JSON.stringify([...rest, gateway]));
     this.secrets.set(`gateway.${gateway.id}`, key);
+    this.addPicked(gateway.id);
   }
 
   removeGateway(id: string): void {
@@ -241,6 +245,32 @@ export class Models {
     );
   }
 
+  // ── What the person picked ────────────────────────────────────────────────
+
+  /**
+   * The sources the person picked in the setup, or added since; undefined on a home whose setup
+   * asked for none. Once they picked, nothing else answers: not a client that happens to be
+   * installed, not a gateway that happens to have a key.
+   */
+  picked(): string[] | undefined {
+    const saved = this.db.meta(PICKED);
+    return saved ? (JSON.parse(saved) as string[]) : undefined;
+  }
+
+  /** The person picks one source in the setup: it alone answers. */
+  pickSource(id: string): void {
+    if (id === "ollama") this.db.setMeta(OLLAMA, "on");
+    else if (this.ollamaPicked()) this.pickOllama(false);
+    this.db.setMeta("models.order", JSON.stringify([]));
+    this.db.setMeta(PICKED, JSON.stringify([id]));
+  }
+
+  /** Another source beside the picked ones: a key added later, a model named in the order. */
+  private addPicked(id: string): void {
+    const picked = this.picked();
+    if (picked && !picked.includes(id)) this.db.setMeta(PICKED, JSON.stringify([...picked, id]));
+  }
+
   // ── Ollama ────────────────────────────────────────────────────────────────
 
   /**
@@ -261,7 +291,11 @@ export class Models {
 
   pickOllama(on: boolean): void {
     this.db.setMeta(OLLAMA, on ? "on" : "off");
-    if (!on) {
+    if (on) {
+      this.addPicked("ollama");
+    } else {
+      const picked = this.picked()?.filter((id) => id !== "ollama");
+      if (picked) this.db.setMeta(PICKED, JSON.stringify(picked));
       const rest = this.order().filter((ref) => splitRef(ref).sourceId !== "ollama");
       this.db.setMeta("models.order", JSON.stringify(rest));
     }
@@ -284,6 +318,7 @@ export class Models {
     this.db.setMeta("models.order", JSON.stringify(refs));
     // Naming one of its models in the order picks Ollama.
     if (refs.some((ref) => splitRef(ref).sourceId === "ollama")) this.db.setMeta(OLLAMA, "on");
+    for (const ref of refs) this.addPicked(splitRef(ref).sourceId);
   }
 
   view(): ModelsView {
@@ -306,13 +341,18 @@ export class Models {
   /**
    * Model refs in the order the home tries them: the person's order first, then a
    * subscription, then Ollama, then a gateway; this computer before another one. This
-   * computer's Ollama is among them only once the person picked it.
+   * computer's Ollama is among them only once the person picked it; once they picked in the
+   * setup, only what they picked is.
    */
   candidates(): string[] {
     const available = new Map<string, ModelSource>();
-    const picked = this.ollamaPicked();
+    const ollama = this.ollamaPicked();
+    const picked = this.picked();
     for (const source of this.sources()) {
-      if (source.online && (picked || source.id !== "ollama")) available.set(source.id, source);
+      // A linked computer and the account are picked by linking and by the sign-up.
+      const asked = source.id.includes("/") || source.id === ACCOUNT.id;
+      if (picked && !asked && !picked.includes(source.id)) continue;
+      if (source.online && (ollama || source.id !== "ollama")) available.set(source.id, source);
     }
     const refs: string[] = [];
     const add = (ref: string) => {

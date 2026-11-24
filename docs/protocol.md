@@ -1537,10 +1537,22 @@ and, in `start`, the model it would load and its size (`{ "model": "qwen3:8b", "
 5200000000 }`). A home that answered with Ollama alone before it could be picked has it picked. A
 hosted home has no Ollama (400 `refused`).
 
+On the person's own computer the setup asks first what the wizards think with, and tests what
+they picked. Its routes below `/v1/setup/local` are engenty wizards' (`@engenty/model-setup`):
+`GET /clients` (Claude Code and Codex, found and signed in or not), `GET` and `PUT /models` (the
+pick, `{ "source": "codex" }`, and which keys are stored), `POST /models/test`, `POST
+/keys/<provider>` (tests a key and keeps it when it works), `POST /ollama`, and for a client
+`POST /harness/<id>/detect`, `/install` and `/login`, the last two in a terminal (`GET
+/terminal/<id>/stream` as events, `POST …/input`, `POST …/resize`, `DELETE`) that runs the
+catalog's install command or the client's own sign-in and nothing a request names. Once the person
+picked, only picked sources answer; a key added later or a source named in the order joins them.
+A linked computer answers as before. A home whose setup never asked keeps the order it had. A
+hosted home has none of these routes.
+
 Test calls cost tokens. The home makes them only when asked: `POST /v1/setup/test` with
 `TestSetup` (`{}` for all sources, `{ "source": "claude" }` for one) answers once the calls are
-done, with the new `Setup`. A call that runs already is not made twice. The web app asks once
-when the models step opens and nothing was tested, and again on "Test again".
+done, with the new `Setup`. A call that runs already is not made twice. The web app asks
+once a source is picked, and again on "Test again".
 
 `PATCH /v1/setup` with `ChangeSetup` sets the person's name, ends the first start
 (`{ "done": true }`) or says the language the person reads (`{ "lang": "de" }`) → `Setup`. What

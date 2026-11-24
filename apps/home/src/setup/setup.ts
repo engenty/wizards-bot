@@ -234,6 +234,12 @@ export class Setup {
     this.home.db.setMeta(TESTS, JSON.stringify(all));
   }
 
+  /** Keeps the outcome of a test made elsewhere: the setup's of a key. */
+  async tested(id: string, probe: Probe): Promise<void> {
+    this.keep(id, probe);
+    await this.changed();
+  }
+
   private forget(id: string): void {
     const { [id]: _, ...rest } = this.kept();
     this.home.db.setMeta(TESTS, JSON.stringify(rest));
@@ -392,7 +398,13 @@ export class Setup {
     const found = await Promise.all(this.clients.map((client) => detectClient(client)));
     const installed = new Set(this.clients.filter((_, at) => found[at]?.version).map((c) => c.id));
     const models = this.modelChecks(installed).map(shown);
-    const working = models.some((check) => check.state === "ok" || check.state === "warning");
+    // Once the person picked, what they did not pick counts no more.
+    const picked = this.home.models.picked();
+    const working = models.some(
+      (check) =>
+        (check.state === "ok" || check.state === "warning") &&
+        (!picked || picked.includes(check.id) || check.id.includes("/")),
+    );
     return {
       done: this.done(),
       name: {
