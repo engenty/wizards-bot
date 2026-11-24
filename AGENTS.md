@@ -149,8 +149,12 @@ no emoji, no "please".
   task that failed three times in a row and tells the person with a card.
 - A file is checked before it is kept: its type is read from the bytes, and a file that is not
   what it says is refused. It is served for saving or showing, never as a page of the home.
-- An agent reaches nothing outside a connected folder, nothing hidden in it and no link out of
-  it. It changes a file only in a folder connected for changes, and asks before each change.
+- An agent reaches nothing outside a connected folder, nothing hidden in it, no file that holds
+  keys or passwords by its name and no link (`folders/rules.ts`). It changes a file only in a
+  folder connected for changes, and asks before each change; it writes no program and no file
+  with a second name elsewhere. Writes go through Mastra's `LocalFilesystem`, which checks the
+  path again as it writes. No folder of the system or its apps is connected, with everything
+  in it (`/etc`, `/private`, `~/Library`, …).
 - A photo of the person is looked at by a model on the home's own computer. Any other model sees
   it only after the person said yes to that. The home deletes the photo afterwards.
 - A channel hears only its owner. Homes hear only connected contacts, by signature. An agent

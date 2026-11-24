@@ -1,14 +1,7 @@
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  realpathSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { LocalFilesystem } from "@mastra/core/workspace";
 import {
   type ConnectFolder,
   FOLDER_PREVIEW_LIMIT,
@@ -26,6 +19,7 @@ import type { Home } from "../home.ts";
 import { newId, now } from "../ids.ts";
 import { langOf, say, w } from "../setup/words.ts";
 import { documentKind, documentText, piece } from "../skills/office/read.ts";
+import { badPart, executable, noLinks, refusedFolder, sharedFile, visible } from "./rules.ts";
 
 // Folders of the home's computer that agents may use. The files stay where they are: the
 // home reads them in place when an agent asks, and copies nothing. An agent changes a file
@@ -33,32 +27,6 @@ import { documentKind, documentText, piece } from "../skills/office/read.ts";
 
 const ENDS_TURN =
   "The card is in the chat. End your turn now with at most one short sentence. The answer arrives as the next message.";
-/** Folders no home connects: the whole disk and what the system keeps there. */
-const SYSTEM = [
-  "/",
-  "/System",
-  "/Library",
-  "/usr",
-  "/bin",
-  "/sbin",
-  "/etc",
-  "/var",
-  "/private",
-  "/dev",
-  "/proc",
-  "/sys",
-  "/boot",
-  "/opt",
-  "/Applications",
-  "/Volumes",
-];
-/** Names that are passed over everywhere: hidden files, and folders that hold no one's own work. */
-const SKIPPED = new Set([
-  "node_modules",
-  "__pycache__",
-  "$RECYCLE.BIN",
-  "System Volume Information",
-]);
 /** The meta key that names the agents' own folder by its id. */
 const OWN = "folders.own";
 /** The name of the agents' own folder the setup suggests in the person's home folder. */
@@ -91,9 +59,6 @@ interface Row {
   created_at: string;
 }
 
-const visible = (name: string): boolean =>
-  !name.startsWith(".") && !name.startsWith("~$") && !SKIPPED.has(name);
-
 /**
  * A folder the picker may show: the person's home folder `top` or one inside it, with no
  * hidden folder on the way.
@@ -113,6 +78,7 @@ const expand = (path: string): string =>
 
 export class Folders {
   private readonly home: Home;
+  private readonly disks = new Map<string, LocalFilesystem>();
 
   constructor(home: Home) {
     this.home = home;
@@ -273,12 +239,18 @@ export class Folders {
 
   /** A path inside a connected folder as a path on the disk. Nothing outside the folder is ever reached. */
   locate(folder: Folder, path: string): string {
-    const parts = path.split(/[\\/]+/).filter((part) => part && part !== ".");
-    if (parts.some((part) => part === ".." || !visible(part))) {
-      throw new FolderRefused("invalid", `“${path}” is not a path inside ${folder.name}.`);
-    }
+    const parts = this.parts(path);
+    const bad = badPart(parts);
+    if (bad === "secret")
+      throw new FolderRefused(
+        "invalid",
+        `“${path}” holds keys or passwords by its name and stays closed. Do not try it another way.`,
+      );
+    if (bad) throw new FolderRefused("invalid", `“${path}” is not a path inside ${folder.name}.`);
     const full = join(folder.path, ...parts);
-    // A link inside the folder may point out of it: the place it really leads to decides.
+    // A link may lead anywhere, also to a place that is not there yet: none is followed.
+    if (!noLinks(folder.path, full))
+      throw new FolderRefused("invalid", `“${path}” leads out of ${folder.name}.`);
     let known = full;
     while (!existsSync(known)) known = dirname(known);
     const real = realpathSync(known);
@@ -286,6 +258,47 @@ export class Folders {
       throw new FolderRefused("invalid", `“${path}” leads out of ${folder.name}.`);
     }
     return full;
+  }
+
+  /** A path inside a folder as its parts, the way the agents and the file browser write it. */
+  private parts(path: string): string[] {
+    return path.split(/[\\/]+/).filter((part) => part && part !== ".");
+  }
+
+  /**
+   * Mastra's filesystem for a connected folder: it checks every path again, link by link, as it
+   * reads or writes, and refuses every write in a folder connected for reading.
+   */
+  disk(folder: Folder): LocalFilesystem {
+    const key = `${folder.id}:${folder.path}:${folder.access}`;
+    let disk = this.disks.get(key);
+    if (!disk) {
+      disk = new LocalFilesystem({
+        id: folder.id,
+        basePath: folder.path,
+        contained: true,
+        readOnly: folder.access !== "write",
+      });
+      this.disks.set(key, disk);
+    }
+    return disk;
+  }
+
+  /**
+   * Writes a file in a folder connected for changes, after the home's own checks: no file that
+   * runs when it is opened, no file with a second name elsewhere. Missing folders on the way
+   * are made.
+   */
+  async write(folder: Folder, path: string, content: string | Uint8Array): Promise<void> {
+    const full = this.locate(folder, path);
+    if (executable(basename(full)))
+      throw new FolderRefused("invalid", `${path} would be a program. No agent writes one.`);
+    if (sharedFile(full))
+      throw new FolderRefused(
+        "invalid",
+        `${path} has a second name in another place: changing it would change that one too.`,
+      );
+    await this.disk(folder).writeFile(this.parts(path).join("/"), content, { recursive: true });
   }
 
   /**
@@ -327,26 +340,24 @@ export class Folders {
       throw new FolderRefused("not_found", "There is no such folder on the Bot Server’s computer.");
     }
     const real = realpathSync(wanted);
-    const data = realpathSync(this.home.config.dataDir);
-    if (
-      SYSTEM.includes(real) ||
-      real === realpathSync(homedir()) ||
-      real === dirname(realpathSync(homedir()))
-    ) {
+    const refused = refusedFolder(real, this.home.config.dataDir);
+    if (refused === "whole")
       throw new FolderRefused(
         "invalid",
         "Choose a folder with your own files in it, not the whole disk or your whole home folder.",
       );
-    }
-    if (real === data || real.startsWith(data + sep) || data.startsWith(real + sep)) {
+    if (refused === "system")
+      throw new FolderRefused(
+        "invalid",
+        "This folder belongs to the computer’s system or its apps. Choose a folder with your own files in it.",
+      );
+    if (refused === "data")
       throw new FolderRefused(
         "invalid",
         "This folder holds the Bot Server’s own data. Choose another one.",
       );
-    }
-    if (real.split(sep).some((part) => part.startsWith("."))) {
+    if (refused === "hidden")
       throw new FolderRefused("invalid", "A hidden folder cannot be connected.");
-    }
     return real;
   }
 
@@ -680,7 +691,7 @@ export class Folders {
 
   private registerCards(): void {
     const { home } = this;
-    home.onCard("folder_write", ({ card, action, payload }) => {
+    home.onCard("folder_write", async ({ card, action, payload }) => {
       const folder = this.list().find((each) => each.id === payload.folderId);
       const path = String(payload.path);
       if (action !== "write")
@@ -690,9 +701,14 @@ export class Folders {
         );
       if (folder?.access !== "write")
         return home.tell(card.conversationId, `The folder is not connected for changes any more.`);
-      const file = this.locate(folder, path);
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, String(payload.content));
+      try {
+        await this.write(folder, path, String(payload.content));
+      } catch (error) {
+        return home.tell(
+          card.conversationId,
+          `${path} was not written: ${(error as Error).message}`,
+        );
+      }
       home.tell(
         card.conversationId,
         `${path} in ${folder.name} is written. Say so in one sentence.`,
