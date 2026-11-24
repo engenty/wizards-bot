@@ -121,6 +121,7 @@
 				AA0000000000000000000006 /* Frameworks */,
 				AA0000000000000000000007 /* Resources */,
 				AA0000000000000000000009 /* Embed LaunchAgent */,
+				AA0000000000000000000018 /* Dev app */,
 			);
 			buildRules = (
 			);
@@ -221,6 +222,30 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		AA0000000000000000000018 /* Dev app */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/Config/dev-app.sh",
+			);
+			name = "Dev app";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$SRCROOT/Config/dev-app.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		AA0000000000000000000005 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -318,8 +343,9 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = Config/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = wizards.bot;
+				INFOPLIST_KEY_CFBundleDisplayName = "wizards.bot dev";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSCameraUsageDescription = "The camera takes a picture for your agent when you ask for one.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "MIT License";
@@ -328,7 +354,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = bot.wizards.mac;
+				PRODUCT_BUNDLE_IDENTIFIER = bot.wizards.mac.dev;
 				PRODUCT_NAME = wizards;
 				SPARKLE_PUBLIC_KEY = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;

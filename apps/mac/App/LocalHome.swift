@@ -3,16 +3,17 @@ import Observation
 import ServiceManagement
 
 /// The Bot Server on this Mac: the app's own (the LaunchAgent `bot.wizards.home`) or one that
-/// was there before it.
+/// was there before it. The dev app knows only its own (`Identity.usesOthers`).
 @Observable
 final class LocalHome {
     /// What the app found on this Mac that is not its own.
     enum Found: Equatable {
-        /// A Bot Server answers on 4747.
+        /// A Bot Server answers on the app's port.
         case runs(version: String?, byInstall: Bool)
         /// `wizards bot install` put one here, but it does not answer.
         case installed
-        /// Something that is not a Bot Server listens on 4747.
+        /// Something that is not a Bot Server listens on the app's port; for the dev app, anything
+        /// that is not its own.
         case portTaken(String)
     }
 
@@ -34,7 +35,9 @@ final class LocalHome {
         case started
     }
 
-    static let address = URL(string: "http://localhost:\(Address.port)")!
+    /// The port of the app's Bot Server: 4747, the dev app's own beside it.
+    static let port = Identity.current.port
+    static let address = URL(string: "http://localhost:\(port)")!
 
     private(set) var found: Found?
     /// Data of an earlier Bot Server is in the data folder: starting here uses it.
@@ -52,7 +55,8 @@ final class LocalHome {
 
     private let service = SMAppService.agent(plistName: LocalPaths.plist)
 
-    /// The app carries a Bot Server (a build of `pnpm pack:mac`; a plain Xcode build does not).
+    /// The app carries a Bot Server (a build of `pnpm pack:mac`; a plain Xcode build of Release
+    /// does not), or, as the dev app, runs the one of its checkout with the Node its build found.
     var canStart: Bool { LocalPaths.node(in: .main) != nil && LocalPaths.cli(in: .main) != nil }
 
     /// The app's own Bot Server is registered with macOS.
@@ -89,14 +93,21 @@ final class LocalHome {
     }
 
     /// Looks at the Mac: the app's own Bot Server, one of `wizards bot install`, one by hand,
-    /// another program on 4747, data in the data folder.
+    /// another program on the app's port, data in the data folder.
     func look() async {
         hasData = FileManager.default.fileExists(atPath: LocalPaths.data.appending(path: "home.db").path)
-        let byInstall = FileManager.default.fileExists(atPath: LocalPaths.installPlist.path)
+        let usesOthers = Identity.current.usesOthers
+        let byInstall = usesOthers && FileManager.default.fileExists(atPath: LocalPaths.installPlist.path)
         switch await Health.check(Self.address, seconds: 2) {
         case let .home(version):
             let known = version ?? (byInstall ? Self.installed?.version : nil)
-            found = isOurs ? nil : .runs(version: known, byInstall: byInstall)
+            if isOurs {
+                found = nil
+            } else if usesOthers {
+                found = .runs(version: known, byInstall: byInstall)
+            } else {
+                found = .portTaken(String(localized: "another Bot Server"))
+            }
         case .notHome:
             found = .portTaken(Self.listener() ?? String(localized: "another program"))
         case .unreachable:
@@ -114,7 +125,7 @@ final class LocalHome {
         }
         await look()
         if case let .portTaken(program) = found {
-            problem = String(localized: "Port 4747 is taken by \(program). The app starts no Bot Server beside it.")
+            problem = String(localized: "Port \(String(Self.port)) is taken by \(program). The app starts no Bot Server beside it.")
             finish()
             return false
         }
@@ -212,7 +223,7 @@ final class LocalHome {
     /// when the two would not use the same data folder.
     func takeOver() async -> Bool {
         problem = nil
-        guard canStart else {
+        guard canStart, Identity.current.usesOthers else {
             problem = String(localized: "This build of the app carries no Bot Server.")
             return false
         }
@@ -335,7 +346,7 @@ final class LocalHome {
 
     /// Starts the app's Bot Server anew, after an update of the app.
     func restart() {
-        guard service.status == .enabled else { return }
+        guard canStart, service.status == .enabled else { return }
         Self.launchctl(["kickstart", "-k", "gui/\(getuid())/\(LocalPaths.label)"])
     }
 
@@ -345,7 +356,7 @@ final class LocalHome {
         let output: String?
         if found == nil, let node = LocalPaths.node(in: .main), let cli = LocalPaths.cli(in: .main) {
             output = await Self.run(node, [cli.path, "pair", "--json"])
-        } else if FileManager.default.isExecutableFile(atPath: LocalPaths.installCommand.path) {
+        } else if Identity.current.usesOthers, FileManager.default.isExecutableFile(atPath: LocalPaths.installCommand.path) {
             output = await Self.run(LocalPaths.installCommand, ["pair"])
         } else {
             output = nil
@@ -364,6 +375,7 @@ final class LocalHome {
 
     /// Starts the Bot Server of `wizards bot install` that does not answer.
     func startInstalled() async -> Bool {
+        guard Identity.current.usesOthers else { return false }
         Self.launchctl(["kickstart", "gui/\(getuid())/\(LocalPaths.installLabel)"])
         for _ in 0 ..< 30 {
             if case .home = await Health.check(Self.address, seconds: 1) { return true }
@@ -372,12 +384,12 @@ final class LocalHome {
         return false
     }
 
-    /// The program that listens on 4747, by name.
+    /// The program that listens on the app's port, by name.
     private static func listener() -> String? {
         let pipe = Pipe()
         let lsof = Process()
         lsof.executableURL = URL(filePath: "/usr/sbin/lsof")
-        lsof.arguments = ["-nP", "-iTCP:\(Address.port)", "-sTCP:LISTEN", "-Fc"]
+        lsof.arguments = ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-Fc"]
         lsof.standardOutput = pipe
         lsof.standardError = FileHandle.nullDevice
         guard (try? lsof.run()) != nil else { return nil }

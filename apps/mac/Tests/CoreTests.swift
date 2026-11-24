@@ -180,3 +180,34 @@ import Testing
         #expect(InstalledBot.read(Data("not json".utf8)) == nil)
     }
 }
+
+@Suite struct IdentityTests {
+    @Test func theReleaseAppKeepsItsNames() {
+        let release = Identity.release
+        #expect(release.bundleID == "bot.wizards.mac")
+        #expect(release.homeLabel == "bot.wizards.home")
+        #expect(release.homePlist == "bot.wizards.home.plist")
+        #expect(release.linkLabel == "bot.wizards.link")
+        #expect(release.linkPlist == "bot.wizards.link.plist")
+        #expect(release.port == 4747)
+        #expect(release.data == nil)
+        #expect(release.linkData == ".engenty/wizards-bot-link")
+        #expect(release.checksUpdates && release.usesOthers && !release.runsFromCheckout)
+        #expect(release.environment(home: URL(filePath: "/Users/ada")).isEmpty)
+    }
+
+    @Test func theDevAppSharesNothingWithIt() {
+        let dev = Identity.dev
+        let release = Identity.release
+        #expect(dev.bundleID == "bot.wizards.mac.dev")
+        #expect(dev.homeLabel == "bot.wizards.home.dev")
+        #expect(dev.linkLabel == "bot.wizards.link.dev")
+        #expect(dev.port != release.port)
+        #expect(dev.linkData != release.linkData)
+        #expect(!dev.checksUpdates && !dev.usesOthers && dev.runsFromCheckout)
+        #expect(dev.environment(home: URL(filePath: "/Users/ada")) == [
+            "WIZARDS_BOT_DATA": "/Users/ada/.engenty/wizards-bot-dev",
+            "WIZARDS_BOT_PORT": String(dev.port),
+        ])
+    }
+}

@@ -31,12 +31,12 @@
         }
       }
     },
-    "A Bot Server listens on 4747. Quit that program to start one here, or connect to a Bot Server elsewhere.": {
+    "A Bot Server listens on %@. Quit that program to start one here, or connect to a Bot Server elsewhere.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein Bot Server hört auf 4747. Beende dieses Programm, um hier einen zu starten, oder verbinde dich mit einem Bot Server woanders."
+            "value": "Ein Bot Server hört auf %@. Beende dieses Programm, um hier einen zu starten, oder verbinde dich mit einem Bot Server woanders."
           }
         }
       }
@@ -551,22 +551,22 @@
         }
       }
     },
-    "Port 4747 is taken by %@.": {
+    "Port %@ is taken by %@.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Port 4747 ist von %@ belegt."
+            "value": "Port %@ ist von %@ belegt."
           }
         }
       }
     },
-    "Port 4747 is taken by %@. The app starts no Bot Server beside it.": {
+    "Port %@ is taken by %@. The app starts no Bot Server beside it.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Port 4747 ist von %@ belegt. Die App startet keinen Bot Server daneben."
+            "value": "Port %@ ist von %@ belegt. Die App startet keinen Bot Server daneben."
           }
         }
       }
@@ -1207,6 +1207,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deine eigenen Agenten. Sie arbeiten auf diesem Mac oder auf einem Bot Server, den du schon hast."
+          }
+        }
+      }
+    },
+    "another Bot Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "einem anderen Bot Server"
           }
         }
       }

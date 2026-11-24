@@ -32,11 +32,13 @@ it does and why is in `docs/mac-app.md`.
 
 ## Build and run
 
-The shell alone, which connects to a Bot Server but has none inside:
+The dev app, a Debug build that runs beside the installed app with its own bundle id
+(`bot.wizards.mac.dev`), LaunchAgents, port 4790 and data, and starts its Bot Server from this
+checkout (`docs/mac-app.md`, "Develop the Mac app"), from the repository's root:
 
 ```sh
-xcodebuild -project WizardsMac.xcodeproj -scheme wizards -derivedDataPath build build
-open build/Build/Products/Debug/wizards.app
+pnpm dev:mac            # build and open it
+pnpm dev:mac --fresh    # as on a new Mac
 ```
 
 A home of this repository to connect it to, on its own port and data folder:

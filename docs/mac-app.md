@@ -285,6 +285,42 @@ The home is inside the app, so the app and its home have one version and update 
   the download page says to use the menu first.
 - Uninstalling never touches a home of `wizards bot install`.
 
+## Develop the Mac app
+
+A Debug build is the dev app: it runs beside the installed app and never reaches its Bot Server.
+`apps/mac/Core/Identity.swift` holds both sets of names; the build configuration picks one.
+
+|              | Installed app (Release)       | Dev app (Debug)                     |
+| ------------ | ----------------------------- | ----------------------------------- |
+| Bundle id    | `bot.wizards.mac`             | `bot.wizards.mac.dev`               |
+| LaunchAgents | `bot.wizards.home`, `.link`   | `bot.wizards.home.dev`, `.link.dev` |
+| Port         | 4747                          | 4790                                |
+| Data         | `~/.engenty/wizards-bot`      | `~/.engenty/wizards-bot-dev`        |
+| Link data    | `~/.engenty/wizards-bot-link` | `~/.engenty/wizards-bot-dev-link`   |
+| Bot Server   | `Contents/Resources/bot`      | this checkout's `apps/home`         |
+| Updates      | Sparkle                       | none                                |
+
+```sh
+pnpm dev:mac            # build the dev app and open it
+pnpm dev:mac --fresh    # the same, as on a new Mac
+```
+
+- The build phase "Dev app" (`apps/mac/Config/dev-app.sh`) makes the dev app's LaunchAgents
+  from the release plists and writes `Contents/Resources/checkout.plist`: this checkout and the
+  Node that `pnpm dev:mac` runs on (24.11 or newer). The dev app's "Start on this Mac" runs
+  `apps/home/src/cli.ts` of the checkout with that Node, so a change to `apps/home` runs once
+  the dev Bot Server starts anew: `pnpm dev:mac` does that, as does "Stop Bot Server" and
+  "Start Bot Server" in its menu. The web app comes from `apps/web/dist`; `pnpm build` after a
+  change there.
+- `--fresh` quits the dev app, has macOS forget its two LaunchAgents, removes
+  `~/.engenty/wizards-bot-dev` and `~/.engenty/wizards-bot-dev-link` and deletes the settings of
+  `bot.wizards.mac.dev`. It touches nothing of the installed app.
+- The dev app uses no Bot Server it did not start: not the one of `wizards bot install`, and not
+  one that answers on its port. Its window and first screen say "wizards.bot dev".
+- macOS may ask once to allow the dev app under Login Items, as for the installed app.
+- A Release build in Xcode (`-configuration Release`) is the installed app, as `pnpm pack:mac`
+  builds it. A bundle whose id is not its build's own starts no Bot Server and no link.
+
 ## Distribution
 
 ### Signing and notarization

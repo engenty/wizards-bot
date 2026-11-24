@@ -2,11 +2,15 @@ import SwiftUI
 
 /// One program, three jobs: started with `--home` by its LaunchAgent it becomes the Bot Server,
 /// with `--link` this Mac's link to a Bot Server elsewhere (`HomeLauncher`), otherwise it is the
-/// app with its window.
+/// app with its window. The dev app first takes its own port and data folder (`Identity`).
 @main
 enum Main {
     static func main() {
+        Identity.current.apply()
         let arguments = Array(CommandLine.arguments.dropFirst())
+        if arguments.first == "--forget" {
+            HomeLauncher.forget()
+        }
         if arguments.first == "--home" {
             HomeLauncher.run(Array(arguments.dropFirst()))
         }
@@ -22,7 +26,7 @@ struct WizardsMacApp: App {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        Window("wizards.bot", id: "main") {
+        Window(Identity.current.name, id: "main") {
             RootView()
                 .environment(AppModel.shared)
                 .frame(minWidth: 760, minHeight: 540)
