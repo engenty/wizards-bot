@@ -685,6 +685,11 @@ export const Folder = z.object({
   path: z.string(),
   /** `write`: agents may also change files, and ask before each change. */
   access: z.enum(["read", "write"]),
+  /**
+   * The agents' own folder: where they keep what they make for the person, unless the person
+   * names another. One folder at most.
+   */
+  own: z.boolean().optional(),
   createdAt: z.string(),
 });
 export type Folder = z.infer<typeof Folder>;
@@ -692,6 +697,11 @@ export type Folder = z.infer<typeof Folder>;
 export const ConnectFolder = z.object({
   path: z.string().min(1),
   access: z.enum(["read", "write"]),
+  /**
+   * Makes it the agents' own folder, connected for changes. A folder that is not there yet is
+   * made, inside the person's home folder only.
+   */
+  own: z.boolean().optional(),
   /** The chat it was connected from: its agent is told and answers there. */
   conversationId: z.string().optional(),
 });
@@ -1035,6 +1045,11 @@ export const Setup = z.object({
   pulling: SetupPulling.optional(),
   /** The address at wizards.host. Missing on a hosted home and on one with an address of its own. */
   address: SetupAddress.optional(),
+  /**
+   * The agents' own folder: the one connected, or the one the setup suggests (`~/wizards`).
+   * `exists`: the folder is on the disk already. Missing on a hosted home.
+   */
+  ownFolder: z.object({ path: z.string(), connected: z.boolean(), exists: z.boolean() }).optional(),
 });
 export type Setup = z.infer<typeof Setup>;
 

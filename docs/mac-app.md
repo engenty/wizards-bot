@@ -27,7 +27,7 @@ flowchart LR
   found -- no --> choose{Choose}
   choose --> local[Auf diesem Mac starten]
   local --> start[The app starts<br/>its Bot Server]
-  start --> setup[The setup:<br/>name, models, phone]
+  start --> setup[The setup:<br/>name, models, folders, phone]
   choose --> remote[Mit einem Bot Server<br/>verbinden]
   remote --> code[Address<br/>and code]
   use --> chat([Chat])

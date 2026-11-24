@@ -10,6 +10,15 @@ import { pickFolderOnMac } from "../lib/mac";
 import { completions, crumbs, nameOf, separatorOf, tilde, trimmedPath } from "../lib/paths";
 import { Button, cn, Input } from "../ui";
 
+/** The person's home folder on the Bot Server's computer and what is in it, where the picker starts. */
+export function useFolderHome() {
+  return useQuery({
+    queryKey: keys.folderHome(),
+    queryFn: () => api.get<FolderListing>("/v1/folders/browse"),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
 /**
  * Picks a folder of the Bot Server's computer; the person never has to type a path. In the Mac
  * app, when the Bot Server runs on that Mac, "Choose folder…" opens the Mac's own folder panel.
@@ -23,16 +32,24 @@ import { Button, cn, Input } from "../ui";
 export function FolderPicker({
   value,
   onChange,
+  hint,
+  changeLabel,
+  startOpen,
+  onCancel,
 }: {
   /** The chosen folder's path. */
   value: string | undefined;
   onChange: (path: string | undefined) => void;
+  /** A line under the chip instead of what the folder holds, e.g. for one not made yet. */
+  hint?: string;
+  /** What the chip's button says; "Change" otherwise. */
+  changeLabel?: string;
+  /** Opens the picker as soon as it is shown. */
+  startOpen?: boolean;
+  /** The person closed the picker without a folder. */
+  onCancel?: () => void;
 }) {
-  const start = useQuery({
-    queryKey: keys.folderHome(),
-    queryFn: () => api.get<FolderListing>("/v1/folders/browse"),
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  const start = useFolderHome();
   const home = start.data?.home;
   const [listing, setListing] = useState<FolderListing | null>(null);
   const [typing, setTyping] = useState(false);
@@ -62,6 +79,8 @@ export function FolderPicker({
       if (onMac !== undefined) {
         if (onMac) {
           onChange(onMac);
+        } else {
+          onCancel?.();
         }
         return;
       }
@@ -74,6 +93,16 @@ export function FolderPicker({
           .catch(() => api.get<FolderListing>("/v1/folders/browse")),
       );
     });
+
+  // Asked to open at once: the picker shows as the person asked for it.
+  const opened = useRef(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once, when it is first shown
+  useEffect(() => {
+    if (startOpen && !opened.current) {
+      opened.current = true;
+      void choose();
+    }
+  }, []);
 
   if (listing) {
     return (
@@ -90,6 +119,7 @@ export function FolderPicker({
         onCancel={() => {
           setListing(null);
           setProblem(null);
+          onCancel?.();
         }}
       />
     );
@@ -98,7 +128,14 @@ export function FolderPicker({
   return (
     <div className="flex flex-col gap-2">
       {value ? (
-        <Chip path={value} home={home} onChange={() => void choose()} busy={busy} />
+        <Chip
+          path={value}
+          home={home}
+          hint={hint}
+          changeLabel={changeLabel}
+          onChange={() => void choose()}
+          busy={busy}
+        />
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" busy={busy} onClick={() => void choose()}>
@@ -134,11 +171,15 @@ export function FolderPicker({
 function Chip({
   path,
   home,
+  hint,
+  changeLabel,
   busy,
   onChange,
 }: {
   path: string;
   home: string | undefined;
+  hint?: string;
+  changeLabel?: string;
   busy: boolean;
   onChange: () => void;
 }) {
@@ -148,6 +189,9 @@ function Chip({
     let current = true;
     setFound(null);
     setRefused(null);
+    if (hint) {
+      return;
+    }
     api.post<FolderPreview>("/v1/folders/preview", { path }).then(
       (preview) => current && setFound(preview),
       (err: Error) => current && setRefused(err.message),
@@ -155,7 +199,7 @@ function Chip({
     return () => {
       current = false;
     };
-  }, [path]);
+  }, [path, hint]);
   return (
     <div className="flex flex-col gap-1.5">
       <div
@@ -172,10 +216,12 @@ function Chip({
           </span>
         </span>
         <Button variant="ghost" size="sm" busy={busy} onClick={onChange}>
-          {t("folder.change")}
+          {changeLabel ?? t("folder.change")}
         </Button>
       </div>
-      {refused ? (
+      {hint ? (
+        <p className="text-[0.8125rem] text-ink-3">{hint}</p>
+      ) : refused ? (
         <p role="alert" className="text-[0.8125rem] text-rose">
           {refused}
         </p>

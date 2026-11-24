@@ -11,6 +11,7 @@ import { useItems } from "../lib/queries";
 import { Button, cn, Select, Spinner } from "../ui";
 import { QrCode } from "../ui/Qr";
 import { CheckList, Command, TestAgain, useTest } from "./Checks";
+import { FoldersStep } from "./Folders";
 import { Frame } from "./Frame";
 import { canGoOn, type Step, stepsOf, testing, testOnOpen } from "./steps";
 
@@ -287,7 +288,7 @@ const onComputer = (check: SetupCheck) =>
 
 /**
  * The first start of a home, as a short conversation: the person's name, which model answers
- * (each tested with a short call), and the phone. It stands where the chat stands, not over
+ * (each tested with a short call), the folders, and the phone. It stands where the chat stands, not over
  * it. What it changes later goes through the main agent or the settings.
  */
 export function SetupView({ setup }: { setup: Setup }) {
@@ -295,6 +296,7 @@ export function SetupView({ setup }: { setup: Setup }) {
   const [steps] = useState(() => stepsOf(setup));
   const [at, setAt] = useState(0);
   const [name, setName] = useState(setup.name.value);
+  const [own, setOwn] = useState(setup.ownFolder?.path ?? "");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const test = useTest(setProblem);
@@ -327,6 +329,10 @@ export function SetupView({ setup }: { setup: Setup }) {
       if (step === "name") {
         await save({ name: name.trim() });
         void client.invalidateQueries({ queryKey: keys.home() });
+      }
+      if (step === "folders" && own) {
+        // The agents' own folder: made when it is not there yet, and connected for changes.
+        await api.post("/v1/folders", { path: own, access: "write", own: true });
       }
       if (last) {
         // The chat takes over once the home says the setup is done.
@@ -415,6 +421,10 @@ export function SetupView({ setup }: { setup: Setup }) {
                   </p>
                 )}
               </>
+            ) : null}
+
+            {step === "folders" ? (
+              <FoldersStep setup={setup} own={own} onOwn={setOwn} onProblem={setProblem} />
             ) : null}
 
             {step === "devices" ? (

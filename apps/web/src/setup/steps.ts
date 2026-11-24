@@ -2,9 +2,9 @@ import type { Setup, SetupCheck } from "@wizards-bot/protocol";
 
 /**
  * The first start, step by step: the person's name, the models (which gate until one answers),
- * what the agents can do, and a phone and a folder. After it, the chat.
+ * the folders (the agents' own and the ones they may read), and a phone. After it, the chat.
  */
-export type Step = "name" | "models" | "devices";
+export type Step = "name" | "models" | "folders" | "devices";
 
 /**
  * Whether the app opens the setup instead of the chat: the person has not been through it, or
@@ -22,7 +22,13 @@ export function stepsOf(setup: Setup): Step[] {
   if (setup.done) {
     return ["models"];
   }
-  return [...(setup.name.confirmed ? [] : ["name" as const]), "models", "devices"];
+  return [
+    ...(setup.name.confirmed ? [] : ["name" as const]),
+    "models",
+    // A hosted home's computer has no folders of the person's.
+    ...(setup.ownFolder ? ["folders" as const] : []),
+    "devices",
+  ];
 }
 
 /** Whether the person can go on from a step: the models only once one of them answered. */

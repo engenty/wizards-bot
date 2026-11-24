@@ -1059,7 +1059,11 @@ is no such folder; 400 `invalid` for a folder that cannot be connected (the whol
 folder, the whole home folder, a hidden folder). A device shows it under the chosen folder.
 
 `POST /v1/folders` with `ConnectFolder` (`path`, `access`, and `conversationId` when it is
-connected from a chat: that chat's agent is told and answers there) → `Folder`. `PATCH /v1/folders/:id` with
+connected from a chat: that chat's agent is told and answers there) → `Folder`. With
+`own: true` it becomes the agents' own folder (`Folder.own`), connected for changes whatever
+`access` says. A folder that is not there yet is made first, inside the person's home folder
+only (400 `invalid` elsewhere). There is one own folder at most: another one takes the mark,
+and the one before stays connected as it was. Disconnecting it leaves the agents without one. `PATCH /v1/folders/:id` with
 `{ "access": "read" | "write" }` → `Folder`. `DELETE /v1/folders/:id` disconnects it; nothing on
 the disk changes.
 
@@ -1069,11 +1073,16 @@ the disk changes.
   "name": "Trips",
   "path": "/Users/ada/Documents/Trips",
   "access": "read",
+  "own": false,
   "createdAt": "…"
 }
 ```
 
 The event `folders.updated` carries the whole list after each change.
+
+The agents' own folder is where they put what they make for the person, unless the person
+names another place: `folder_write` without a folder writes there, after the person said yes
+to that change as in every connected folder.
 
 ### An agent asks for a folder
 
@@ -1313,6 +1322,15 @@ prints them. `GET /v1/setup` → `Setup`:
   says why in one sentence, the relay's own where it said no. `name` (`k7qf2mxd3a.wizards.host`)
   is known once the home made its claim key and stays when the address is switched off. Missing
   on a hosted home and on one with an address of its own (`WIZARDS_BOT_URL`).
+- `ownFolder`: the agents' own folder, `{ path, connected, exists }`: the one connected, or
+  `~/wizards` in the person's home folder, which the setup suggests. Missing on a hosted home,
+  whose computer has no folders of the person's.
+
+The first start asks, in this order: the name, the models, the folders (not on a hosted home)
+and the phone. The folders step shows the agents' own folder, `~/wizards` unless the person
+picks another; going on connects it with `POST /v1/folders` and `own: true`. Below it the
+person may connect further folders, each read only or read and change; they are connected at
+once with the same route, and the step goes on with none.
 
 `said` is one sentence the person can act on, `todo` says what to do, `command` is what to run
 in a terminal on the home's computer, e.g.:

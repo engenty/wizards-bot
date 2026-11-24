@@ -361,6 +361,8 @@ export class Setup {
       capabilities: this.capabilities(models).map(shown),
       ...(this.pulling ? { pulling: this.pulling } : {}),
       ...(this.home.tunnel.available() ? { address: this.home.tunnel.view(lang) } : {}),
+      // A hosted home's computer is not the person's: it has no folders of theirs.
+      ...(isHosted(this.home.config) ? {} : { ownFolder: this.home.folders.ownPlace() }),
     };
   }
 
