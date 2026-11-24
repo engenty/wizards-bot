@@ -70,6 +70,28 @@ takes `WIZARDS_BOT_SETUP_CODE` once, for its first device, and only while it has
 A watch pairs through its phone: the phone calls `POST /v1/devices` with
 `{ "name": "…", "kind": "watch" }` and hands the returned `PairResponse` to the watch.
 
+### A group home
+
+A group home belongs to a team, not to one person (`docs/network.md` §5). `HomeInfo.group` is
+`{ "name": "Club" }` and `name` is the team's. Its **admins** run it: each of their devices
+carries `admin: { id, name }`, also in `PairResponse.device`, so a device knows whose it is.
+
+- An admin's first device pairs with a pass from the Manage-App (`docs/hosted.md`, Contract
+  11): the web app opens at `<base url>/#admin=<pass>` and sends `POST /v1/pair/admin` with
+  `PairAdmin` `{ "pass": "…", "name": "Ada's browser", "kind": "browser" }` → `PairResponse`.
+  A pass that is wrong, old, used or not an admin's answers 401 `unauthorized`.
+- Further devices pair with a code from a pairing card the admin asks for: it pairs the device
+  as that admin. A group home takes no code that is not an admin's, and no setup code.
+- Every admin's devices see every conversation of the home's agents and its rooms. A message an
+  admin wrote has `role: "you"` and `from: { "name": "Ben", "admin": "<id>" }`; a device shows
+  the writer when it is not its own admin. What someone else writes to a shared agent reaches
+  no admin's device, as in any home.
+- A card waits for every admin. The first answer counts; its `answer.admin` says who gave it,
+  `answer.by` on which device. The agent hears who answered.
+- A device offers nothing to the agents: `PUT /v1/device/resources` answers 409 `group_home`.
+- An admin the Manage-App no longer lists loses their devices within a minute: their token
+  answers 401 `unauthorized`.
+
 ## Agents and conversations
 
 `GET /v1/agents` → `{ "agents": Agent[] }`. The main agent comes first. Each agent has one

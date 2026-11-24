@@ -92,7 +92,13 @@ interface DeviceRow {
   agents: string | null;
   created_at: string;
   seen_at: string;
+  admin_id: string | null;
+  admin_name: string | null;
 }
+
+/** A device's row with the name of the admin it belongs to, in a group home. */
+const DEVICE_SELECT =
+  "select device.*, admin.name as admin_name from device left join admin on admin.id = device.admin_id";
 
 interface DocumentRow {
   id: string;
@@ -894,30 +900,36 @@ export class Store {
 
   // ── Devices ───────────────────────────────────────────────────────────────
 
-  newPairingCode(): string {
+  /** A code that pairs one device. In a group home it pairs it as the admin who asked for it. */
+  newPairingCode(adminId?: string): string {
     const code = newPairingCode();
     this.db.run("delete from pairing where expires_at < ?", now());
     this.db.run(
-      "insert into pairing (code, expires_at) values (?, ?)",
+      "insert into pairing (code, expires_at, admin_id) values (?, ?, ?)",
       code,
       new Date(Date.now() + PAIRING_MINUTES * 60_000).toISOString(),
+      adminId ?? null,
     );
     return code;
   }
 
-  /** Uses up a pairing code. `false` when it is unknown or too old. */
-  redeemPairingCode(code: string): boolean {
+  /**
+   * Uses up a pairing code: what it pairs as, or `undefined` when it is unknown or too old.
+   * `adminId` is set for a code an admin of a group home asked for.
+   */
+  redeemPairingCode(code: string): { adminId?: string } | undefined {
     const normal = code.trim().toUpperCase();
-    const row = this.db.get<{ expires_at: string }>(
-      "select expires_at from pairing where code = ?",
+    const row = this.db.get<{ expires_at: string; admin_id: string | null }>(
+      "select expires_at, admin_id from pairing where code = ?",
       normal,
     );
-    if (!row) return false;
+    if (!row) return undefined;
     this.db.run("delete from pairing where code = ?", normal);
-    return row.expires_at > now();
+    if (row.expires_at <= now()) return undefined;
+    return row.admin_id ? { adminId: row.admin_id } : {};
   }
 
-  addDevice(input: { name: string; kind: DeviceKind; push?: Push }): {
+  addDevice(input: { name: string; kind: DeviceKind; push?: Push; adminId?: string }): {
     token: string;
     device: DeviceRecord;
   } {
@@ -925,7 +937,7 @@ export class Store {
     const token = newToken();
     const at = now();
     this.db.run(
-      "insert into device (id, name, kind, token_hash, push, created_at, seen_at) values (?, ?, ?, ?, ?, ?, ?)",
+      "insert into device (id, name, kind, token_hash, push, created_at, seen_at, admin_id) values (?, ?, ?, ?, ?, ?, ?, ?)",
       id,
       input.name,
       input.kind,
@@ -933,17 +945,21 @@ export class Store {
       input.push ? JSON.stringify(input.push) : null,
       at,
       at,
+      input.adminId ?? null,
     );
     return { token, device: this.device(id) as DeviceRecord };
   }
 
   device(id: string): DeviceRecord | undefined {
-    const row = this.db.get<DeviceRow>("select * from device where id = ?", id);
+    const row = this.db.get<DeviceRow>(`${DEVICE_SELECT} where device.id = ?`, id);
     return row ? toDevice(row) : undefined;
   }
 
   deviceByToken(token: string): DeviceRecord | undefined {
-    const row = this.db.get<DeviceRow>("select * from device where token_hash = ?", sha256(token));
+    const row = this.db.get<DeviceRow>(
+      `${DEVICE_SELECT} where device.token_hash = ?`,
+      sha256(token),
+    );
     if (!row) return undefined;
     if (Date.now() - Date.parse(row.seen_at) > 60_000) {
       this.db.run("update device set seen_at = ? where id = ?", now(), row.id);
@@ -952,7 +968,7 @@ export class Store {
   }
 
   devices(): DeviceRecord[] {
-    return this.db.all<DeviceRow>("select * from device order by created_at").map(toDevice);
+    return this.db.all<DeviceRow>(`${DEVICE_SELECT} order by device.created_at`).map(toDevice);
   }
 
   updateDevice(
@@ -990,6 +1006,15 @@ export class Store {
 
   removeDevice(id: string): void {
     this.db.run("delete from device where id = ?", id);
+  }
+
+  /** Removes every device of an admin who is no admin any more. Returns their ids. */
+  removeDevicesOf(adminId: string): string[] {
+    const ids = this.db
+      .all<{ id: string }>("select id from device where admin_id = ?", adminId)
+      .map((row) => row.id);
+    this.db.run("delete from device where admin_id = ?", adminId);
+    return ids;
   }
 }
 
@@ -1047,6 +1072,7 @@ function toDevice(row: DeviceRow): DeviceRecord {
     quiet: row.quiet ? (JSON.parse(row.quiet) as DeviceRecord["quiet"]) : undefined,
     resources: row.resources ? (JSON.parse(row.resources) as DeviceResource[]) : undefined,
     agents: row.agents ? (JSON.parse(row.agents) as DeviceAgents) : undefined,
+    admin: row.admin_id ? { id: row.admin_id, name: row.admin_name ?? "" } : undefined,
   };
 }
 

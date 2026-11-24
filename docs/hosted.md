@@ -16,7 +16,8 @@ gateway, a bill, and someone who starts, updates and backs it up.
 | 3     | everything of one person         | the Manage-App, only from outside         | a home per person                    |
 
 Hosted homes are level 3: one container and one volume per home. A team's home (the group home
-of [network.md](network.md)) is level 2 on the same machinery: one container for one team.
+of [network.md](network.md)) is level 2 on the same machinery: one container for one team. Its
+admins are the team's owners and admins in the Manage-App (Contracts 10 and 11).
 
 - The home's data, its key and the key of its secrets stay in its volume.
 - The Manage-App starts, stops, updates and deletes a home. It reads nothing in it.
@@ -179,3 +180,18 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
      `~/.engenty/wizards-bot`, or what `WIZARDS_BOT_DATA` says.
    - When the Mac app runs the Bot Server (its LaunchAgent `bot.wizards.home`, docs/mac-app.md),
      `install` installs nothing and `update` says the app updates it.
+10. **Admins.** `GET <MANAGE_URL>/v1/homes/admins` with `Authorization: Bearer <gatewayKey>`
+    answers `{ "group": { "name" } | null, "admins": [{ "id", "name", "role" }] }`. `group` is
+    the team's name when the team is not a personal one: the home is then a group home
+    ([network.md](network.md) §5) and speaks for the team. `admins` are the team's members
+    with the role `owner` or `admin`; `id` is the account's user id. The home asks after its
+    claim and every 60 seconds; the devices of an admin no longer listed are removed. A group
+    home takes no setup code (3): every device of it is an admin's.
+11. **The pass.** An admin's first device pairs with a pass. The Manage-App sends the admin to
+    `https://<address>.wizards.bot/#admin=<pass>`; the web app sends it to
+    `POST /v1/pair/admin`. The pass is a JWT signed with the Manage-App's own key (EdDSA,
+    Ed25519; keys at `<MANAGE_URL>/api/auth/jwks`), with `iss` the Manage-App's address, `aud`
+    the home's origin, `sub` the admin's user id, `name`, `exp` at most five minutes ahead and
+    a `jti` the home takes once. The home checks all of these and that `sub` is an admin when
+    it asks (10) right then. Further devices pair with a code the admin asks their agent for;
+    the code pairs the device as theirs.

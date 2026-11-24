@@ -15,6 +15,9 @@ create table if not exists device (
   id text primary key, name text not null, kind text not null, token_hash text not null unique,
   push text, quiet text, created_at text not null, seen_at text not null);
 create table if not exists pairing (code text primary key, expires_at text not null);
+create table if not exists admin (
+  id text primary key, name text not null, role text not null, created_at text not null);
+create table if not exists admin_pass (jti text primary key, expires_at text not null);
 create table if not exists agent (
   id text primary key, name text not null, kind text not null, about text not null default '',
   instructions text not null default '', memory text not null default '',
@@ -146,6 +149,8 @@ const ADDED: [string, string, string][] = [
   ["contact", "person_key", "text"],
   ["contact", "person_seq", "integer"],
   ["folder", "allow", "text not null default 'ask'"],
+  ["device", "admin_id", "text"],
+  ["pairing", "admin_id", "text"],
 ];
 
 export type Row = Record<string, SQLInputValue>;

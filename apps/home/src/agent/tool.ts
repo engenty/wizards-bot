@@ -34,6 +34,8 @@ export interface Answer {
   card: { id: string; title: string; actions: { id: string; label: string }[] };
   /** What the tool kept with `ask`, to know where it was. */
   kept: unknown;
+  /** In a group home: the admin who answered. */
+  by?: string;
 }
 
 /** What a tool gets besides its input. */
@@ -135,9 +137,11 @@ export async function runTool(
     };
     const answer = await tool.run(tool.input.parse(input), call);
     draft.activity(id, label, "done");
+    // In a group home the agent hears which admin decided.
+    const by = call.answer?.by ? `${call.answer.by} answered the card.\n` : "";
     return typeof answer === "string"
-      ? { text: answer, pictures: [], failed: false }
-      : { ...answer, failed: false };
+      ? { text: `${by}${answer}`, pictures: [], failed: false }
+      : { ...answer, text: `${by}${answer.text}`, failed: false };
   } catch (error) {
     draft.activity(id, label, "failed");
     const text =

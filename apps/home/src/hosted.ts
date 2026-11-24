@@ -34,10 +34,14 @@ export class Hosted {
 
   // ── The setup code ────────────────────────────────────────────────────────
 
-  /** Whether the setup code still pairs: until it paired one device, and while none is paired. */
+  /**
+   * Whether the setup code still pairs: until it paired one device, and while none is paired.
+   * A group home takes none: its admins pair with a pass, each as themselves.
+   */
   setupCodeOpen(): boolean {
     return (
       this.home.config.setupCode !== undefined &&
+      !this.home.group.isGroup() &&
       !this.home.db.meta(SETUP_CODE_ENDED) &&
       this.home.store.devices().length === 0
     );
@@ -62,6 +66,8 @@ export class Hosted {
       this.timer = undefined;
       const result = await this.claim();
       if (result === "later" && ++tries < TRIES) this.timer = setTimeout(attempt, RETRY_MS);
+      // With its key the home asks the Manage-App who runs it, a group or one person.
+      if (result === "kept" || result === "claimed") this.home.group.start();
       return result;
     };
     return attempt();

@@ -120,13 +120,19 @@ export function buildTools(context: TurnContext): Tool[] {
       input: z.object({}),
       label: () => "Making a pairing code",
       run: async () => {
-        const code = store.newPairingCode();
+        // In a group home the device is the admin's who asked: the code pairs it as theirs.
+        const writer = context.trigger.writer;
+        if (home.group.isGroup() && !writer)
+          return "A pairing code is for the admin who asks for it. Ask them to write to you from one of their devices.";
+        const code = store.newPairingCode(writer?.id);
         const address = home.address();
+        const shown = pairingCard(address, code, langOf(home.db));
         const card = store.createCard(
           {
             kind: "pairing",
             level: "update",
-            ...pairingCard(address, code, langOf(home.db)),
+            ...shown,
+            ...(writer ? { title: `${shown.title}: ${writer.name}` } : {}),
             actions: [],
           },
           where,

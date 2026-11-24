@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { hostname, networkInterfaces, userInfo } from "node:os";
-import type { Card, HomeInfo, Message } from "@wizards-bot/protocol";
+import type { Admin, Card, HomeInfo, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
 import { McpTurns } from "./agent/mcp.ts";
 import type { Tool } from "./agent/tool.ts";
@@ -17,6 +17,7 @@ import { Handoffs } from "./devices/handoffs.ts";
 import { Events } from "./events.ts";
 import { Files } from "./files/files.ts";
 import { Folders } from "./folders/folders.ts";
+import { Group } from "./group.ts";
 import { Hosted } from "./hosted.ts";
 import { Identity, Secrets } from "./identity.ts";
 import { HomeMastra } from "./mastra.ts";
@@ -79,6 +80,8 @@ export class Home {
   readonly setup: Setup;
   /** What a home on wizards.bot has of the Manage-App: its setup code and its claim. */
   readonly hosted: Hosted;
+  /** A home that belongs to a team: its admins, from the Manage-App. */
+  readonly group: Group;
   /** The address at wizards.host, when the person switched it on. */
   readonly tunnel: Tunnel;
   private readonly cardHandlers = new Map<string, CardHandler>();
@@ -117,6 +120,7 @@ export class Home {
     this.channels = new Channels(this, adapters);
     this.setup = new Setup(this);
     this.hosted = new Hosted(this);
+    this.group = new Group(this);
     this.tunnel = new Tunnel(this);
     this.store.failInterrupted();
     this.store.mainAgent();
@@ -166,6 +170,7 @@ export class Home {
       handle: this.handle(),
       publicKey: this.identity.publicKey,
       hosted: isHosted(this.config),
+      ...(this.group.isGroup() ? { group: { name: this.person() } } : {}),
     };
   }
 
@@ -236,7 +241,7 @@ export class Home {
    */
   async answer(
     cardId: string,
-    input: { action: string; values?: CardValues; by: string },
+    input: { action: string; values?: CardValues; by: string; admin?: Admin },
   ): Promise<Card | undefined> {
     const before = this.store.card(cardId);
     if (!before) return undefined;
@@ -251,6 +256,7 @@ export class Home {
       action: input.action,
       values: Object.keys(shown).length ? shown : undefined,
       by: input.by,
+      ...(input.admin ? { admin: input.admin } : {}),
     });
     if (!card) return undefined;
     this.notifier.resolved([card.id]);
@@ -280,6 +286,7 @@ export class Home {
 
   close(): void {
     this.hosted.stop();
+    this.group.stop();
     this.tunnel.stop();
     this.peers.mailbox.stop();
     this.tasks.stop();
