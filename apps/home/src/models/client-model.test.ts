@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { type ClientSessions, type ClientTurn, clientModel } from "./client-model.ts";
-import type { CallOptions } from "./ollama.ts";
+import type { CallOptions } from "@engenty/local-models/ollama";
+import {
+  type ClientSessions,
+  type ClientTurn,
+  clientModel,
+  SUBSCRIPTIONS,
+  turnEvents,
+} from "./client-model.ts";
 
 type Said = ["user" | "assistant", string];
 
@@ -99,5 +105,70 @@ describe("a subscription client as a model", () => {
       [null, "session-1", null],
     );
     assert.match(client.turns[2]?.message ?? "", /^The conversation so far:/);
+  });
+});
+
+describe("Claude's output in a turn", () => {
+  const line = (read: (line: string) => unknown, event: unknown) => read(JSON.stringify(event));
+
+  test("a failed API call is a failure, not an answer", () => {
+    const read = turnEvents(SUBSCRIPTIONS.claude.client);
+    assert.deepEqual(
+      line(read, {
+        type: "assistant",
+        message: {
+          model: "<synthetic>",
+          content: [
+            {
+              type: "text",
+              text: "API Error: 400 You have reached your specified API usage limits.",
+            },
+          ],
+        },
+      }),
+      [
+        {
+          kind: "failure",
+          detail: "API Error: 400 You have reached your specified API usage limits.",
+        },
+      ],
+    );
+    assert.deepEqual(
+      line(read, {
+        type: "assistant",
+        message: { model: "claude", content: [{ type: "text", text: "Hi" }] },
+      }),
+      [{ kind: "text", text: "Hi" }],
+    );
+  });
+
+  test("streamed text is not told again when the whole message follows", () => {
+    const read = turnEvents(SUBSCRIPTIONS.claude.client);
+    const delta = (text: string) => ({
+      type: "stream_event",
+      event: { type: "content_block_delta", delta: { type: "text_delta", text } },
+    });
+    assert.deepEqual(line(read, delta("Hel")), [{ kind: "delta", text: "Hel" }]);
+    assert.deepEqual(line(read, delta("lo")), [{ kind: "delta", text: "lo" }]);
+    assert.deepEqual(
+      line(read, {
+        type: "assistant",
+        message: {
+          model: "claude",
+          content: [
+            { type: "text", text: "Hello" },
+            { type: "tool_use", name: "mcp__home__remember", input: {} },
+          ],
+        },
+      }),
+      [{ kind: "tool", name: "mcp__home__remember", started: true }],
+    );
+    assert.deepEqual(
+      line(read, {
+        type: "assistant",
+        message: { model: "claude", content: [{ type: "text", text: "Done." }] },
+      }),
+      [{ kind: "text", text: "Done." }],
+    );
   });
 });

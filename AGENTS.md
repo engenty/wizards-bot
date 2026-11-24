@@ -47,9 +47,13 @@ engenty wizards pins.
   after a start of the home. Where no run of Mastra waits (a subscription's client, a
   message in between), the home runs the tool again with the answer.
 - **Connections.** Mastra's `MCPClient` (`@mastra/mcp`), one per connection.
-- **Model.** An AI SDK v3 language model: Ollama on its own API (`models/ollama.ts`), a gateway
-  through `@ai-sdk/openai-compatible`, a subscription client that steps by itself
+- **Model.** An AI SDK v3 language model: Ollama on its own API, a gateway through
+  `@ai-sdk/openai-compatible`, a subscription client that steps by itself
   (`models/client-model.ts`), a linked computer's model relayed over the link (`link/hub.ts`).
+  Ollama (its models, downloads, the chat API) and the clients (found, signed in, their command
+  lines and output) are engenty wizards' `@engenty/local-models`; the home keeps which models it
+  offers and prefers (`models/ollama.ts`), the client's conversation across turns, and the
+  setup's words.
 - **Channels.** Slack is moving to Mastra's channels (the Chat SDK's Slack adapter in Socket
   Mode, `channels/slack-mastra.ts`). Mastra is the transport only: the handlers are the home's,
   so there is one conversation, the claim code and the home's cards. `WIZARDS_BOT_SLACK=mastra`

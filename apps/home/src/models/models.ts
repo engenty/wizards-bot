@@ -1,10 +1,8 @@
-import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir, totalmem } from "node:os";
-import { join } from "node:path";
-import { createInterface } from "node:readline";
+import { totalmem } from "node:os";
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { detectClient } from "@engenty/local-models/clients";
+import { type ChatModel, type InstalledModel, ollamaModel } from "@engenty/local-models/ollama";
 import {
   type ModelService,
   type ModelSource,
@@ -18,21 +16,16 @@ import type { Db } from "../store/db.ts";
 import {
   type ClientRun,
   type ClientSessions,
-  type ClientTurn,
   clientModel,
+  isSubscription,
+  runTurn,
+  SUBSCRIPTIONS,
+  type SubscriptionId,
 } from "./client-model.ts";
+import { chatModels, onThisComputer } from "./ollama.ts";
 import { agreed, serviceOf, services } from "./services.ts";
 
 export type { ClientTurn } from "./client-model.ts";
-
-import { type ChatModel, type OllamaModel, ollamaModel, ollamaModels } from "./ollama.ts";
-import {
-  CLIENTS,
-  type Client,
-  type ClientEvent,
-  CODEX_KEY_VAR,
-  type SubscriptionClient,
-} from "./subscription.ts";
 
 /** What answers a turn: a model Mastra asks. A subscription's model needs the turn's MCP token. */
 export interface Engine {
@@ -116,8 +109,8 @@ export function accountModel(
 const REFRESH_MS = 60_000;
 
 export class Models {
-  private ollama: OllamaModel[] = [];
-  private clients: SubscriptionClient[] = [];
+  private ollama: InstalledModel[] = [];
+  private clients: SubscriptionId[] = [];
   private refreshedAt = 0;
   private readonly config: Config;
   private readonly db: Db;
@@ -142,14 +135,15 @@ export class Models {
   async refresh(force = false): Promise<void> {
     if (!force && Date.now() - this.refreshedAt < REFRESH_MS) return;
     this.refreshedAt = Date.now();
-    this.ollama = await ollamaModels(
+    this.ollama = await chatModels(
       this.config.ollamaUrl,
-      fetch,
       onThisComputer(this.config.ollamaUrl) ? this.memory : undefined,
     );
-    this.clients = (Object.keys(CLIENTS) as SubscriptionClient[]).filter(
-      (id) => this.config.subscriptions.includes(id) && onPath(CLIENTS[id].bin),
+    const wanted = this.config.subscriptions.filter(isSubscription);
+    const found = await Promise.all(
+      wanted.map((id) => detectClient(SUBSCRIPTIONS[id].client, force)),
     );
+    this.clients = wanted.filter((_, at) => found[at]?.version);
   }
 
   // ── Gateways ──────────────────────────────────────────────────────────────
@@ -193,10 +187,10 @@ export class Models {
       sources.push({
         id,
         kind: "subscription",
-        label: CLIENTS[id].name,
+        label: SUBSCRIPTIONS[id].label,
         where: this.where,
         online: true,
-        models: CLIENTS[id].models,
+        models: SUBSCRIPTIONS[id].models,
       });
     }
     if (this.ollama.length) {
@@ -206,7 +200,7 @@ export class Models {
         label: "Ollama",
         where: this.where,
         online: true,
-        models: this.ollama.map((model) => ({ id: model.id, label: model.id })),
+        models: this.ollama.map((model) => ({ id: model.name, label: model.name })),
       });
     }
     return sources;
@@ -293,7 +287,7 @@ export class Models {
    * else, which a picture of the person reaches only when the person said so.
    */
   forPictures(): { here: string[]; elsewhere: { ref: string; label: string }[] } {
-    const here = this.ollama.filter((model) => model.vision).map((model) => `ollama:${model.id}`);
+    const here = this.ollama.filter((model) => model.vision).map((model) => `ollama:${model.name}`);
     const elsewhere: { ref: string; label: string }[] = [];
     for (const ref of this.candidates()) {
       const { sourceId } = splitRef(ref);
@@ -350,10 +344,10 @@ export class Models {
 
   /** An Ollama model of this computer. A linked computer serves it to its home through this. */
   localChat(model: string): ChatModel | undefined {
-    const found = this.ollama.find((m) => m.id === model);
+    const found = this.ollama.find((m) => m.name === model);
     if (!found) return undefined;
     return ollamaModel({
-      baseUrl: this.config.ollamaUrl,
+      url: this.config.ollamaUrl,
       model,
       tools: found.tools,
       thinking: found.thinking,
@@ -363,10 +357,9 @@ export class Models {
 
   /** How a turn of an installed client runs on this computer, when the client is there. */
   localClient(sourceId: string): ClientRun | undefined {
-    if (!(sourceId in CLIENTS) || !this.clients.includes(sourceId as SubscriptionClient))
-      return undefined;
-    const client = CLIENTS[sourceId as SubscriptionClient];
-    return (turn, onEvent) => runClient(client, turn, this.mcpUrl, onEvent);
+    if (!(isSubscription(sourceId) && this.clients.includes(sourceId))) return undefined;
+    const subscription = SUBSCRIPTIONS[sourceId];
+    return (turn, onEvent) => runTurn(subscription, turn, this.mcpUrl, onEvent);
   }
 }
 
@@ -375,110 +368,4 @@ export function splitRef(ref: string): { sourceId: string; model: string } {
   return colon < 0
     ? { sourceId: ref, model: "default" }
     : { sourceId: ref.slice(0, colon), model: ref.slice(colon + 1) };
-}
-
-/** Whether an address is this computer's own. */
-function onThisComputer(url: string): boolean {
-  return URL.canParse(url) && ["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname);
-}
-
-function onPath(bin: string): boolean {
-  if (bin.includes("/")) return spawnSync(bin, ["--version"], { stdio: "ignore" }).status === 0;
-  return spawnSync("which", [bin], { stdio: "ignore" }).status === 0;
-}
-
-/**
- * Settings that would make an installed client use something other than its own sign-in: an
- * API key or another address for Anthropic or OpenAI, and what a Claude Code that started this
- * home left behind for its own sessions. Without them, Claude Code and Codex run on the
- * subscription the person signed in with on this computer.
- */
-const NOT_FOR_CLIENTS = [
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_AUTH_TOKEN",
-  "ANTHROPIC_BASE_URL",
-  "OPENAI_API_KEY",
-  "OPENAI_BASE_URL",
-];
-
-/** The environment an installed client runs in: this home's, without `NOT_FOR_CLIENTS`. */
-export function clientEnv(
-  env: NodeJS.ProcessEnv,
-  extra: Record<string, string>,
-): NodeJS.ProcessEnv {
-  const kept: NodeJS.ProcessEnv = {};
-  for (const [name, value] of Object.entries(env)) {
-    if (NOT_FOR_CLIENTS.includes(name)) continue;
-    // A Claude Code session's own settings; a token the person set up for Claude stays.
-    if (name.startsWith("CLAUDE_CODE_") && name !== "CLAUDE_CODE_OAUTH_TOKEN") continue;
-    kept[name] = value;
-  }
-  return { ...kept, ...extra };
-}
-
-/** Runs one turn of an installed client and reports what its output lines mean. */
-export async function runClient(
-  client: Client,
-  turn: ClientTurn,
-  mcpUrl: string,
-  onEvent: (event: ClientEvent) => void,
-): Promise<void> {
-  const dir = mkdtempSync(join(tmpdir(), "wizards-bot-turn-"));
-  const mcpConfigFile = join(dir, "mcp.json");
-  writeFileSync(
-    mcpConfigFile,
-    JSON.stringify({
-      mcpServers: {
-        home: { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${turn.mcpToken}` } },
-      },
-    }),
-    { mode: 0o600 },
-  );
-  const images = (turn.images ?? []).map((image, at) => {
-    const file = join(dir, `picture-${at}.${image.mime.split("/")[1] ?? "png"}`);
-    writeFileSync(file, Buffer.from(image.base64, "base64"), { mode: 0o600 });
-    return { mime: image.mime, base64: image.base64, file };
-  });
-  const call = { ...turn, mcpUrl, mcpConfigFile, images };
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(client.bin, client.args(call), {
-        cwd: dir,
-        env: clientEnv(process.env, { [CODEX_KEY_VAR]: turn.mcpToken }),
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      const parse = client.parser();
-      let stderr = "";
-      let failed: string | undefined;
-      turn.signal.addEventListener("abort", () => child.kill("SIGTERM"), { once: true });
-      child.stdin.end(client.stdin(call));
-      createInterface({ input: child.stdout }).on("line", (line) => {
-        for (const event of parse(line)) {
-          if (event.kind === "failure") failed = event.detail;
-          onEvent(event);
-        }
-      });
-      child.stderr.on("data", (chunk: Buffer) => {
-        stderr = (stderr + chunk.toString()).slice(-2000);
-      });
-      child.on("error", reject);
-      child.on("close", (code) => {
-        if (turn.signal.aborted) return resolve();
-        if (failed !== undefined) {
-          return reject(
-            new Error(
-              client.signedOut(failed)
-                ? `${client.name} is not signed in on this computer. Sign in there, then ask again.`
-                : failed,
-            ),
-          );
-        }
-        if (code !== 0)
-          return reject(new Error(stderr.trim() || `${client.name} ended with code ${code}.`));
-        resolve();
-      });
-    });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
 }

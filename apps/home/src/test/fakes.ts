@@ -34,8 +34,16 @@ export class FakeOllama {
       });
       request.on("end", () => {
         response.setHeader("content-type", "application/json");
+        if (request.url === "/api/version") {
+          return response.end(JSON.stringify({ version: "0.0.0" }));
+        }
         if (request.url === "/api/tags") {
-          return response.end(JSON.stringify({ models: [{ name: "fake:1", size: 1 }] }));
+          // Another digest is another model: what Ollama says of a model is kept by its digest.
+          const digest = `sha256:fake-${this.vision ? "vision" : "text"}`;
+          return response.end(JSON.stringify({ models: [{ name: "fake:1", size: 1, digest }] }));
+        }
+        if (request.url === "/api/ps") {
+          return response.end(JSON.stringify({ models: [] }));
         }
         if (request.url === "/api/show") {
           return response.end(

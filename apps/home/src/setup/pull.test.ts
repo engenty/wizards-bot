@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import type { Event, Setup } from "@wizards-bot/protocol";
-import { pullModel, suggestedModel } from "../models/ollama.ts";
+import { suggestedModel } from "../models/ollama.ts";
 import { type TestHome, testHome } from "../test/fakes.ts";
 import { probeOllama } from "./probes.ts";
 import { PullRefused } from "./setup.ts";
@@ -32,9 +32,11 @@ describe("a model for Ollama", () => {
 
   test("is offered when Ollama on this computer has none", async () => {
     const empty = (async (url: string | URL) =>
-      String(url).endsWith("/api/tags")
-        ? Response.json({ models: [] })
-        : new Response(null, { status: 404 })) as unknown as typeof fetch;
+      String(url).endsWith("/api/version")
+        ? Response.json({ version: "0.0.0" })
+        : String(url).endsWith("/api/tags")
+          ? Response.json({ models: [] })
+          : new Response(null, { status: 404 })) as unknown as typeof fetch;
     const probe = await probeOllama("http://127.0.0.1:11434", 8e9, empty);
     assert.equal(probe.state, "problem");
     assert.equal(probe.command, "ollama pull qwen3:4b");
@@ -42,40 +44,6 @@ describe("a model for Ollama", () => {
     // An Ollama on another computer: the home says what to do there, and pulls nothing.
     const elsewhere = await probeOllama("http://192.168.1.20:11434", 8e9, empty);
     assert.equal(elsewhere.pull, undefined);
-  });
-
-  test("loads with its progress, and fails with what Ollama said", async () => {
-    const heard: number[] = [];
-    await pullModel(
-      "http://127.0.0.1:11434",
-      "qwen3:4b",
-      (done) => heard.push(done),
-      pulling([
-        { status: "pulling manifest" },
-        { status: "pulling abc", total: 100, completed: 40 },
-        { status: "pulling abc", total: 100, completed: 100 },
-        { status: "success" },
-      ]),
-    );
-    assert.deepEqual(heard, [40, 100]);
-    await assert.rejects(
-      pullModel(
-        "http://127.0.0.1:11434",
-        "qwen3:4b",
-        () => {},
-        pulling([{ error: "pull model manifest: file does not exist" }]),
-      ),
-      /file does not exist/,
-    );
-    await assert.rejects(
-      pullModel(
-        "http://127.0.0.1:11434",
-        "qwen3:4b",
-        () => {},
-        pulling([{ status: "pulling abc", total: 9, completed: 1 }]),
-      ),
-      /stopped before/,
-    );
   });
 });
 
@@ -98,7 +66,10 @@ describe("the setup's pull", () => {
       if (event.type === "setup.updated") told.push(event.setup);
     });
     t.home.setup.ollamaFetch = pulling(
-      [{ status: "pulling abc", total: 2.5e9, completed: 1e9 }, { status: "success" }],
+      [
+        { status: "pulling abc", digest: "sha256:abc", total: 2.5e9, completed: 1e9 },
+        { status: "success" },
+      ],
       150,
     );
     const first = await t.home.setup.pull("qwen3:4b");

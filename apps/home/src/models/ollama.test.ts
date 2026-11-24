@@ -5,10 +5,11 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
+import type { CallOptions } from "@engenty/local-models/ollama";
 import { Secrets } from "../identity.ts";
 import { Db } from "../store/db.ts";
 import { Models } from "./models.ts";
-import { type CallOptions, ollamaModels } from "./ollama.ts";
+import { chatModels } from "./ollama.ts";
 
 const INKLING = "inkling-2-mini:latest";
 const QWEN = "qwen3.8:27b-mlx";
@@ -87,8 +88,15 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
       request.on("end", () => {
         response.setHeader("content-type", "application/json");
         if (request.url === "/api/tags") {
-          const tags = Object.entries(LIBRARY).map(([name, { size }]) => ({ name, size }));
+          const tags = Object.entries(LIBRARY).map(([name, { size }]) => ({
+            name,
+            size,
+            digest: `sha256:${name}`,
+          }));
           return response.end(JSON.stringify({ models: tags }));
+        }
+        if (request.url === "/api/ps") {
+          return response.end(JSON.stringify({ models: [] }));
         }
         if (request.url === "/api/show") {
           const { model } = JSON.parse(body) as { model: string };
@@ -118,16 +126,25 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
   });
 
   test("lists the models that chat, the largest that takes tools first", async () => {
-    assert.deepEqual(await ollamaModels(url), [
-      { id: INKLING, size: 20_188_097_271, tools: true, vision: true, thinking: true },
-      { id: QWEN, size: 18_174_721_847, tools: true, vision: true, thinking: true },
-      { id: SMALL, size: 3_826_793_677, tools: false, vision: false, thinking: false },
-    ]);
+    assert.deepEqual(
+      (await chatModels(url)).map(({ name, size, tools, vision, thinking }) => ({
+        name,
+        size,
+        tools,
+        vision,
+        thinking,
+      })),
+      [
+        { name: INKLING, size: 20_188_097_271, tools: true, vision: true, thinking: true },
+        { name: QWEN, size: 18_174_721_847, tools: true, vision: true, thinking: true },
+        { name: SMALL, size: 3_826_793_677, tools: false, vision: false, thinking: false },
+      ],
+    );
   });
 
   test("a computer with little memory prefers the model that leaves it room", async () => {
     assert.deepEqual(
-      (await ollamaModels(url, fetch, 32 * GB)).map((model) => model.id),
+      (await chatModels(url, 32 * GB)).map((model) => model.name),
       [QWEN, INKLING, SMALL],
     );
     models.memory = 32 * GB;

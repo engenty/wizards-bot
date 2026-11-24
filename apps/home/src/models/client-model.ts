@@ -1,4 +1,16 @@
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createInterface } from "node:readline";
+import {
+  type ChatCall,
+  type Client,
+  claude,
+  codex,
+  resolveEnv,
+} from "@engenty/local-models/clients";
 import {
   base64Of,
   type CallOptions,
@@ -6,8 +18,57 @@ import {
   generateFrom,
   type StreamPart,
   type StreamResult,
-} from "./ollama.ts";
-import type { ClientEvent } from "./subscription.ts";
+} from "@engenty/local-models/ollama";
+
+// An installed client (Claude Code, Codex) answering a turn of the home: the client runs its own
+// steps, reaches only the home's tools over MCP (named `home`) and keeps the conversation itself.
+// How each client is started and read is `@engenty/local-models`.
+
+/** A client the home runs on the person's subscription. */
+export interface Subscription {
+  client: Client;
+  /** The name the person sees. */
+  label: string;
+  /** Models the person can name; the first is what the home uses. `default`: the client picks. */
+  models: { id: string; label: string }[];
+}
+
+export type SubscriptionId = "claude" | "codex";
+
+export const SUBSCRIPTIONS: Record<SubscriptionId, Subscription> = {
+  claude: {
+    client: claude,
+    label: "Claude",
+    models: [
+      { id: "default", label: "Claude (your subscription's default)" },
+      { id: "opus", label: "Claude Opus" },
+      { id: "sonnet", label: "Claude Sonnet" },
+      { id: "haiku", label: "Claude Haiku" },
+    ],
+  },
+  codex: {
+    client: codex,
+    label: "Codex",
+    models: [{ id: "default", label: "Codex (your subscription's default)" }],
+  },
+};
+
+export const isSubscription = (id: string): id is SubscriptionId =>
+  Object.hasOwn(SUBSCRIPTIONS, id);
+
+/** The home's MCP server as the client knows it, and the variable Codex reads its key from. */
+const MCP_NAME = "home";
+const MCP_KEY_VAR = "WIZARDS_BOT_MCP_KEY";
+
+/** What one output line of a client's turn says, as it travels over the link. */
+export type ClientEvent =
+  | { kind: "text"; text: string }
+  | { kind: "delta"; text: string }
+  | { kind: "tool"; name: string; started: boolean }
+  | { kind: "session"; id: string }
+  | { kind: "failure"; detail: string }
+  /** The client's own summary of the answer, used where no text came before it. */
+  | { kind: "result"; text: string };
 
 /** One turn of an installed client. */
 export interface ClientTurn {
@@ -178,4 +239,131 @@ export function clientModel(options: {
     doStream,
     doGenerate: (call) => generateFrom(doStream, call),
   };
+}
+
+/**
+ * A client's output lines as the events of a turn: text as it streams, a whole message only
+ * where nothing of it streamed before. A failed API call comes from Claude Code as a message it
+ * makes itself ("API Error: …"): it is a failure, so the home asks the next model instead of
+ * showing it as the answer.
+ */
+export function turnEvents(client: Client): (line: string) => ClientEvent[] {
+  let streamed = false;
+  return (line) => {
+    let raw: { type?: string; message?: { model?: string; content?: { text?: string }[] } };
+    try {
+      raw = JSON.parse(line);
+    } catch {
+      return [];
+    }
+    if (raw?.type === "assistant" && raw.message?.model === "<synthetic>") {
+      streamed = false;
+      const said = (raw.message.content ?? [])
+        .map((block) => block.text ?? "")
+        .join(" ")
+        .trim();
+      return [{ kind: "failure", detail: said || "error" }];
+    }
+    const out: ClientEvent[] = [];
+    for (const event of client.events(line)) {
+      if (event.kind === "writing") {
+        if (event.text) {
+          streamed = true;
+          out.push({ kind: "delta", text: event.text });
+        }
+      } else if (event.kind === "text") {
+        if (!streamed) out.push(event);
+      } else if (event.kind === "tool") {
+        out.push({ kind: "tool", name: event.name, started: event.started });
+      } else if (event.kind === "session" || event.kind === "failure" || event.kind === "result") {
+        out.push(event);
+      }
+    }
+    if (raw?.type === "assistant") streamed = false;
+    return out;
+  };
+}
+
+/** Runs one turn of an installed client on this computer and reports what its output lines mean. */
+export async function runTurn(
+  subscription: Subscription,
+  turn: ClientTurn,
+  mcpUrl: string,
+  onEvent: (event: ClientEvent) => void,
+): Promise<void> {
+  const { client, label } = subscription;
+  const dir = mkdtempSync(join(tmpdir(), "wizards-bot-turn-"));
+  const configFile = join(dir, "mcp.json");
+  writeFileSync(
+    configFile,
+    JSON.stringify({
+      mcpServers: {
+        [MCP_NAME]: {
+          type: "http",
+          url: mcpUrl,
+          headers: { Authorization: `Bearer ${turn.mcpToken}` },
+        },
+      },
+    }),
+    { mode: 0o600 },
+  );
+  const images = (turn.images ?? []).map((image, at) => {
+    const file = join(dir, `picture-${at}.${image.mime.split("/")[1] ?? "png"}`);
+    writeFileSync(file, Buffer.from(image.base64, "base64"), { mode: 0o600 });
+    return { mime: image.mime, base64: image.base64, file };
+  });
+  const call: ChatCall = {
+    system: turn.system,
+    message: turn.message,
+    session: turn.session,
+    dir,
+    ...(turn.model === "default" ? {} : { model: turn.model }),
+    mcp: { name: MCP_NAME, url: mcpUrl, keyVar: MCP_KEY_VAR, configFile },
+    images,
+  };
+  try {
+    const { env } = await resolveEnv(client);
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(client.bin, client.args(call), {
+        cwd: dir,
+        env: { ...env, [MCP_KEY_VAR]: turn.mcpToken },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      const read = turnEvents(client);
+      let stderr = "";
+      let failed: string | undefined;
+      turn.signal.addEventListener("abort", () => child.kill("SIGTERM"), { once: true });
+      child.stdin.on("error", () => {
+        // The client went away before reading the message; `close` reports it.
+      });
+      child.stdin.end(client.stdin(call));
+      createInterface({ input: child.stdout }).on("line", (line) => {
+        for (const event of read(line)) {
+          if (event.kind === "failure") failed = event.detail;
+          onEvent(event);
+        }
+      });
+      child.stderr.on("data", (chunk: Buffer) => {
+        stderr = (stderr + chunk.toString()).slice(-2000);
+      });
+      child.on("error", reject);
+      child.on("close", (code) => {
+        if (turn.signal.aborted) return resolve();
+        if (failed !== undefined) {
+          return reject(
+            new Error(
+              client.signedOut(failed)
+                ? `${label} is not signed in on this computer. Sign in there, then ask again.`
+                : failed,
+            ),
+          );
+        }
+        if (code !== 0)
+          return reject(new Error(stderr.trim() || `${label} ended with code ${code}.`));
+        resolve();
+      });
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }

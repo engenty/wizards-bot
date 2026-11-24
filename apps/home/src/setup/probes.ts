@@ -1,16 +1,18 @@
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
-import { createInterface } from "node:readline";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import type { Client } from "@engenty/local-models/clients";
+import { installedModels } from "@engenty/local-models/ollama";
+import { CLIENT_TIMEOUT, OLLAMA_TIMEOUT, PROMPT, probe } from "@engenty/local-models/probe";
 import type { LanguageModel } from "ai";
 import { generateText } from "ai";
 import type { Account, Gateway } from "../models/models.ts";
-import { ACCOUNT, accountModel, clientEnv } from "../models/models.ts";
-import { MEMORY_SHARE, ollamaModels, suggestedModel } from "../models/ollama.ts";
-import type { Client } from "../models/subscription.ts";
+import { ACCOUNT, accountModel } from "../models/models.ts";
+import { MEMORY_SHARE, onThisComputer, suggestedModel } from "../models/ollama.ts";
 import {
+  claudeSignedOut,
+  codexSignedOut,
   explainAccount,
   explainClaude,
   explainCodex,
@@ -22,7 +24,8 @@ import { w } from "./words.ts";
 
 // One test call per model source: a tiny prompt, a timeout, and what came of it. Each call
 // costs a few tokens, so the home makes them when the person asks and at the first start,
-// never on a timer.
+// never on a timer. The calls to a client and to Ollama are `@engenty/local-models`' probe;
+// what they mean for the person is said here.
 
 export type ProbeState = "ok" | "warning" | "problem" | "absent";
 
@@ -34,18 +37,7 @@ export interface Probe extends Finding {
   pull?: { model: string; size: number };
 }
 
-const PROMPT = "Answer with the single word ok.";
-const SYSTEM = "You check whether you can answer. Answer with one word.";
-
-export const CLIENT_TIMEOUT = 90_000;
-export const OLLAMA_TIMEOUT = 120_000;
 export const GATEWAY_TIMEOUT = 30_000;
-
-/** Whether a program is installed: on the PATH, or at its path. */
-export function installed(bin: string): boolean {
-  if (bin.includes("/")) return existsSync(bin);
-  return spawnSync("which", [bin], { stdio: "ignore" }).status === 0;
-}
 
 /** The model `~/.codex/config.toml` sets, and whether it goes through Ollama. */
 export function codexSetting(home = process.env.CODEX_HOME ?? join(homedir(), ".codex")): {
@@ -68,84 +60,9 @@ export function codexSetting(home = process.env.CODEX_HOME ?? join(homedir(), ".
   };
 }
 
-/** The arguments of a turn, without the home's MCP server: a test call needs no tools. */
-function withoutTools(args: string[]): string[] {
-  const kept: string[] = [];
-  for (let at = 0; at < args.length; at++) {
-    if (args[at] === "-c" && args[at + 1]?.startsWith("mcp_servers.")) {
-      at++;
-      continue;
-    }
-    kept.push(args[at] as string);
-  }
-  return kept;
-}
-
-/** What one run of an installed client said: its answer, or why there is none. */
-export async function runOnce(
-  client: Client,
-  timeout: number,
-): Promise<{ answer: string } | { failure: string; timedOut?: boolean; missing?: boolean }> {
-  const dir = mkdtempSync(join(tmpdir(), "wizards-bot-check-"));
-  const mcpConfigFile = join(dir, "mcp.json");
-  writeFileSync(mcpConfigFile, JSON.stringify({ mcpServers: {} }), { mode: 0o600 });
-  const call = {
-    system: SYSTEM,
-    message: PROMPT,
-    session: null,
-    mcpUrl: "http://127.0.0.1:9/mcp",
-    mcpConfigFile,
-    images: [],
-  };
-  try {
-    return await new Promise((resolve) => {
-      const child = spawn(client.bin, withoutTools(client.args(call)), {
-        cwd: dir,
-        env: clientEnv(process.env, {}),
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      const parse = client.parser();
-      let answer = "";
-      let failed: string | undefined;
-      let stderr = "";
-      let timedOut = false;
-      const timer = setTimeout(() => {
-        timedOut = true;
-        child.kill("SIGTERM");
-      }, timeout);
-      child.stdin.on("error", () => {});
-      child.stdin.end(client.stdin(call));
-      createInterface({ input: child.stdout }).on("line", (line) => {
-        for (const event of parse(line)) {
-          if (event.kind === "failure") failed = event.detail;
-          else if (event.kind === "text" || event.kind === "delta") answer += event.text;
-          else if (event.kind === "result" && !answer) answer = event.text;
-        }
-      });
-      child.stderr.on("data", (chunk: Buffer) => {
-        stderr = (stderr + chunk.toString()).slice(-4000);
-      });
-      child.on("error", (error: NodeJS.ErrnoException) => {
-        clearTimeout(timer);
-        resolve({ failure: error.message, missing: error.code === "ENOENT" });
-      });
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (timedOut) return resolve({ failure: "", timedOut: true });
-        if (failed !== undefined) return resolve({ failure: failed });
-        if (answer.trim()) return resolve({ answer: answer.trim() });
-        // Some failures reach only the error output, with a code or without.
-        resolve({ failure: stderr.trim() || `${client.name} ended with code ${code}.` });
-      });
-    });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
 /** A test call to Claude Code or Codex on this computer. */
 export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Promise<Probe> {
-  const name = client.id === "claude" ? "Claude Code" : "Codex";
+  const { name } = client;
   const install =
     client.id === "claude"
       ? {
@@ -163,20 +80,17 @@ export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Pro
     `${name} is not installed on this computer.`,
     `${name} ist auf diesem Computer nicht installiert.`,
   );
-  if (!installed(client.bin)) {
-    return { state: "absent", said: notInstalled, ...install };
-  }
   const codex = client.id === "codex" ? codexSetting() : undefined;
-  const run = await runOnce(client, timeout);
-  if ("answer" in run)
+  const result = await probe({ kind: "client", client, timeoutMs: timeout });
+  if (result.state === "ok")
     return {
       state: "ok",
       said: w(`${name} answers on your subscription.`, `${name} antwortet über dein Abo.`),
     };
-  if (run.missing) {
+  if (result.state === "absent") {
     return { state: "absent", said: notInstalled, ...install };
   }
-  if (run.timedOut) {
+  if (result.timedOut) {
     return {
       state: "problem",
       said: w(
@@ -190,16 +104,16 @@ export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Pro
       command: client.bin,
     };
   }
+  // Signed out without a call: the client's own status said so.
+  if (result.state === "signed_out" && !result.detail) {
+    return { state: "problem", ...(client.id === "claude" ? claudeSignedOut() : codexSignedOut()) };
+  }
+  const detail = result.detail ?? "";
   const finding =
     client.id === "claude"
-      ? explainClaude(run.failure)
-      : explainCodex(run.failure, codex?.ollama ? codex.model : undefined);
+      ? explainClaude(detail)
+      : explainCodex(detail, codex?.ollama ? codex.model : undefined);
   return { state: "problem", ...finding };
-}
-
-/** Whether an address is this computer's own. */
-export function onThisComputer(url: string): boolean {
-  return URL.canParse(url) && ["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname);
 }
 
 const gb = (bytes: number) => `${Math.round(bytes / 1e9)} GB`;
@@ -211,10 +125,16 @@ export async function probeOllama(
   doFetch: typeof fetch = fetch,
   timeout = OLLAMA_TIMEOUT,
 ): Promise<Probe> {
-  const running = await doFetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) })
-    .then((response) => response.ok)
-    .catch(() => false);
-  if (!running) {
+  const local = onThisComputer(baseUrl);
+  // On this computer the model has to leave it room; elsewhere the home cannot tell.
+  const result = await probe({
+    kind: "ollama",
+    url: baseUrl,
+    fetch: doFetch,
+    timeoutMs: timeout,
+    ...(local ? { memory, share: MEMORY_SHARE } : {}),
+  });
+  if (result.state === "absent") {
     return {
       state: "absent",
       said: w(`Ollama does not answer at ${baseUrl}.`, `Ollama antwortet nicht unter ${baseUrl}.`),
@@ -225,13 +145,11 @@ export async function probeOllama(
       command: "ollama serve",
     };
   }
-  const local = onThisComputer(baseUrl);
-  const models = await ollamaModels(baseUrl, doFetch, local ? memory : undefined);
-  const first = models[0];
   // On this computer the home pulls a model itself, the largest that leaves the computer room.
   const suggested = suggestedModel(local ? memory : Number.POSITIVE_INFINITY);
   const pull = local ? { pull: suggested } : {};
-  if (!first) {
+  const model = result.model ?? "";
+  if (result.state === "no_model") {
     return {
       state: "problem",
       said: w(
@@ -246,13 +164,15 @@ export async function probeOllama(
       ...pull,
     };
   }
-  if (local && first.size > memory * MEMORY_SHARE) {
+  const asked = (await installedModels(baseUrl, { fetch: doFetch })).find((m) => m.name === model);
+  if (result.state === "too_big") {
+    const size = asked?.size ?? 0;
     return {
       state: "problem",
-      model: first.id,
+      model,
       said: w(
-        `${first.id} needs ${gb(first.size)}. On this computer the Bot Server takes a model of up to ${gb(memory * MEMORY_SHARE)}, a little over half of its ${gb(memory)} of memory, so the computer stays quick.`,
-        `${first.id} braucht ${gb(first.size)}. Auf diesem Computer nimmt der Bot Server ein Modell bis ${gb(memory * MEMORY_SHARE)}, gut die Hälfte seiner ${gb(memory)} Arbeitsspeicher, damit der Computer flüssig bleibt.`,
+        `${model} needs ${gb(size)}. On this computer the Bot Server takes a model of up to ${gb(memory * MEMORY_SHARE)}, a little over half of its ${gb(memory)} of memory, so the computer stays quick.`,
+        `${model} braucht ${gb(size)}. Auf diesem Computer nimmt der Bot Server ein Modell bis ${gb(memory * MEMORY_SHARE)}, gut die Hälfte seiner ${gb(memory)} Arbeitsspeicher, damit der Computer flüssig bleibt.`,
       ),
       todo: w(
         `Pull a smaller model with tools, e.g. ollama pull ${suggested.model}.`,
@@ -262,59 +182,38 @@ export async function probeOllama(
       ...pull,
     };
   }
-  try {
-    const response = await doFetch(`${baseUrl}/api/chat`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        model: first.id,
-        messages: [{ role: "user", content: PROMPT }],
-        stream: false,
-        ...(first.thinking ? { think: false } : {}),
-        options: { num_predict: 16 },
-      }),
-      signal: AbortSignal.timeout(timeout),
-    });
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    if (!response.ok || body.error) {
-      return {
-        state: "problem",
-        model: first.id,
-        ...explainOllama(body.error ?? `status ${response.status}`, first.id),
-      };
-    }
-  } catch (error) {
-    const timedOut = (error as Error).name === "TimeoutError";
+  if (result.state !== "ok") {
     return {
       state: "problem",
-      model: first.id,
-      ...(timedOut
+      model,
+      ...(result.timedOut
         ? {
             said: w(
-              `${first.id} did not answer within ${Math.round(timeout / 1000)} seconds.`,
-              `${first.id} hat nicht innerhalb von ${Math.round(timeout / 1000)} Sekunden geantwortet.`,
+              `${model} did not answer within ${Math.round(timeout / 1000)} seconds.`,
+              `${model} hat nicht innerhalb von ${Math.round(timeout / 1000)} Sekunden geantwortet.`,
             ),
             todo: w(
               "The computer may be short of memory. Try a smaller model.",
               "Dem Computer fehlt vielleicht Arbeitsspeicher. Versuch ein kleineres Modell.",
             ),
           }
-        : explainOllama((error as Error).message, first.id)),
+        : explainOllama(result.detail ?? "", model)),
     };
   }
+  const tools = asked?.tools ?? false;
   return {
-    state: first.tools ? "ok" : "warning",
-    model: first.id,
-    said: first.tools
+    state: tools ? "ok" : "warning",
+    model,
+    said: tools
       ? w(
-          `${first.id} answers on ${local ? "this computer" : baseUrl}.`,
-          `${first.id} antwortet ${local ? "auf diesem Computer" : `unter ${baseUrl}`}.`,
+          `${model} answers on ${local ? "this computer" : baseUrl}.`,
+          `${model} antwortet ${local ? "auf diesem Computer" : `unter ${baseUrl}`}.`,
         )
       : w(
-          `${first.id} answers, but takes no tools: an agent with it can talk, not act.`,
-          `${first.id} antwortet, nimmt aber keine Werkzeuge: Ein Wizard damit kann reden, nicht handeln.`,
+          `${model} answers, but takes no tools: an agent with it can talk, not act.`,
+          `${model} antwortet, nimmt aber keine Werkzeuge: Ein Wizard damit kann reden, nicht handeln.`,
         ),
-    ...(first.tools
+    ...(tools
       ? {}
       : {
           todo: w(

@@ -1,21 +1,15 @@
 import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
+import { type Client, detectClient } from "@engenty/local-models/clients";
+import { pullModel } from "@engenty/local-models/ollama";
 import type { Card, SetupCheck, SetupPulling, Setup as SetupView } from "@wizards-bot/protocol";
 import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
+import { isSubscription, SUBSCRIPTIONS } from "../models/client-model.ts";
 import { ACCOUNT, GATEWAY_PRESETS } from "../models/models.ts";
-import { pullModel, SUGGESTED } from "../models/ollama.ts";
-import { CLIENTS, type Client, type SubscriptionClient } from "../models/subscription.ts";
+import { onThisComputer, SUGGESTED } from "../models/ollama.ts";
 import type { NewCard } from "../store/store.ts";
-import {
-  installed,
-  onThisComputer,
-  type Probe,
-  probeAccount,
-  probeClient,
-  probeGateway,
-  probeOllama,
-} from "./probes.ts";
+import { type Probe, probeAccount, probeClient, probeGateway, probeOllama } from "./probes.ts";
 import {
   greeting,
   type Lang,
@@ -72,8 +66,6 @@ function temporary(dir: string): boolean {
 const tilde = (path: string) =>
   path.startsWith(homedir()) ? `~${path.slice(homedir().length)}` : path;
 
-const NAMES: Record<SubscriptionClient, string> = { claude: "Claude Code", codex: "Codex" };
-
 /**
  * What the first start shows and `doctor` prints: each model source with its last test call,
  * and what the home has around it. Test calls cost tokens: they run when asked, never on a
@@ -98,9 +90,7 @@ export class Setup {
     // A hosted home runs on a server: no one signs in to a subscription there.
     this.clients = isHosted(home.config)
       ? []
-      : (Object.keys(CLIENTS) as SubscriptionClient[])
-          .filter((id) => home.config.subscriptions.includes(id))
-          .map((id) => CLIENTS[id]);
+      : home.config.subscriptions.filter(isSubscription).map((id) => SUBSCRIPTIONS[id].client);
   }
 
   // ── What the person said ──────────────────────────────────────────────────
@@ -310,7 +300,7 @@ export class Setup {
           void this.changed().catch(() => {});
         }
       },
-      this.ollamaFetch,
+      this.ollamaFetch ? { fetch: this.ollamaFetch } : {},
     )
       .then(
         async () => {
@@ -353,7 +343,9 @@ export class Setup {
       said: say(said, lang),
       ...(todo ? { todo: say(todo, lang) } : {}),
     });
-    const models = this.modelChecks().map(shown);
+    const found = await Promise.all(this.clients.map((client) => detectClient(client)));
+    const installed = new Set(this.clients.filter((_, at) => found[at]?.version).map((c) => c.id));
+    const models = this.modelChecks(installed).map(shown);
     const working = models.some((check) => check.state === "ok" || check.state === "warning");
     return {
       done: this.done(),
@@ -372,7 +364,8 @@ export class Setup {
     };
   }
 
-  private modelChecks(): Check[] {
+  /** `installed`: the clients found on this computer. */
+  private modelChecks(installed: Set<string>): Check[] {
     const { models } = this.home;
     const kept = this.kept();
     const row = (id: string, label: string, untested: Words, more: Partial<Check> = {}): Check => {
@@ -396,8 +389,8 @@ export class Setup {
     };
     const checks: Check[] = [];
     for (const client of this.clients) {
-      const name = NAMES[client.id];
-      const here = installed(client.bin);
+      const { name } = client;
+      const here = installed.has(client.id);
       const last = kept[client.id];
       if (!here && !this.running.has(client.id) && (!last || last.state === "absent")) {
         checks.push({
@@ -770,7 +763,7 @@ export class Setup {
     const seeing = answering.filter((check) =>
       check.id === "ollama"
         ? vision.here.length > 0
-        : check.id in CLIENTS ||
+        : isSubscription(check.id) ||
           check.id === ACCOUNT.id ||
           this.home.models.gateways().some((g) => g.id === check.id),
     );
