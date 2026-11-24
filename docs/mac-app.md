@@ -27,7 +27,7 @@ flowchart LR
   found -- no --> choose{Choose}
   choose --> local[Auf diesem Mac starten]
   local --> start[The app starts<br/>its Bot Server]
-  start --> setup[The setup:<br/>models, phone, folder]
+  start --> setup[The setup:<br/>name, models, phone]
   choose --> remote[Mit einem Bot Server<br/>verbinden]
   remote --> code[Address<br/>and code]
   use --> chat([Chat])
@@ -59,8 +59,9 @@ flowchart LR
    (docs/install.md). Later all of it moves to `~/.wizards/`, with the move of the domain.
 2. **macOS approves it.** On registering, macOS shows "Background item added". If the person
    turned background items off for us before, `SMAppService.status` is `.requiresApproval`; the
-   app says so in one sentence and opens System Settings → General → Login Items
-   (`SMAppService.openSystemSettingsLoginItems()`). This is our "approve it" step.
+   app opens System Settings → General → Login Items once
+   (`SMAppService.openSystemSettingsLoginItems()`), says in one card what to turn on, and goes
+   on by itself once it is on. This is our "approve it" step.
 3. **The app waits for `GET /health`** (it answers once the home runs, usually in a second or
    two) and pairs itself (see [Pairing the app](#pairing-the-app)).
 4. **The setup** opens in the app's window: the home's own setup (`apps/home/src/setup`), the

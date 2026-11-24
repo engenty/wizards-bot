@@ -8,48 +8,63 @@ struct FoundView: View {
     let found: LocalHome.Found
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 14) {
             Image(systemName: model.local.offersUpdate ? "arrow.up.circle" : "checkmark.circle")
-                .font(.title2)
-                .foregroundStyle(model.local.offersUpdate ? Color.accentColor : .green)
+                .font(.system(size: 17))
+                .foregroundStyle(model.local.offersUpdate ? Petrol.accentMark : Petrol.ok)
+                .frame(width: 24)
             VStack(alignment: .leading, spacing: 6) {
                 switch found {
                 case let .runs(version, _) where model.local.offersUpdate:
                     let mine = model.local.bundledVersion ?? ""
-                    Text("An older Bot Server runs on this Mac.").font(.headline)
+                    title("An older Bot Server runs on this Mac.")
                     if let version {
-                        Text("It is version \(version), the app carries \(mine).")
+                        line("It is version \(version), the app carries \(mine).")
                     } else {
-                        Text("It is older than the app's, which is version \(mine).")
+                        line("It is older than the app's, which is version \(mine).")
                     }
-                    Text("Updating stops it, keeps a copy of its data in \(LocalPaths.shown(model.local.backup)) and starts the app's Bot Server on the same data. Your agents, conversations and paired devices stay.")
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    HStack {
-                        Button("Update it") { Task { await model.takeOver() } }
-                        Button("Use it as it is") { Task { await model.useFound() } }
+                    line("Updating stops it, keeps a copy of its data in \(LocalPaths.shown(model.local.backup)) and starts the app's Bot Server on the same data. Your agents, conversations and paired devices stay.")
+                    HStack(spacing: 8) {
+                        Button("Update it") { Task { await model.takeOver() } }.petrolButton()
+                        Button("Use it as it is") { Task { await model.useFound() } }.petrolButton(.plain)
                     }
+                    .padding(.top, 4)
                 case .runs:
-                    Text("A Bot Server already runs on this Mac.").font(.headline)
-                    Text("The app uses it as it is and starts no second one.")
-                        .foregroundStyle(.secondary)
+                    title("A Bot Server already runs on this Mac.")
+                    line("The app uses it as it is and starts no second one.")
                     Button("Use it") { Task { await model.useFound() } }
+                        .petrolButton()
+                        .padding(.top, 4)
                 case .installed:
-                    Text("A Bot Server is installed on this Mac, but it does not run.").font(.headline)
-                    Text("It came with wizards bot install. The app starts it and uses it.")
-                        .foregroundStyle(.secondary)
+                    title("A Bot Server is installed on this Mac, but it does not run.")
+                    line("It came with wizards bot install. The app starts it and uses it.")
                     Button("Start it") { Task { await model.useFound() } }
+                        .petrolButton()
+                        .padding(.top, 4)
                 case let .portTaken(program):
-                    Text("Port 4747 is taken by \(program).").font(.headline)
-                    Text("A Bot Server listens on 4747. Quit that program to start one here, or connect to a Bot Server elsewhere.")
-                        .foregroundStyle(.secondary)
+                    title("Port 4747 is taken by \(program).")
+                    line("A Bot Server listens on 4747. Quit that program to start one here, or connect to a Bot Server elsewhere.")
                 }
             }
             Spacer(minLength: 0)
         }
         .padding(16)
-        .frame(maxWidth: 620)
-        .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 12))
+        .frame(width: 440)
+        .background(Petrol.card, in: .rect(cornerRadius: 10))
+    }
+
+    private func title(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Petrol.ink)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func line(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(size: 12))
+            .foregroundStyle(Petrol.ink3)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -215,32 +230,62 @@ struct PhoneSheet: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("Connect a phone").font(.title2.weight(.semibold))
+            PetrolHeading("Connect a phone")
             if let pairing {
                 if let image = Self.qr("wizardsbot://pair?home=\(pairing.address.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")&code=\(pairing.code)") {
                     Image(nsImage: image)
                         .interpolation(.none)
                         .resizable()
-                        .frame(width: 220, height: 220)
+                        .frame(width: 196, height: 196)
+                        .padding(12)
+                        .background(.white, in: .rect(cornerRadius: 10))
                 }
                 Text("Scan it with the camera of your iPhone, or type the address and the code into the app.")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Petrol.ink2)
                     .multilineTextAlignment(.center)
-                LabeledContent("Address", value: pairing.address).textSelection(.enabled)
-                LabeledContent("Code", value: pairing.code).textSelection(.enabled)
-                Text("The code works once, for 10 minutes.").font(.footnote).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                PetrolCard {
+                    value("Address", pairing.address)
+                    PetrolDivider()
+                    value("Code", pairing.code)
+                }
+                Text("The code works once, for 10 minutes.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Petrol.ink3)
             } else if failed {
-                Text("The Bot Server made no code. Is it running?").foregroundStyle(.red)
+                Text("The Bot Server made no code. Is it running?")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Petrol.rose)
             } else {
-                ProgressView()
+                ProgressView().controlSize(.small)
             }
-            Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            Button("Done") { dismiss() }
+                .petrolButton()
+                .keyboardShortcut(.defaultAction)
         }
         .padding(28)
         .frame(width: 380)
+        .petrolGround()
         .task {
             if let made = await model.local.phonePairing() { pairing = made } else { failed = true }
         }
+    }
+
+    private func value(_ label: LocalizedStringKey, _ text: String) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundStyle(Petrol.ink3)
+                .frame(width: 64, alignment: .leading)
+            Text(verbatim: text)
+                .font(.system(size: 13).monospaced())
+                .foregroundStyle(Petrol.ink)
+                .textSelection(.enabled)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     static func qr(_ text: String) -> NSImage? {

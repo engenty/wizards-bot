@@ -4,8 +4,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import type { Thread } from "../lib/events";
 import { t } from "../lib/i18n";
+import { askToNotify, canAskToNotify, notifyLater } from "../lib/notify";
 import { elapsed } from "../lib/time";
-import { cn, Spinner } from "../ui";
+import { Button, cn, Spinner } from "../ui";
 import { Markdown } from "../ui/Markdown";
 import { CardView } from "./CardView";
 import { Face, Writer } from "./Face";
@@ -242,6 +243,7 @@ export function Messages({
   onDocument,
   onArtifact,
   onProblem,
+  onStart,
 }: {
   /** Undefined while the conversation loads. */
   thread: Thread | undefined;
@@ -250,6 +252,8 @@ export function Messages({
   onDocument: (id: string) => void;
   onArtifact: (id: string) => void;
   onProblem: (text: string) => void;
+  /** Sends one of the first ideas of an empty conversation. */
+  onStart?: (text: string) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -339,7 +343,73 @@ export function Messages({
             onProblem={onProblem}
           />
         ))}
+        {agent.main && onStart && thread && !spoke(thread) ? <Starts onStart={onStart} /> : null}
+        {answered(thread) ? <NotifyOffer /> : null}
       </div>
+    </div>
+  );
+}
+
+const STARTS = ["chat.start.week", "chat.start.folder", "chat.start.friday"] as const;
+
+/** Whether the person has written in this conversation. */
+const spoke = (thread: Thread) => thread.messages.some((message) => message.role === "you");
+
+/** Three first ideas while the person has not written to the main agent; a tap sends one. */
+function Starts({ onStart }: { onStart: (text: string) => void }) {
+  return (
+    <div className="enter-rise grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {STARTS.map((key) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onStart(t(key))}
+          className="min-h-16 cursor-pointer rounded-xl bg-paper-2 px-3.5 py-3 text-left font-medium text-[0.875rem] leading-snug outline-none transition-colors focus-visible:bg-accent"
+        >
+          {t(key)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Whether an agent has finished an answer to the person in this conversation. */
+const answered = (thread: Thread | undefined) => {
+  const said = thread?.messages.findIndex((message) => message.role === "you") ?? -1;
+  return Boolean(
+    said >= 0 &&
+      thread?.messages
+        .slice(said + 1)
+        .some((message) => message.role === "agent" && message.state !== "streaming"),
+  );
+};
+
+/** After the first answer, once: may the page tell the person when an answer is done. */
+function NotifyOffer() {
+  const [open, setOpen] = useState(canAskToNotify);
+  if (!open) {
+    return null;
+  }
+  return (
+    <div className="enter-rise flex flex-wrap items-center gap-2 rounded-xl bg-paper-2 px-3.5 py-2.5">
+      <p className="min-w-0 flex-1 text-[0.875rem]">{t("chat.notify.ask")}</p>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => void askToNotify().finally(() => setOpen(false))}
+      >
+        {t("chat.notify.allow")}
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          notifyLater();
+          setOpen(false);
+        }}
+      >
+        {t("chat.notify.later")}
+      </Button>
     </div>
   );
 }

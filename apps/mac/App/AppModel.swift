@@ -81,6 +81,7 @@ final class AppModel {
     func startHere() async {
         guard await local.start() else { return }
         await openHere()
+        local.finish()
     }
 
     /// Opens the Bot Server that runs on this Mac, paired without a code typed.
@@ -176,6 +177,7 @@ final class AppModel {
         guard await local.takeOver() else { return }
         UserDefaults.standard.set(local.bundledVersion, forKey: "homeVersion")
         await openHere()
+        local.finish()
     }
 
     /// Removes the app's Bot Server from this Mac, and forgets it when the app was paired with it.

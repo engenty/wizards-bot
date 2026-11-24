@@ -327,6 +327,66 @@
         }
       }
     },
+    "Type what the pairing card shows" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe ein, was die Karte zum Verbinden zeigt"
+          }
+        }
+      }
+    },
+    "Connected" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbunden"
+          }
+        }
+      }
+    },
+    "Notifications" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitteilungen"
+          }
+        }
+      }
+    },
+    "When your agents finish or need you" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wenn deine Agenten fertig sind oder dich brauchen"
+          }
+        }
+      }
+    },
+    "Allowed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erlaubt"
+          }
+        }
+      }
+    },
+    "Open the chat" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat öffnen"
+          }
+        }
+      }
+    },
     "Connect to your Bot Server" : {
       "localizations" : {
         "de" : {
@@ -1431,16 +1491,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Schreibt"
-          }
-        }
-      }
-    },
-    "Your agent runs on your Bot Server: on your computer or on a server. This device talks to it." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dein Agent läuft auf deinem Bot Server: auf deinem Computer oder auf einem Server. Dieses Gerät spricht mit ihm."
           }
         }
       }

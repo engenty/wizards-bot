@@ -15,37 +15,45 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// The push token of this device, once the person allowed notifications.
     private(set) var push: Push?
     private var allowed = false
-    private var wantsToAsk = false
     private var center: UNUserNotificationCenter { .current() }
 
     func start() {
         center.delegate = self
         Task {
             center.setNotificationCategories(await center.notificationCategories().union(CardNotifications.plain))
-            let status = await center.notificationSettings().authorizationStatus
-            allowed = status == .authorized || status == .provisional
-            if allowed { UIApplication.shared.registerForRemoteNotifications() }
+            await refresh()
         }
     }
 
     // MARK: Permission
 
-    /// Asks for permission the first time it matters. Away from the screen, the question waits
-    /// until the app is in front again.
-    func ask() {
-        guard !allowed else { return }
-        wantsToAsk = true
-        if UIApplication.shared.applicationState == .active { becameActive() }
+    /// What the person allowed, as the system has it now.
+    func permission() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
     }
 
-    func becameActive() {
-        guard wantsToAsk else { return }
-        wantsToAsk = false
-        Task {
-            guard await center.notificationSettings().authorizationStatus == .notDetermined else { return }
-            allowed = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-            if allowed { UIApplication.shared.registerForRemoteNotifications() }
+    /// Asks the person for notifications: on the screen after a pairing, or at the first card that
+    /// needs the person on a device never asked. The system asks only once; a later no or yes is
+    /// in Settings.
+    func allow() async -> UNAuthorizationStatus {
+        if await permission() == .notDetermined {
+            _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
         }
+        await refresh()
+        return await permission()
+    }
+
+    /// The app is in front again: the person may have changed notifications in Settings.
+    func becameActive() {
+        Task { await refresh() }
+    }
+
+    /// Reads what the person allowed; once allowed, the device asks the system for its push token.
+    private func refresh() async {
+        let status = await permission()
+        let was = allowed
+        allowed = status == .authorized || status == .provisional
+        if allowed, !was { UIApplication.shared.registerForRemoteNotifications() }
     }
 
     /// The system gave this device a push token.
