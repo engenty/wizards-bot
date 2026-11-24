@@ -38,6 +38,8 @@ export interface ConnectionTool {
   readOnly: boolean;
   /** Only the server's own view calls it (MCP Apps `visibility: ["app"]`), never the agent. */
   appOnly?: boolean;
+  /** The view the server shows the tool's result in (MCP Apps), a `ui://` resource. */
+  view?: string;
 }
 
 /** As much of a tool's description as the home keeps. */
@@ -51,6 +53,15 @@ function firstSentence(description: string): string {
   const end = flat.search(/[.!?](\s|$)/);
   const sentence = end >= 0 ? flat.slice(0, end + 1) : flat;
   return sentence.length > LINE_LIMIT ? `${sentence.slice(0, LINE_LIMIT - 1)}…` : sentence;
+}
+
+/** The `ui://` view of a tool, as MCP Apps (or the older OpenAI key) names it. */
+function viewOf(meta: unknown): string | undefined {
+  const m = meta as
+    | { ui?: { resourceUri?: unknown }; "openai/outputTemplate"?: unknown }
+    | undefined;
+  const uri = m?.ui?.resourceUri ?? m?.["openai/outputTemplate"];
+  return typeof uri === "string" && uri.startsWith("ui://") ? uri : undefined;
 }
 
 /** Who may call a tool, as its MCP Apps metadata says. */
@@ -373,6 +384,7 @@ export class Connections {
         inputSchema: tool.inputSchema,
         readOnly: tool.annotations?.readOnlyHint === true,
         ...(appOnlyOf(tool._meta) ? { appOnly: true } : {}),
+        ...(viewOf(tool._meta) ? { view: viewOf(tool._meta) } : {}),
       }));
       this.clients.set(id, client);
       this.runs.set(id, ((await client.listToolsets())[row.name] ?? {}) as Record<string, Runs>);

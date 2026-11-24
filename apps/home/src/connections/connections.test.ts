@@ -75,3 +75,45 @@ describe("a connection's tools as the agent reads them", () => {
     assert.equal(studio.calls.length, 0);
   });
 });
+
+describe("what a tool's result carries besides its text", () => {
+  let t: TestHome;
+  let studio: FakeMcp;
+  before(async () => {
+    t = await testHome("Ada");
+    studio = new FakeMcp("modern", {
+      run: {
+        readOnly: true,
+        meta: { ui: { resourceUri: "ui://studio/flow-1.html" } },
+        run: () => ({
+          text: "The run waits for a page.",
+          structured: { runId: "r1", status: "waiting_input" },
+          meta: { "engenty/flow": { run: { runId: "r1" } } },
+          resources: [{ uri: "ui://studio/note.json", mimeType: "application/json", text: "{}" }],
+        }),
+      },
+    });
+    await studio.start();
+    await t.home.connections.add({ name: "studio", url: studio.url });
+  });
+  after(() => {
+    studio.stop();
+    t.stop();
+  });
+
+  test("the tool's view is kept with the tool", () => {
+    const tool = t.home.connections.byName("studio")?.tools.find((one) => one.name === "run");
+    assert.equal(tool?.view, "ui://studio/flow-1.html");
+  });
+
+  test("structured content, _meta and resources come with the step, the text to the agent", async () => {
+    const connection = t.home.connections.byName("studio");
+    assert.ok(connection);
+    const step = await t.home.connections.use(connection, "run", {});
+    assert.ok("result" in step);
+    assert.match(String(step.result), /^The run waits for a page\.\n\[application\/json\]$/);
+    assert.deepEqual(step.carried?.structured, { runId: "r1", status: "waiting_input" });
+    assert.deepEqual(step.carried?.meta?.["engenty/flow"], { run: { runId: "r1" } });
+    assert.equal(step.carried?.resources?.[0]?.uri, "ui://studio/note.json");
+  });
+});

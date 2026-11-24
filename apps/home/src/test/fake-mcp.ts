@@ -23,7 +23,13 @@ export interface Retry {
  * older way only) the error that names a page to open before the tool is called again.
  */
 export type Outcome =
-  | { text: string }
+  | {
+      text: string;
+      /** What the result carries besides its text: for the client, not the model. */
+      structured?: Record<string, unknown>;
+      meta?: Record<string, unknown>;
+      resources?: { uri: string; mimeType: string; text: string }[];
+    }
   | { ask: Record<string, Record<string, unknown>>; state?: unknown }
   | { needs: string };
 
@@ -213,7 +219,15 @@ export class FakeMcp {
     const outcome = tool.run(call, state);
     if ("needs" in outcome) return fail(200, -32603, "This revision has no such error");
     if ("text" in outcome)
-      return reply({ ...complete, content: [{ type: "text", text: outcome.text }] });
+      return reply({
+        ...complete,
+        content: [
+          { type: "text", text: outcome.text },
+          ...(outcome.resources ?? []).map((resource) => ({ type: "resource", resource })),
+        ],
+        ...(outcome.structured ? { structuredContent: outcome.structured } : {}),
+        ...(outcome.meta ? { _meta: outcome.meta } : {}),
+      });
     reply({
       resultType: "input_required",
       _meta: meta,

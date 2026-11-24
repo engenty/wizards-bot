@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { getMcpCallToolContent } from "@mastra/mcp";
+import { getMcpCallToolContent, getMcpCallToolMeta } from "@mastra/mcp";
 import type { AskCard, Looked } from "../agent/tool.ts";
 import type { Picture } from "../files/pictures.ts";
 import {
@@ -26,8 +26,21 @@ interface Target {
 /** What a server asks the person: MCP's `elicitation/create`, as it arrived. */
 export type Question = Record<string, unknown>;
 
+/**
+ * What a tool's result carries besides what the agent reads: its structured content, its
+ * `_meta` (an MCP Apps view's data, `ui.resourceUri`) and the resources it embeds. For the
+ * home and the person's devices, never for the model.
+ */
+export interface Carried {
+  structured?: unknown;
+  meta?: Record<string, unknown>;
+  resources?: { uri: string; mimeType?: string; text?: string; blob?: string }[];
+}
+
 /** Where a call stands: it answered, or its server asks the person and waits. */
-export type Step = { result: string | Looked } | { asks: Question; held: string };
+export type Step =
+  | { result: string | Looked; carried?: Carried }
+  | { asks: Question; held: string };
 
 /** A call of a connection's tool that is under way. Its server may ask while it is open. */
 interface Held {
@@ -39,7 +52,7 @@ interface Held {
   /** Whether the oldest question is with the person. */
   shown: boolean;
   /** Set when the call is over. */
-  ended?: { result: string | Looked } | { error: Error };
+  ended?: { result: string | Looked; carried?: Carried } | { error: Error };
   /** Someone waits for what the call does next. */
   watched: boolean;
   moved(): void;
@@ -53,12 +66,45 @@ function clip(value: string): string {
     : value;
 }
 
+type Part = {
+  type: string;
+  text?: string;
+  data?: string;
+  mimeType?: string;
+  resource?: { uri: string; mimeType?: string; text?: string; blob?: string };
+};
+
+/**
+ * What a result carries for the home. Mastra's client gives the whole `CallToolResult` for a
+ * tool without an output schema, and the structured content itself (with the rest on hidden
+ * keys) for one with.
+ */
+function carriedOf(raw: unknown): Carried | undefined {
+  if (raw === null || typeof raw !== "object") return undefined;
+  const hidden = getMcpCallToolContent(raw) !== undefined;
+  const whole = raw as {
+    structuredContent?: unknown;
+    _meta?: Record<string, unknown>;
+    content?: unknown;
+  };
+  const structured = hidden ? raw : whole.structuredContent;
+  const meta = hidden ? getMcpCallToolMeta(raw) : whole._meta;
+  const parts = ((hidden ? getMcpCallToolContent(raw) : whole.content) ?? []) as Part[];
+  const resources = Array.isArray(parts)
+    ? parts.flatMap((part) => (part.type === "resource" && part.resource ? [part.resource] : []))
+    : [];
+  const carried: Carried = {
+    ...(structured !== undefined ? { structured } : {}),
+    ...(meta && Object.keys(meta).length ? { meta } : {}),
+    ...(resources.length ? { resources } : {}),
+  };
+  return Object.keys(carried).length ? carried : undefined;
+}
+
 /** A tool's answer as the agent reads it: the text, and the pictures the server sent. */
 function resultOf(raw: unknown): string | Looked {
   const whole = (raw ?? {}) as { content?: unknown; isError?: boolean };
-  const parts = (getMcpCallToolContent(raw) ?? whole.content) as
-    | { type: string; text?: string; data?: string; mimeType?: string }[]
-    | undefined;
+  const parts = (getMcpCallToolContent(raw) ?? whole.content) as Part[] | undefined;
   if (!Array.isArray(parts)) return clip(typeof raw === "string" ? raw : JSON.stringify(raw));
   const pictures: Picture[] = [];
   const lines: string[] = [];
@@ -66,6 +112,8 @@ function resultOf(raw: unknown): string | Looked {
     if (part.type === "text") lines.push(part.text ?? "");
     else if (part.type === "image" && part.data && part.mimeType)
       pictures.push({ base64: part.data, mime: part.mimeType } as Picture);
+    // An embedded resource is for the home (carriedOf); the agent reads that it is there.
+    else if (part.type === "resource") lines.push(`[${part.resource?.mimeType ?? "resource"}]`);
     else lines.push(`[${part.type}]`);
   }
   const text = clip(lines.join("\n"));
@@ -140,7 +188,7 @@ export class Calls {
     this.held.set(call.id, call);
     void execute(abort.signal)
       .then(
-        (raw) => ({ result: resultOf(raw) }),
+        (raw) => ({ result: resultOf(raw), carried: carriedOf(raw) }),
         // What went wrong is for the agent to read: the first lines say it.
         (error) => ({ error: new Error(String((error as Error)?.message ?? error).slice(0, 600)) }),
       )
