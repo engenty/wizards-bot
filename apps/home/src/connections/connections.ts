@@ -433,6 +433,13 @@ export class Connections {
     return client.resources.read(row.name, uri);
   }
 
+  /** Connects again and reads the tools anew, as the server lists them now. */
+  async refreshTools(connectionId: string): Promise<ConnectionTool[] | undefined> {
+    await this.connect(connectionId);
+    const row = this.home.db.get<Row>("select * from connection where id = ?", connectionId);
+    return row ? toConnection(row).tools : undefined;
+  }
+
   /** Ends a call nobody will answer. */
   dropCall(held: string): void {
     this.calls.drop(held);

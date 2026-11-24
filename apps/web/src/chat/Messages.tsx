@@ -1,5 +1,5 @@
 import type { Agent, Message, Part } from "@wizards-bot/protocol";
-import { Check, ChevronRight, FileText, Shapes, X } from "lucide-react";
+import { Check, ChevronRight, FileText, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import type { Thread } from "../lib/events";
@@ -9,6 +9,7 @@ import { useThisDevice } from "../lib/queries";
 import { elapsed } from "../lib/time";
 import { Button, cn, Spinner } from "../ui";
 import { Markdown } from "../ui/Markdown";
+import { ArtifactPart } from "./AppView";
 import { CardView } from "./CardView";
 import { Face, Writer } from "./Face";
 import { MessageFiles } from "./MessageFiles";
@@ -116,16 +117,7 @@ function Parts({
         );
       case "artifact":
         return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onArtifact(part.artifactId)}
-            className="flex w-full max-w-sm items-center gap-2.5 rounded-xl bg-card px-3.5 py-3 text-left text-[0.9375rem] shadow-soft ring-1 ring-border-soft transition hover:ring-ink-4"
-          >
-            <Shapes className="size-4 shrink-0 text-ink-3" />
-            <span className="min-w-0 flex-1 truncate font-medium">{part.title}</span>
-            <ChevronRight className="size-4 shrink-0 text-ink-4" />
-          </button>
+          <ArtifactPart key={key} id={part.artifactId} title={part.title} onOpen={onArtifact} />
         );
       default: {
         const title = (part as { title?: unknown }).title;

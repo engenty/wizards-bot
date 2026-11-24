@@ -10,6 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { AgentPane } from "./chat/AgentPane";
+import { OpenArtifact } from "./chat/AppView";
 import { ArtifactPane } from "./chat/ArtifactPane";
 import { AvatarDialog } from "./chat/AvatarDialog";
 import { Chat } from "./chat/Chat";
@@ -435,39 +436,41 @@ export function Home() {
       <div ref={main} className="relative flex h-full min-w-0 flex-1">
         {/* The chat on a lighter ground than the list beside it. */}
         <div className="h-full min-w-0 flex-1 bg-card">
-          <Chat
-            agent={agent}
-            items={items.data ?? []}
-            link={link}
-            onAgents={side === "none" ? () => setDrawer(true) : undefined}
-            onList={side === "rail" ? openList : undefined}
-            onHideList={side === "open" ? () => setCollapsed(true) : undefined}
-            onAgent={() => {
-              setDocumentId(null);
-              setArtifactId(null);
-              setFolderView(null);
-              setAbout((open) => !open);
-            }}
-            unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
-            onItems={() => setDialog("items")}
-            onDocument={(id) => {
-              setArtifactId(null);
-              setAbout(false);
-              setFolderView(null);
-              setDocumentId(id);
-            }}
-            onArtifact={(id) => {
-              setDocumentId(null);
-              setAbout(false);
-              setFolderView(null);
-              setArtifactId(id);
-            }}
-            reference={reference}
-            onFolder={() => {
-              setFolderFrom(agent.conversationId);
-              setDialog("folder");
-            }}
-          />
+          <OpenArtifact.Provider value={artifactId}>
+            <Chat
+              agent={agent}
+              items={items.data ?? []}
+              link={link}
+              onAgents={side === "none" ? () => setDrawer(true) : undefined}
+              onList={side === "rail" ? openList : undefined}
+              onHideList={side === "open" ? () => setCollapsed(true) : undefined}
+              onAgent={() => {
+                setDocumentId(null);
+                setArtifactId(null);
+                setFolderView(null);
+                setAbout((open) => !open);
+              }}
+              unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
+              onItems={() => setDialog("items")}
+              onDocument={(id) => {
+                setArtifactId(null);
+                setAbout(false);
+                setFolderView(null);
+                setDocumentId(id);
+              }}
+              onArtifact={(id) => {
+                setDocumentId(null);
+                setAbout(false);
+                setFolderView(null);
+                setArtifactId(id);
+              }}
+              reference={reference}
+              onFolder={() => {
+                setFolderFrom(agent.conversationId);
+                setDialog("folder");
+              }}
+            />
+          </OpenArtifact.Provider>
         </div>
         {beside && !standing.leaving ? (
           <Divider
