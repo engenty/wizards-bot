@@ -150,24 +150,29 @@ describe("a connected folder", () => {
     assert.equal(t.home.store.items().length, 0);
 
     await t.request(`/v1/folders/${folder.id}`, { method: "PATCH", body: { access: "write" } });
-    await call("folder_write", write);
+    await asksWith("folder_write", write);
     const first = t.item();
     assert.equal(first.title, "Add a packing list.");
     t.model.script.push({ text: "Left as it is." });
-    await t.answer(first.id, "keep");
+    await t.answer(first.id, "deny");
     assert.equal(existsSync(join(root, "krakow", "packing.md")), false);
 
-    await call("folder_write", write);
+    await asksWith("folder_write", write);
     t.model.script.push({ text: "Written." });
-    await t.answer(t.item().id, "write");
+    await t.answer(t.item().id, "once");
     assert.equal(readFileSync(join(root, "krakow", "packing.md"), "utf8"), "- socks\n");
     assert.equal(textOf(t.last()), "Written.");
 
-    await call("folder_write", { ...write, path: "link/escape.md" });
+    assert.match(await call("folder_write", { ...write, path: "link/escape.md" }), /leads out of/);
     assert.equal(existsSync(join(outside, "escape.md")), false);
   });
 
   /** Lets the agent call a tool that asks: its run waits for the card's answer. */
+  const asksWith = async (name: string, args: Record<string, unknown>): Promise<void> => {
+    t.model.script.push({ calls: [{ name, arguments: args }] });
+    await t.say(`use ${name}`);
+  };
+
   const asks = async (args: Record<string, unknown>): Promise<void> => {
     t.model.script.push({ calls: [{ name: "folder_connect", arguments: args }] });
     await t.say("connect a folder");
@@ -368,7 +373,7 @@ describe("the agents' own folder", () => {
     const card = t.item();
     assert.match(card.body ?? "", /\*\*wizards\*\*/);
     t.model.script.push({ text: "Written." });
-    await t.answer(card.id, "write");
+    await t.answer(card.id, "once");
     assert.equal(readFileSync(join(home, "wizards", "notes.md"), "utf8"), "# Notes\n");
     const system =
       (t.model.requests.at(-1)?.messages[0] as { content: string } | undefined)?.content ?? "";

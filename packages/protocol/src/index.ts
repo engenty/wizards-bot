@@ -690,6 +690,12 @@ export const Folder = z.object({
   /** `write`: agents may also change files, and ask before each change. */
   access: z.enum(["read", "write"]),
   /**
+   * `always`: the person said "Always allow" on a change card of this folder. Agents then make,
+   * copy, write, edit and move files in it without a card; deleting asks every time, and so
+   * does a turn that read mail, a page or what a connection or a contact sent.
+   */
+  allow: z.enum(["ask", "always"]),
+  /**
    * The agents' own folder: where they keep what they make for the person, unless the person
    * names another. One folder at most.
    */
@@ -710,6 +716,13 @@ export const ConnectFolder = z.object({
   conversationId: z.string().optional(),
 });
 export type ConnectFolder = z.infer<typeof ConnectFolder>;
+
+/** `PATCH /v1/folders/:id`: what the agents may do in a folder, and whether changes ask. */
+export const UpdateFolder = z.object({
+  access: z.enum(["read", "write"]).optional(),
+  allow: z.enum(["ask", "always"]).optional(),
+});
+export type UpdateFolder = z.infer<typeof UpdateFolder>;
 
 /** What a folder holds, shown before it is connected. Counting stops at `FOLDER_PREVIEW_LIMIT` files. */
 export const FolderPreview = z.object({

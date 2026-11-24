@@ -25,6 +25,7 @@ import {
   SwitchAddress,
   TestSetup,
   UpdateDevice,
+  UpdateFolder,
   VaultInput,
 } from "@wizards-bot/protocol";
 import { type Context, Hono } from "hono";
@@ -729,9 +730,12 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   });
 
   app.patch("/v1/folders/:id", async (c) => {
-    const { access } = z.object({ access: z.enum(["read", "write"]) }).parse(await c.req.json());
-    const folder = home.folders.setAccess(c.req.param("id"), access);
-    return folder ? c.json(folder) : notFound(c, "folder");
+    const { access, allow } = UpdateFolder.parse(await c.req.json());
+    const id = c.req.param("id");
+    if (!home.folders.byId(id)) return notFound(c, "folder");
+    if (access) home.folders.setAccess(id, access);
+    if (allow) home.folders.setAllow(id, allow);
+    return c.json(home.folders.byId(id));
   });
 
   app.delete("/v1/folders/:id", (c) => {
