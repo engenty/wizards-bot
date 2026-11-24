@@ -43,6 +43,12 @@ export interface Config {
   tunnelUrl?: string;
   /** An frpc to use for the address instead of the one the home fetches (`WIZARDS_BOT_FRPC`). */
   frpc?: string;
+  /**
+   * The one folder of files on a server (`WIZARDS_BOT_FILES`, `/files` in the Docker image): the
+   * agents' own folder, and the only place folders are picked, made and connected. Without it
+   * the home runs on the person's computer: their home folder and their disks.
+   */
+  filesDir?: string;
 }
 
 /** Whether the home runs on wizards.bot, made and kept by the Manage-App. */
@@ -113,6 +119,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     homeToken: env.WIZARDS_BOT_HOME_TOKEN || undefined,
     tunnelUrl: env.WIZARDS_TUNNEL_URL?.replace(/\/+$/, "") || undefined,
     frpc: env.WIZARDS_BOT_FRPC?.trim() || undefined,
+    filesDir: env.WIZARDS_BOT_FILES?.trim() || undefined,
   };
 }
 

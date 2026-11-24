@@ -7,7 +7,7 @@ Every release publishes the image `ghcr.io/engenty/wizards-bot:<version>` and `:
 amd64 and arm64 (or build it yourself: `docker build -t wizards-bot .`).
 
 ```bash
-docker run -d --name wizards-bot --restart unless-stopped -p 4747:4747 -v wizards-bot:/data -e WIZARDS_BOT_URL=https://me.example.com ghcr.io/engenty/wizards-bot:latest
+docker run -d --name wizards-bot --restart unless-stopped -p 4747:4747 -v wizards-bot:/data -v wizards-bot-files:/files -e WIZARDS_BOT_URL=https://me.example.com ghcr.io/engenty/wizards-bot:latest
 ```
 
 `GET /health` answers `{ "ok": true }` without signing in; the image checks it by itself.
@@ -26,6 +26,10 @@ Then:
 
 `/data` holds the database, the Bot Server's key and the key that encrypts your secrets. Back it up
 as one.
+
+`/files` is the Bot Server's one folder of files (`WIZARDS_BOT_FILES`): the agents' own folder,
+connected for changes from the start. Folders the agents ask for are made and connected inside
+it; nothing else of the server is reached.
 
 ## Export and import
 

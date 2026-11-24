@@ -27,8 +27,8 @@ COPY packages packages
 COPY apps/home/src apps/home/src
 COPY --from=web /app/apps/web/dist apps/web/dist
 RUN printf '#!/bin/sh\nexec node /app/apps/home/src/cli.ts "$@"\n' > /usr/local/bin/wizards-bot && chmod +x /usr/local/bin/wizards-bot
-ENV WIZARDS_BOT_DATA=/data WIZARDS_BOT_PORT=4747 WIZARDS_BOT_SUBSCRIPTIONS=""
-VOLUME /data
+ENV WIZARDS_BOT_DATA=/data WIZARDS_BOT_FILES=/files WIZARDS_BOT_PORT=4747 WIZARDS_BOT_SUBSCRIPTIONS=""
+VOLUME /data /files
 EXPOSE 4747
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s CMD wget -qO- http://127.0.0.1:4747/health || exit 1
 CMD ["wizards-bot", "start"]

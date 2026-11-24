@@ -412,3 +412,130 @@ describe("the agents' own folder", () => {
     }
   });
 });
+
+describe("a new folder an agent proposes", () => {
+  let t: TestHome;
+  let home: string;
+  let was: string | undefined;
+
+  before(async () => {
+    t = await testHome("Ada");
+    home = realpathSync(mkdtempSync(join(tmpdir(), "wizards-bot-home-")));
+    mkdirSync(join(home, "code"));
+    was = process.env.HOME;
+    process.env.HOME = home;
+  });
+  after(() => {
+    process.env.HOME = was;
+    return t.stop();
+  });
+
+  const propose = async (args: Record<string, unknown>): Promise<string> => {
+    t.model.script.push({ calls: [{ name: "folder_connect", arguments: args }] }, { text: "ok" });
+    await t.say("keep the laws somewhere");
+    const messages = (t.model.requests.at(-1)?.messages ?? []) as {
+      role: string;
+      content: string;
+    }[];
+    return messages.findLast((message) => message.role === "tool")?.content ?? "";
+  };
+
+  test("is made and connected after one yes on the card", async () => {
+    t.model.script.push({
+      calls: [
+        {
+          name: "folder_connect",
+          arguments: {
+            purpose: "A folder for the legal texts",
+            access: "write",
+            path: "~/code/wizards/data",
+            create: true,
+          },
+        },
+      ],
+    });
+    await t.say("keep the laws somewhere");
+    const card = t.item();
+    const field = card.fields?.[0];
+    assert.equal(field?.value, join(home, "code", "wizards", "data"));
+    assert.match(field?.placeholder ?? "", /makes this folder/);
+    assert.equal(existsSync(join(home, "code", "wizards")), false);
+
+    t.model.script.push({ text: "Connected." });
+    await t.answer(card.id, "connect", {
+      folder: join(home, "code", "wizards", "data"),
+      access: "write",
+    });
+    assert.equal(existsSync(join(home, "code", "wizards", "data")), true);
+    const folder = t.home.folders.byName("data") as Folder;
+    assert.deepEqual(
+      [folder.path, folder.access],
+      [join(home, "code", "wizards", "data"), "write"],
+    );
+  });
+
+  test("is not made hidden, outside the person's places or in the system", async () => {
+    for (const path of ["~/.config/x", "/etc/wizards", join(tmpdir(), "wizards-bot-elsewhere")]) {
+      const told = await propose({ purpose: "x", access: "read", path, create: true });
+      assert.match(told, /without `path`/, path);
+      assert.equal(existsSync(path.replace("~", home)), false, path);
+    }
+  });
+
+  test("a path that is not there without `create` is not made", async () => {
+    const told = await propose({ purpose: "x", access: "read", path: "~/code/missing" });
+    assert.match(told, /no such folder/);
+    assert.equal(existsSync(join(home, "code", "missing")), false);
+  });
+
+  test("every agent of the person may ask to connect a folder", async () => {
+    const guide = t.home.store.createAgent({ name: "Guide", kind: "drop", about: "Knows laws." });
+    const tools = (
+      t.home.folders as unknown as {
+        tools(context: unknown): { name: string }[];
+      }
+    ).tools({
+      home: t.home,
+      agent: guide,
+      conversationId: guide.conversationId,
+      draft: { id: "d" },
+    });
+    assert.ok(tools.some((tool) => tool.name === "folder_connect"));
+  });
+
+  test("the picker names its place and the disks besides the home folder", async () => {
+    const listing = (await (
+      await t.request(`/v1/folders/browse?path=${encodeURIComponent(join(home, "code"))}`)
+    ).json()) as FolderListing;
+    assert.equal(listing.root, home);
+    assert.ok(Array.isArray(listing.disks));
+  });
+});
+
+describe("a Bot Server on a server", () => {
+  let t: TestHome;
+  let files: string;
+
+  before(async () => {
+    files = join(realpathSync(mkdtempSync(join(tmpdir(), "wizards-bot-vps-"))), "files");
+    t = await testHome("Ada", undefined, { config: { filesDir: files } });
+  });
+  after(() => t.stop());
+
+  test("has one folder of files, the agents' own, connected for changes from the start", () => {
+    const own = t.home.folders.own() as Folder;
+    assert.deepEqual([own.path, own.access], [realpathSync(files), "write"]);
+  });
+
+  test("picks, makes and connects folders only inside it", async () => {
+    const listing = (await (await t.request("/v1/folders/browse")).json()) as FolderListing;
+    assert.deepEqual([listing.home, listing.disks], [realpathSync(files), []]);
+    const made = await t.request("/v1/folders/new", { body: { parent: files, name: "Laws" } });
+    assert.equal(made.status, 200);
+    const status = async (path: string) =>
+      (await t.request("/v1/folders/preview", { body: { path } })).status;
+    assert.equal(await status(join(files, "Laws")), 200);
+    assert.equal(await status(tmpdir()), 400);
+    assert.equal(await status(homedir()), 400);
+  });
+});
