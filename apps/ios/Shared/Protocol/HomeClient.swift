@@ -210,6 +210,55 @@ nonisolated struct HomeClient: Sendable {
         try await run("DELETE", "/v1/folders/\(folderId)")
     }
 
+    /// What the agents may do in a folder, and whether changes ask.
+    func updateFolder(_ folderId: String, _ update: UpdateFolder) async throws -> Folder {
+        try await send("PATCH", "/v1/folders/\(folderId)", body: update)
+    }
+
+    /// What a place in a connected folder holds, for the file browser.
+    func folderEntries(_ folderId: String, path: String) async throws -> FolderEntries {
+        try await send("GET", "/v1/folders/\(folderId)/entries", query: [URLQueryItem(name: "path", value: path)])
+    }
+
+    /// The bytes of a file in a connected folder.
+    func folderFile(_ folderId: String, path: String) async throws -> Data {
+        var request = request("GET", "/v1/folders/\(folderId)/file", query: [URLQueryItem(name: "path", value: path)])
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 120
+        return try await data(for: request, in: Self.patientSession)
+    }
+
+    /// Puts a file into a folder connected for changes; one there already goes to the Trash.
+    func putFolderFile(_ folderId: String, path: String, bytes: Data) async throws {
+        var request = request("PUT", "/v1/folders/\(folderId)/file", query: [URLQueryItem(name: "path", value: path)])
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 300
+        request.httpBody = bytes
+        _ = try await data(for: request, in: Self.patientSession)
+    }
+
+    /// A new folder, a new name or place, or to the Trash, in a folder connected for changes.
+    func editFolder(_ folderId: String, _ edit: FolderEdit) async throws {
+        var request = request("POST", "/v1/folders/\(folderId)/edit")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(edit)
+        _ = try await data(for: request)
+    }
+
+    /// What agents and the person did in a connected folder, newest first.
+    func folderActivity(_ folderId: String) async throws -> [FolderActivity] {
+        let envelope: FolderActivityEnvelope = try await send("GET", "/v1/folders/\(folderId)/activity")
+        return envelope.activity
+    }
+
+    /// Takes one change back.
+    func undoFolderChange(_ folderId: String, activityId: String, index: Int) async throws {
+        struct Undo: Encodable, Sendable { var activityId: String; var index: Int }
+        let _: FolderActivityEnvelope = try await send(
+            "POST", "/v1/folders/\(folderId)/undo", body: Undo(activityId: activityId, index: index)
+        )
+    }
+
     // MARK: What this device keeps
 
     /// Says what this device offers its agents, after each change on it.

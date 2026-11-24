@@ -18,6 +18,8 @@ struct AgentData: View {
 
     @State private var problem: String?
     @State private var addingService = false
+    /// The connected folder open in the file browser.
+    @State private var browsing: Folder?
 
     /// Folders connected on the person's other devices, with the device's name.
     private var elsewhere: [(folder: DeviceResource, device: String)] {
@@ -52,7 +54,7 @@ struct AgentData: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(folders.enumerated()), id: \.element.id) { index, folder in
                         if index > 0 { Divider() }
-                        FolderLine(folder: folder, onProblem: { problem = $0 })
+                        FolderLine(folder: folder, onProblem: { problem = $0 }, onOpen: { browsing = folder })
                     }
                     ForEach(Array(onPhone.enumerated()), id: \.element.id) { index, folder in
                         if index > 0 || !folders.isEmpty { Divider() }
@@ -87,6 +89,7 @@ struct AgentData: View {
         }
         .task { await model.loadDevices() }
         .sheet(isPresented: $addingService) { PhoneConnectionSheet() }
+        .sheet(item: $browsing) { folder in ConnectedFolderView(folder: folder) }
     }
 }
 
@@ -359,6 +362,8 @@ private struct FolderLine: View {
     @Environment(AppModel.self) private var model
     let folder: Folder
     let onProblem: (String?) -> Void
+    /// Opens the folder in the file browser.
+    let onOpen: () -> Void
     @State private var asking = false
     @State private var busy = false
 
@@ -388,20 +393,27 @@ private struct FolderLine: View {
             .transition(.opacity)
         } else {
             HStack(spacing: 12) {
-                Image(systemName: "folder")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 20)
-                    .accessibilityHidden(true)
-                Text(folder.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer(minLength: 8)
-                Text(folder.access == .write ? LocalizedStringKey("Read and change") : LocalizedStringKey("Read only"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .layoutPriority(1)
+                Button(action: onOpen) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "folder")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                            .accessibilityHidden(true)
+                        Text(folder.name)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 8)
+                        Text(folder.access == .write ? LocalizedStringKey("Read and change") : LocalizedStringKey("Read only"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .layoutPriority(1)
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("Opens the folder"))
                 Button {
                     onProblem(nil)
                     withAnimation(.snappy) { asking = true }

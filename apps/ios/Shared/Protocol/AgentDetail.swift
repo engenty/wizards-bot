@@ -258,7 +258,19 @@ nonisolated struct Folder: Codable, Hashable, Sendable, Identifiable {
     var name: String
     var path: String
     var access: FolderAccess
+    /// `always`: the person said "Always allow" for changes here; deleting still asks.
+    var allow: FolderAllow?
     var createdAt: String
+}
+
+/// Whether changes in a folder ask the person on a card, or go without one.
+nonisolated enum FolderAllow: OpenEnum {
+    case ask
+    case always
+    case unknown(String)
+
+    static let known: [String: FolderAllow] = ["ask": .ask, "always": .always]
+    var unknownValue: String? { if case .unknown(let raw) = self { raw } else { nil } }
 }
 
 /// What a device sends to connect a folder.
@@ -294,7 +306,78 @@ nonisolated struct FolderListing: Codable, Hashable, Sendable {
     var parent: String?
     /// The person's home folder: where the picker starts and what `~` stands for.
     var home: String
+    /// The home folder or the disk this folder is in.
+    var root: String?
+    /// The person's other disks, where the picker also starts. None on a server.
+    var disks: [Entry]?
     var folders: [Entry]
+}
+
+/// A file or folder inside a connected folder, as the file browser lists it.
+nonisolated struct FolderEntry: Codable, Hashable, Sendable, Identifiable {
+    var name: String
+    /// Its path inside the connected folder, with `/`.
+    var path: String
+    var kind: String
+    var size: Int
+    var changedAt: String
+    var id: String { path }
+    var isFolder: Bool { kind == "folder" }
+}
+
+/// What a place in a connected folder holds: what the agents reach, nothing hidden or secret.
+nonisolated struct FolderEntries: Codable, Hashable, Sendable {
+    var folder: Folder
+    /// The place inside the folder, empty for the folder itself.
+    var path: String
+    var parent: String?
+    var entries: [FolderEntry]
+    var more: Bool
+}
+
+/// One change in a connected folder, kept so it can be taken back.
+nonisolated struct FolderChange: Codable, Hashable, Sendable {
+    var action: String
+    var path: String
+    var fromFolder: String?
+    var from: String?
+    var bytes: Int?
+    var kept: Bool?
+    var undone: Bool?
+    var at: String
+}
+
+/// What one turn of an agent, or the person, did in a connected folder.
+nonisolated struct FolderActivity: Codable, Hashable, Sendable, Identifiable {
+    var id: String
+    var folderId: String
+    var agentId: String?
+    var agentName: String?
+    var conversationId: String?
+    var read: Int
+    var changes: [FolderChange]
+    var at: String
+}
+
+nonisolated struct FolderActivityEnvelope: Codable, Sendable { var activity: [FolderActivity] }
+
+/// What the person does in the file browser: a new folder, a new name or place, to the Trash.
+nonisolated struct FolderEdit: Codable, Hashable, Sendable {
+    var action: String
+    var path: String?
+    var from: String?
+    var to: String?
+    var paths: [String]?
+
+    static func make(_ path: String) -> FolderEdit { FolderEdit(action: "make", path: path) }
+    static func move(_ from: String, to: String) -> FolderEdit { FolderEdit(action: "move", from: from, to: to) }
+    static func trash(_ paths: [String]) -> FolderEdit { FolderEdit(action: "trash", paths: paths) }
+}
+
+/// What the agents may do in a folder, and whether changes ask.
+nonisolated struct UpdateFolder: Codable, Hashable, Sendable {
+    var access: FolderAccess?
+    var allow: FolderAllow?
 }
 
 /// A new folder `name` inside `parent`.
