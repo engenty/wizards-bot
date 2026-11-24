@@ -2,8 +2,11 @@ import {
   cpSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
+  rmSync,
   statfsSync,
   statSync,
 } from "node:fs";
@@ -155,13 +158,36 @@ export function copyPlain(from: string, to: string): void {
   });
 }
 
+/** Moves a file or a folder to a place that is free, also onto another disk. */
+function moveTo(from: string, to: string): void {
+  mkdirSync(dirname(to), { recursive: true });
+  try {
+    renameSync(from, to);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+    copyPlain(from, to);
+    rmSync(from, { recursive: true });
+  }
+}
+
+/** Paths one move or delete takes at most. */
+const BATCH = 200;
+/** Lines of a list a card shows; the rest are counted. */
+const LISTED = 30;
+
+const listed = (lines: string[]): string =>
+  lines
+    .slice(0, LISTED)
+    .map((line) => `- ${line}`)
+    .join("\n") + (lines.length > LISTED ? `\n- … ${lines.length - LISTED} more` : "");
+
 /** A text in a card: cut where it gets long. */
 const shown = (text: string): string =>
   `\`\`\`\n${text.slice(0, SHOWN)}${text.length > SHOWN ? "\n…" : ""}\n\`\`\``;
 
 const where = (folder: Folder, path: string) => `**${folder.name}** · \`${path}\``;
 
-/** The tools that make, copy, write and edit files. */
+/** The tools that make, copy, write, edit, move and delete files. */
 export function changeTools(folders: Folders, context: TurnContext): Tool[] {
   const { home } = context;
   const lang = () => langOf(home.db);
@@ -366,6 +392,126 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
           kept,
         });
         return `${input.path} in ${folder.name} is changed.`;
+      },
+    }),
+    defineTool({
+      name: "folder_move",
+      description: `Move or rename files and folders, up to ${BATCH} in one call: inside a folder connected for changes, or into another one with \`toFolder\`. Each new place must not be there yet. One card for the whole list, unless the person said “Always allow” for the folders.`,
+      input: z.object({
+        folder: z.string().describe("The folder the files are in."),
+        moves: z
+          .array(z.object({ from: z.string(), to: z.string() }))
+          .min(1)
+          .max(BATCH)
+          .describe('E.g. [{"from": "scan1.pdf", "to": "2026/Q1/scan1.pdf"}].'),
+        toFolder: z.string().optional().describe("Another connected folder to move into."),
+        why: z.string().describe("One sentence for the person: what this sorts or renames."),
+      }),
+      label: (input) => {
+        const moves = Array.isArray(input.moves) ? input.moves : [];
+        return moves.length === 1 ? "Moving a file" : `Moving ${moves.length} files`;
+      },
+      asks: true,
+      run: async (input, call) => {
+        const source = folders.named(input.folder);
+        const target = input.toFolder ? folders.named(input.toFolder) : source;
+        const planned: { from: string; to: string; move: { from: string; to: string } }[] = [];
+        const taken = new Set<string>();
+        let files = 0;
+        let bytes = 0;
+        for (const move of input.moves) {
+          const from = folders.locate(source, move.from);
+          const to = folders.writable(target, move.to);
+          if (from === source.path) return "The connected folder itself is not moved.";
+          if (!existsSync(from)) return `There is nothing at ${move.from} in ${source.name}.`;
+          if (existsSync(to) || taken.has(to))
+            return `There is something at ${move.to} in ${target.name} already.`;
+          if (to === from || to.startsWith(`${from}/`))
+            return `${move.from} cannot go into itself.`;
+          taken.add(to);
+          const size = sizeOf(from);
+          files += size.files;
+          bytes += size.bytes;
+          planned.push({ from, to, move });
+        }
+        const same = source.id === target.id;
+        const gate = await permit(folders, context, call, {
+          folders: same ? [source] : [source, target],
+          why: input.why,
+          body: listed(
+            input.moves.map(
+              (move) => `\`${move.from}\` → ${same ? "" : `**${target.name}** · `}\`${move.to}\``,
+            ),
+          ),
+          files,
+          bytes,
+        });
+        if (gate !== true) return gate;
+        for (const { from, to, move } of planned) {
+          if (same) {
+            const rel = folders.relative(move.to);
+            const parent = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
+            if (parent) await folders.disk(source).mkdir(parent, { recursive: true });
+            await folders.disk(source).moveFile(folders.relative(move.from), rel, {
+              overwrite: false,
+            });
+          } else moveTo(from, to);
+          folders.noted(context, target, {
+            action: "move",
+            path: move.to,
+            from: `${source.name}/${move.from}`,
+          });
+        }
+        const [first] = input.moves;
+        return planned.length === 1 && first
+          ? `${first.from} is now ${first.to} in ${target.name}.`
+          : `${planned.length} files and folders are moved to ${target.name}.`;
+      },
+    }),
+    defineTool({
+      name: "folder_delete",
+      description: `Move files or folders of a folder connected for changes to the Trash, up to ${BATCH} in one call. Always asks the person, with one card for the whole list.`,
+      input: z.object({
+        folder: z.string(),
+        paths: z.array(z.string()).min(1).max(BATCH),
+        why: z.string().describe("One sentence for the person: why these go."),
+      }),
+      label: (input) => {
+        const paths = Array.isArray(input.paths) ? input.paths : [];
+        return paths.length === 1
+          ? `Deleting ${String(paths[0])}`
+          : `Deleting ${paths.length} files`;
+      },
+      asks: true,
+      run: async (input, call) => {
+        const folder = folders.named(input.folder);
+        const fulls: string[] = [];
+        let files = 0;
+        for (const path of input.paths) {
+          const full = folders.locate(folder, path);
+          if (full === folder.path)
+            return "The connected folder itself is not deleted. Disconnect it instead.";
+          if (!existsSync(full)) return `There is nothing at ${path} in ${folder.name}.`;
+          files += sizeOf(full).files;
+          fulls.push(full);
+        }
+        const gate = await permit(folders, context, call, {
+          folders: [folder],
+          why: input.why,
+          deletes: true,
+          body: `${say(w("To the Trash, from", "In den Papierkorb, aus"), lang())} **${folder.name}**:\n\n${listed(input.paths.map((path) => `\`${path}\``))}`,
+          files,
+          bytes: 0,
+        });
+        if (gate !== true) return gate;
+        input.paths.forEach((path, index) => {
+          const kept = folders.trash.put(fulls[index] as string);
+          folders.noted(context, folder, { action: "delete", path, kept });
+        });
+        const [first] = input.paths;
+        return input.paths.length === 1
+          ? `${first} went to the Trash.`
+          : `${input.paths.length} files and folders went to the Trash.`;
       },
     }),
   ];

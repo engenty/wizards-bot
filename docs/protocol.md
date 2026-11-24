@@ -1099,11 +1099,13 @@ to that change as in every connected folder.
 
 In a folder connected for changes an agent makes folders (`folder_make`), writes a text or a
 file of the conversation (`folder_write`), changes a passage (`folder_edit`) and copies
-(`folder_copy`). Each change is an `approval` card with the agent's sentence as its title, what
+(`folder_copy`), and moves, renames (`folder_move`) or deletes (`folder_delete`) up to 200
+files and folders in one call. Each change is an `approval` card with the agent's sentence as its title, what
 changes in the body (a file's text, a diff), and the actions `once` (primary), `always` ("Always
 allow in <folder>") and `deny`. `always` does the change and sets the folder's `allow` to
 `always`: from then on these changes go without a card, at most 50 files and 500 MB in one turn.
-A turn that read data from outside the home (a mail, a page, what a connection or a contact
+Deleting is always a card, also under `always`, with the actions `once` (style `danger`, "Move
+to the Trash") and `deny`. A turn that read data from outside the home (a mail, a page, what a connection or a contact
 sent) asks anyway. A task that an event started (mail, a webhook, a connection, a folder)
 changes no files at all. What a change replaces goes to the Trash first: the Mac's Trash, the
 freedesktop Trash on Linux, on a server a `trash` folder in the data folder kept 30 days. No
