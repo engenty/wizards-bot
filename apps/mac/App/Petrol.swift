@@ -23,17 +23,6 @@ enum Petrol {
     static let groundColor = NSColor(red: 0x0B / 255, green: 0x45 / 255, blue: 0x53 / 255, alpha: 1)
 }
 
-extension Color {
-    init(hex: UInt32) {
-        self.init(
-            .sRGB,
-            red: Double((hex >> 16) & 0xFF) / 255,
-            green: Double((hex >> 8) & 0xFF) / 255,
-            blue: Double(hex & 0xFF) / 255
-        )
-    }
-}
-
 /// The three kinds of button: the one to go on (accent fill), a light one beside it, and plain text.
 struct PetrolButton: ButtonStyle {
     enum Kind { case primary, secondary, plain }
