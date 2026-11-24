@@ -16,14 +16,39 @@ final class LocalHome {
         case portTaken(String)
     }
 
+    /// Where starting the app's Bot Server is, for the starting screen.
+    enum Stage: Equatable {
+        /// Taking over: the Bot Server of `wizards bot install` stops.
+        case stopping
+        /// Taking over: a copy of the data is made.
+        case copying
+        /// The login shell's `PATH` is written for the Bot Server.
+        case programs
+        /// The LaunchAgent is registered.
+        case background
+        /// macOS waits for the person to turn the Bot Server on under Login Items.
+        case approval
+        /// The Bot Server runs; the app waits for `/health`.
+        case starting
+        /// The Bot Server answers; the app pairs with it.
+        case started
+    }
+
     static let address = URL(string: "http://localhost:\(Address.port)")!
 
     private(set) var found: Found?
     /// Data of an earlier Bot Server is in the data folder: starting here uses it.
     private(set) var hasData = false
     var busy = false
-    var step = ""
     var problem: String?
+    /// Where starting is; nil when the app starts nothing.
+    var stage: Stage?
+    /// Starting takes over the Bot Server of `wizards bot install`.
+    private(set) var takesOver = false
+    /// Taking over keeps a copy of the data first.
+    private(set) var copiesData = false
+    /// The person went back while macOS waited for the approval.
+    private var cancelled = false
 
     private let service = SMAppService.agent(plistName: LocalPaths.plist)
 
@@ -84,42 +109,72 @@ final class LocalHome {
         problem = nil
         guard canStart else {
             problem = String(localized: "This build of the app carries no Bot Server.")
+            finish()
             return false
         }
         await look()
         if case let .portTaken(program) = found {
             problem = String(localized: "Port 4747 is taken by \(program). The app starts no Bot Server beside it.")
+            finish()
             return false
         }
-        if case .runs = found { return true }
+        if case .runs = found {
+            finish()
+            return true
+        }
         busy = true
+        cancelled = false
         defer { busy = false }
-        step = String(localized: "Looking where your programs are…")
+        stage = .programs
         await writeShellPath()
-        step = String(localized: "Starting your Bot Server…")
+        stage = .background
         do {
             if service.status == .enabled { try? await service.unregister() }
             try service.register()
         } catch {
             if service.status != .requiresApproval {
                 problem = String(localized: "macOS did not start the Bot Server: \(error.localizedDescription)")
+                finish()
                 return false
             }
         }
         if service.status == .requiresApproval {
-            problem = String(localized: "macOS asks you to allow the Bot Server: turn on wizards in Login Items, then start it again.")
+            stage = .approval
             SMAppService.openSystemSettingsLoginItems()
-            return false
+            while service.status == .requiresApproval, !cancelled {
+                try? await Task.sleep(for: .seconds(1))
+            }
+            guard !cancelled, service.status == .enabled else {
+                if !cancelled { problem = String(localized: "macOS did not allow the Bot Server to run.") }
+                finish()
+                return false
+            }
         }
+        stage = .starting
         for _ in 0 ..< 60 {
             if case .home = await Health.check(Self.address, seconds: 1) {
                 found = nil
+                stage = .started
                 return true
             }
             try? await Task.sleep(for: .milliseconds(500))
         }
         problem = String(localized: "The Bot Server did not start. What it said is in \(LocalPaths.dataShown)/logs/home.log.")
+        finish()
         return false
+    }
+
+    /// Goes back from the starting screen while macOS waits for the approval: the app starts
+    /// nothing, and the LaunchAgent stays registered for when the person turns it on.
+    func cancelApproval() {
+        cancelled = true
+    }
+
+    /// Ends the starting screen.
+    func finish() {
+        stage = nil
+        takesOver = false
+        copiesData = false
     }
 
     /// Writes the folders of the person's login shell into the data folder's `path`, where the
@@ -175,7 +230,9 @@ final class LocalHome {
             return false
         }
         busy = true
-        step = String(localized: "Stopping the Bot Server of wizards bot install…")
+        takesOver = true
+        copiesData = FileManager.default.fileExists(atPath: data.path)
+        stage = .stopping
         Self.launchctl(["bootout", "gui/\(getuid())/\(LocalPaths.installLabel)"])
         let plist = LocalPaths.installPlist
         let aside = plist.appendingPathExtension("off")
@@ -194,19 +251,21 @@ final class LocalHome {
         guard stopped else {
             restoreInstall(aside)
             busy = false
+            finish()
             problem = String(localized: "The Bot Server of wizards bot install did not stop. Nothing was changed.")
             return false
         }
         // The copy is made while no Bot Server writes, so its databases are whole.
         if FileManager.default.fileExists(atPath: data.path) {
             let copy = backup
-            step = String(localized: "Keeping a copy of your data…")
+            stage = .copying
             do {
                 try FileManager.default.copyItem(at: data, to: copy)
             } catch {
                 try? FileManager.default.removeItem(at: copy)
                 restoreInstall(aside)
                 busy = false
+                finish()
                 problem = String(localized: "The copy of your data was not made (\(error.localizedDescription)). The Bot Server of wizards bot install runs again; nothing was changed.")
                 return false
             }

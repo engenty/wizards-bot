@@ -71,6 +71,26 @@
         }
       }
     },
+    "Allowed to run in the background": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darf im Hintergrund laufen"
+          }
+        }
+      }
+    },
+    "Allowing it to run in the background": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlaubnis, im Hintergrund zu laufen"
+          }
+        }
+      }
+    },
     "An older Bot Server runs on this Mac.": {
       "localizations": {
         "de": {
@@ -87,6 +107,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mindestens %lld Zeichen."
+          }
+        }
+      }
+    },
+    "At wizards.bot, on another computer, or your own.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf wizards.bot, auf einem anderen Computer oder auf deinem eigenen."
           }
         }
       }
@@ -271,6 +301,26 @@
         }
       }
     },
+    "Finding your programs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sucht deine Programme"
+          }
+        }
+      }
+    },
+    "Found your programs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Programme gefunden"
+          }
+        }
+      }
+    },
     "It came with wizards bot install. The app starts it and uses it.": {
       "localizations": {
         "de": {
@@ -311,12 +361,32 @@
         }
       }
     },
-    "Keeping a copy of your data…": {
+    "Keeping a copy of your data": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Eine Kopie deiner Daten wird angelegt …"
+            "value": "Eine Kopie deiner Daten wird angelegt"
+          }
+        }
+      }
+    },
+    "Keeps working when the window is closed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arbeitet weiter, wenn das Fenster zu ist."
+          }
+        }
+      }
+    },
+    "Kept a copy of your data": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Kopie deiner Daten ist angelegt"
           }
         }
       }
@@ -337,16 +407,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Soll die App deinen Bot Server betreiben?"
-          }
-        }
-      }
-    },
-    "Looking where your programs are…": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sucht, wo deine Programme liegen …"
           }
         }
       }
@@ -451,12 +511,22 @@
         }
       }
     },
-    "One that runs on another computer, or yours at wizards.bot.": {
+    "Only if macOS asks: turn on wizards under Login Items.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Einer auf einem anderen Computer, oder deiner auf wizards.bot."
+            "value": "Nur wenn macOS fragt: Schalte wizards unter Anmeldeobjekte ein."
+          }
+        }
+      }
+    },
+    "Open Login Items": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldeobjekte öffnen"
           }
         }
       }
@@ -497,6 +567,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Port 4747 ist von %@ belegt. Die App startet keinen Bot Server daneben."
+          }
+        }
+      }
+    },
+    "Prefer the terminal? ": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lieber im Terminal? "
           }
         }
       }
@@ -651,12 +731,32 @@
         }
       }
     },
-    "Starting your Bot Server…": {
+    "Started": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dein Bot Server startet …"
+            "value": "Gestartet"
+          }
+        }
+      }
+    },
+    "Starting": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startet"
+          }
+        }
+      }
+    },
+    "Starting your Bot Server": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Bot Server startet"
           }
         }
       }
@@ -691,12 +791,22 @@
         }
       }
     },
-    "Stopping the Bot Server of wizards bot install…": {
+    "Stopped the Bot Server of wizards bot install": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Bot Server von wizards bot install hält an …"
+            "value": "Der Bot Server von wizards bot install ist angehalten"
+          }
+        }
+      }
+    },
+    "Stopping the Bot Server of wizards bot install": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Bot Server von wizards bot install hält an"
           }
         }
       }
@@ -821,16 +931,6 @@
         }
       }
     },
-    "The app runs your Bot Server on this Mac and keeps it running. You need no terminal.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Die App betreibt deinen Bot Server auf diesem Mac und hält ihn am Laufen. Du brauchst kein Terminal."
-          }
-        }
-      }
-    },
     "The app uses it as it is and starts no second one.": {
       "localizations": {
         "de": {
@@ -877,6 +977,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Code fehlt. Dein Bot Server zeigt ihn mit seinem QR."
+          }
+        }
+      }
+    },
+    "The code is on the Bot Server's pairing card, under Add a device. A wizardsbot:// link fills in both.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Code steht auf der Karte zum Verbinden deines Bot Servers, unter „Gerät hinzufügen“. Ein wizardsbot://-Link füllt beides aus."
           }
         }
       }
@@ -1081,16 +1191,6 @@
         }
       }
     },
-    "Your Bot Server shows its address and a code with its QR: in its setup, or with wizards-bot pair in a terminal.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dein Bot Server zeigt seine Adresse und einen Code mit seinem QR: in seiner Einrichtung, oder mit wizards-bot pair im Terminal."
-          }
-        }
-      }
-    },
     "Your data was last used by Bot Server %@, and the app carries %@. Update the app first.": {
       "localizations": {
         "de": {
@@ -1101,12 +1201,12 @@
         }
       }
     },
-    "Your own agents, on your own Bot Server.": {
+    "Your own agents. They work on this Mac, or on a Bot Server you already have.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine eigenen Wizards, auf deinem eigenen Bot Server."
+            "value": "Deine eigenen Agenten. Sie arbeiten auf diesem Mac oder auf einem Bot Server, den du schon hast."
           }
         }
       }
@@ -1121,22 +1221,22 @@
         }
       }
     },
-    "macOS asks you to allow the Bot Server: turn on wizards in Login Items, then start it again.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "macOS fragt nach deiner Erlaubnis für den Bot Server: Schalte wizards unter Anmeldeobjekte ein und starte ihn dann erneut."
-          }
-        }
-      }
-    },
     "macOS asks you to allow the link: turn on wizards in Login Items.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "macOS fragt nach deiner Erlaubnis für die Verbindung: Schalte wizards unter Anmeldeobjekte ein."
+          }
+        }
+      }
+    },
+    "macOS did not allow the Bot Server to run.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat dem Bot Server nicht erlaubt zu laufen."
           }
         }
       }
@@ -1157,6 +1257,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "macOS hat die Verbindung nicht gestartet: %@"
+          }
+        }
+      }
+    },
+    "this Mac · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dieser Mac · %@"
           }
         }
       }

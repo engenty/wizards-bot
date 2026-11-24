@@ -8,38 +8,56 @@ struct LinkSheet: View {
     @State private var address = ""
     @State private var code = ""
     @State private var problem: String?
+    @FocusState private var focus: Field?
+
+    private enum Field { case address, code }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Offer this Mac's models").font(.title2.weight(.semibold))
+            PetrolHeading("Offer this Mac's models")
             Text("A Bot Server on another computer or at wizards.bot then uses Claude Code, Codex and Ollama of this Mac while it is on.")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13))
+                .foregroundStyle(Petrol.ink2)
                 .fixedSize(horizontal: false, vertical: true)
-            Form {
-                TextField("Address", text: $address, prompt: Text(verbatim: "ada.wizards.bot"))
-                TextField("Code", text: $code, prompt: Text(verbatim: "K7QM-2RXD"))
+            PetrolCard {
+                PetrolFieldRow(label: "Address", focused: focus == .address) {
+                    TextField("Address", text: $address, prompt: Text(verbatim: "ada.wizards.bot").foregroundStyle(Petrol.ink3))
+                        .labelsHidden()
+                        .focused($focus, equals: .address)
+                }
+                PetrolDivider()
+                PetrolFieldRow(label: "Code", focused: focus == .code) {
+                    TextField("Code", text: $code, prompt: Text(verbatim: "K7QM-2RXD").foregroundStyle(Petrol.ink3))
+                        .labelsHidden()
+                        .monospaced()
+                        .focused($focus, equals: .code)
+                }
             }
-            .formStyle(.columns)
-            .textFieldStyle(.roundedBorder)
             .onSubmit { Task { await link() } }
             Text("The code comes from that Bot Server: ask it in the chat to add a device (\u{201C}Add a device\u{201D}). It works once, for 10 minutes.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .foregroundStyle(Petrol.ink3)
                 .fixedSize(horizontal: false, vertical: true)
             if let problem {
-                Text(problem).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                Text(problem)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Petrol.rose)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
             HStack {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { dismiss() }.petrolButton(.plain)
                 Spacer()
                 if model.link.busy { ProgressView().controlSize(.small) }
                 Button("Offer") { Task { await link() } }
+                    .petrolButton()
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.link.busy || address.isEmpty || code.isEmpty)
             }
         }
         .padding(28)
         .frame(width: 460)
+        .petrolGround()
         .onAppear {
             if let home = model.home, !model.isLocal(home) { address = Address.label(home) }
         }
@@ -62,35 +80,55 @@ struct ExportSheet: View {
     @State private var problem: String?
     @State private var busy = false
 
+    @FocusState private var focus: Field?
+
+    private enum Field { case passphrase, again }
+
     static let minimum = 12
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Save a backup").font(.title2.weight(.semibold))
+            PetrolHeading("Save a backup")
             Text("All of your Bot Server in one file: agents, conversations, files, keys. It is encrypted with a passphrase you choose; keep it apart from the file. Without it nobody can read the file, you neither.")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13))
+                .foregroundStyle(Petrol.ink2)
                 .fixedSize(horizontal: false, vertical: true)
-            Form {
-                SecureField("Passphrase", text: $passphrase)
-                SecureField("Once more", text: $again)
+            PetrolCard {
+                PetrolFieldRow(label: "Passphrase", focused: focus == .passphrase) {
+                    SecureField("Passphrase", text: $passphrase)
+                        .labelsHidden()
+                        .focused($focus, equals: .passphrase)
+                }
+                PetrolDivider()
+                PetrolFieldRow(label: "Once more", focused: focus == .again) {
+                    SecureField("Once more", text: $again)
+                        .labelsHidden()
+                        .focused($focus, equals: .again)
+                }
             }
-            .formStyle(.columns)
-            .textFieldStyle(.roundedBorder)
-            Text("At least \(Self.minimum) characters.").font(.footnote).foregroundStyle(.secondary)
+            Text("At least \(Self.minimum) characters.")
+                .font(.system(size: 12))
+                .foregroundStyle(Petrol.ink3)
             if let problem {
-                Text(problem).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+                Text(problem)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Petrol.rose)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
             HStack {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { dismiss() }.petrolButton(.plain)
                 Spacer()
                 if busy { ProgressView().controlSize(.small) }
                 Button("Save…") { Task { await save() } }
+                    .petrolButton()
                     .keyboardShortcut(.defaultAction)
                     .disabled(busy || passphrase.count < Self.minimum || passphrase != again)
             }
         }
         .padding(28)
         .frame(width: 460)
+        .petrolGround()
     }
 
     private func save() async {
