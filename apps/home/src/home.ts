@@ -31,6 +31,7 @@ import { Skills } from "./skills/skills.ts";
 import { Db } from "./store/db.ts";
 import { Store } from "./store/store.ts";
 import { Tasks } from "./tasks/tasks.ts";
+import { Tunnel } from "./tunnel/tunnel.ts";
 import { Vault } from "./vault/vault.ts";
 
 /** Field values as the person typed them, secrets included. */
@@ -75,6 +76,8 @@ export class Home {
   readonly setup: Setup;
   /** What a home on wizards.bot has of the Manage-App: its setup code and its claim. */
   readonly hosted: Hosted;
+  /** The address at wizards.host, when the person switched it on. */
+  readonly tunnel: Tunnel;
   private readonly cardHandlers = new Map<string, CardHandler>();
   /** Card handlers that still run. */
   private readonly handling = new Set<Promise<void>>();
@@ -110,6 +113,7 @@ export class Home {
     this.channels = new Channels(this, adapters);
     this.setup = new Setup(this);
     this.hosted = new Hosted(this);
+    this.tunnel = new Tunnel(this);
     this.store.failInterrupted();
     this.store.mainAgent();
   }
@@ -161,9 +165,14 @@ export class Home {
     };
   }
 
-  /** The address a device on the same network, or anywhere, reaches this home at. */
+  /**
+   * The address a device reaches this home at: its own, the one at wizards.host when the person
+   * switched it on, or the one on this network.
+   */
   address(): string {
-    return this.config.publicUrl ?? `http://${lanAddress()}:${this.config.port}`;
+    return (
+      this.config.publicUrl ?? this.tunnel.address() ?? `http://${lanAddress()}:${this.config.port}`
+    );
   }
 
   // ── Turns ─────────────────────────────────────────────────────────────────
@@ -267,6 +276,7 @@ export class Home {
 
   close(): void {
     this.hosted.stop();
+    this.tunnel.stop();
     this.peers.mailbox.stop();
     this.tasks.stop();
     this.channels.stop();

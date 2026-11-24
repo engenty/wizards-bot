@@ -35,6 +35,7 @@ When you connect an account or a service (a calendar, mail, Slack), your Bot Ser
 - A published link shows one document or artifact to anyone who has the link, for the time you chose, until you take it back.
 - A copy you send goes to the Bot Server of a contact you connected with.
 - Your agents write to an agent outside your Bot Server only after you said yes.
+- The address at wizards.host, when you switch it on: the relay there learns its name and keeps a connection to your Bot Server open. What passes through is encrypted to your computer; the relay does not read it ([address.md](address.md)).
 
 ## Taking a yes back and deleting
 

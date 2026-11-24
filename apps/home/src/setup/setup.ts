@@ -337,7 +337,7 @@ export class Setup {
   }
 
   /** Tells every device what the setup looks like now. */
-  private async changed(): Promise<SetupView> {
+  async changed(): Promise<SetupView> {
     const setup = await this.view();
     this.home.events.emit({ type: "setup.updated", setup });
     return setup;
@@ -368,6 +368,7 @@ export class Setup {
       home: [await this.address(), this.data(), this.folders(), this.push()].map(shown),
       capabilities: this.capabilities(models).map(shown),
       ...(this.pulling ? { pulling: this.pulling } : {}),
+      ...(this.home.tunnel.available() ? { address: this.home.tunnel.view(lang) } : {}),
     };
   }
 
@@ -567,7 +568,9 @@ export class Setup {
   private async address(): Promise<Check> {
     const address = this.home.address();
     const base = { id: "address", kind: "address" as const, label: "Address" };
-    if (!this.home.config.publicUrl && address.includes("//127.0.0.1:")) {
+    // Reached also away from this network: an address of its own, or the one at wizards.host.
+    const away = Boolean(this.home.config.publicUrl || this.home.tunnel.address());
+    if (!away && address.includes("//127.0.0.1:")) {
       return {
         ...base,
         state: "problem",
@@ -603,7 +606,7 @@ export class Setup {
     return {
       ...base,
       state: "ok",
-      said: this.home.config.publicUrl
+      said: away
         ? w(
             `Your Bot Server answers at ${address}, also away from this network.`,
             `Dein Bot Server antwortet unter ${address}, auch außerhalb dieses Netzwerks.`,
@@ -612,7 +615,7 @@ export class Setup {
             `A phone on the same network reaches your Bot Server at ${address}.${phone ? ` ${phone.name} was last here on ${phone.seenAt.slice(0, 10)}.` : ""}`,
             `Ein Telefon im selben Netzwerk erreicht deinen Bot Server unter ${address}.${phone ? ` ${phone.name} war zuletzt am ${phone.seenAt.slice(0, 10)} hier.` : ""}`,
           ),
-      ...(this.home.config.publicUrl
+      ...(away
         ? {}
         : {
             todo: w(
