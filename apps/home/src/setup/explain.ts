@@ -74,19 +74,24 @@ export function explainClaude(detail: string): Finding {
       detail,
     )
   ) {
-    return {
-      said: w(
-        "Claude is not signed in on this computer.",
-        "Claude ist auf diesem Computer nicht angemeldet.",
-      ),
-      todo: w(
-        "Run claude in a terminal, then /login.",
-        "Starte claude in einem Terminal, dann /login.",
-      ),
-      command: "claude",
-    };
+    return claudeSignedOut();
   }
   return { said: silent("Claude", detail) };
+}
+
+/** Claude Code is installed and not signed in. */
+export function claudeSignedOut(): Finding {
+  return {
+    said: w(
+      "Claude is not signed in on this computer.",
+      "Claude ist auf diesem Computer nicht angemeldet.",
+    ),
+    todo: w(
+      "Run claude in a terminal, then /login.",
+      "Starte claude in einem Terminal, dann /login.",
+    ),
+    command: "claude",
+  };
 }
 
 /** Why Codex did not answer. `model`: what `~/.codex/config.toml` sets, when it sets one. */
@@ -117,14 +122,7 @@ export function explainCodex(detail: string, model?: string): Finding {
     };
   }
   if (/not logged in|codex login|\b401\b|unauthori[sz]ed|authenticat|log ?in/i.test(detail)) {
-    return {
-      said: w(
-        "Codex is not signed in on this computer.",
-        "Codex ist auf diesem Computer nicht angemeldet.",
-      ),
-      todo: w("Sign in with your ChatGPT account.", "Melde dich mit deinem ChatGPT-Konto an."),
-      command: "codex login",
-    };
+    return codexSignedOut();
   }
   if (/model .*(not found|does not exist|not supported)|unknown model/i.test(detail)) {
     return {
@@ -139,6 +137,18 @@ export function explainCodex(detail: string, model?: string): Finding {
     };
   }
   return { said: silent("Codex", detail) };
+}
+
+/** Codex is installed and not signed in. */
+export function codexSignedOut(): Finding {
+  return {
+    said: w(
+      "Codex is not signed in on this computer.",
+      "Codex ist auf diesem Computer nicht angemeldet.",
+    ),
+    todo: w("Sign in with your ChatGPT account.", "Melde dich mit deinem ChatGPT-Konto an."),
+    command: "codex login",
+  };
 }
 
 /** Why Ollama's model did not answer. */

@@ -33,14 +33,17 @@ importers:
         specifier: ^4.45.0
         version: 4.45.0(ai@7.0.163(zod@4.6.7))(zod@4.6.7)
       '@engenty/browser':
-        specifier: 0.20.4
-        version: 0.20.4(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)
+        specifier: 0.20.6
+        version: 0.20.6(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)
+      '@engenty/local-models':
+        specifier: 0.20.6
+        version: 0.20.6(ai@7.0.163(zod@4.6.7))
       '@engenty/plugins':
-        specifier: 0.20.4
-        version: 0.20.4(zod@4.6.7)
+        specifier: 0.20.6
+        version: 0.20.6(zod@4.6.7)
       '@engenty/vault':
-        specifier: 0.20.4
-        version: 0.20.4
+        specifier: 0.20.6
+        version: 0.20.6
       '@hono/node-server':
         specifier: 2.1.11
         version: 2.1.11(hono@4.13.19)
@@ -412,19 +415,24 @@ packages:
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
 
-  '@engenty/browser@0.20.4':
-    resolution: {integrity: sha512-X8ShV0n0Xag1ulAFB1GtXmPz3mhGiD42idcrAEuQkw7T5FE1Vutz4KNnh5EPIEdEh4nJPTdZg2GQQ933i3Qy1g==}
+  '@engenty/browser@0.20.6':
+    resolution: {integrity: sha512-IdyYBMyGwHwLXEfcP8/IVhINad+IbglGZuZeWeI3QwFW3dPdTzQPCHnLa6M9l1f1Eogl/s4n9i2YoXHxV2TCsA==}
     peerDependencies:
       '@mastra/core': '>=1.22.0 <2.0.0'
       zod: ^4.1.0
 
-  '@engenty/plugins@0.20.4':
-    resolution: {integrity: sha512-530FgMgTdEeD7NEFl0AA8HXvAEwrMzxnXLMBG5QHVABatX0pk8e7vaARzAMQC43opTuezt4yjJwZ9kxXK5s/Aw==}
+  '@engenty/local-models@0.20.6':
+    resolution: {integrity: sha512-6NvahObVeBrUZiMHmS9Rcpx7tB1mvtFUBuWcVlhyp/4NRyyL2r4kfFDRnykL0zLrRyiQQ3TGYQCd33qtkUBZNw==}
+    peerDependencies:
+      ai: '>=7.0.0'
+
+  '@engenty/plugins@0.20.6':
+    resolution: {integrity: sha512-FUYfXyG+xflvclYcK+R5sxngQnnCpEBlx7+iQiKcuyqqTrKWvaN3Z9A9UwMHxOIsBk4FtBeQ2fax7OY9L5mbfA==}
     peerDependencies:
       zod: ^4.1.0
 
-  '@engenty/vault@0.20.4':
-    resolution: {integrity: sha512-Qx1py+UtPOnZhDnu7GuYgMOgiDHXEEtmBvR660TUXDB0cYTmPZeHd5pPxDGyG3lwy4JLIwWkH2Pg5UknzdwxPw==}
+  '@engenty/vault@0.20.6':
+    resolution: {integrity: sha512-Y1mCVqXj+Nv+0egyV/bDvGmYo7nfYekGMt/Y3qi9GvyGdUdFmT/woR6KXBWI2ivVG61B6GBb7de49HLt1qNCTQ==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -4018,7 +4026,7 @@ snapshots:
       tslib: 2.9.1
     optional: true
 
-  '@engenty/browser@0.20.4(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)':
+  '@engenty/browser@0.20.6(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)':
     dependencies:
       '@mastra/agent-browser': 0.6.0(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)
       '@mastra/core': 1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7)
@@ -4032,11 +4040,16 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@engenty/plugins@0.20.4(zod@4.6.7)':
+  '@engenty/local-models@0.20.6(ai@7.0.163(zod@4.6.7))':
+    dependencies:
+      ai: 7.0.163(zod@4.6.7)
+      cross-spawn: 7.0.6
+
+  '@engenty/plugins@0.20.6(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
 
-  '@engenty/vault@0.20.4':
+  '@engenty/vault@0.20.6':
     dependencies:
       tldts: 7.4.24
 

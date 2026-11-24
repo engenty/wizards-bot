@@ -1,7 +1,6 @@
+import type { CallOptions, StreamPart } from "@engenty/local-models/ollama";
 import type { ModelSource } from "@wizards-bot/protocol";
-import type { ClientTurn } from "../models/client-model.ts";
-import type { CallOptions, StreamPart } from "../models/ollama.ts";
-import type { ClientEvent } from "../models/subscription.ts";
+import type { ClientEvent, ClientTurn } from "../models/client-model.ts";
 
 // What a home and a linked computer of the same person say to each other over one
 // WebSocket. The computer dials out, so it needs no address of its own. The home asks it

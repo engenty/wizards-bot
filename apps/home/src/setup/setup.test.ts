@@ -5,8 +5,8 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
+import { CLIENTS, type Client, forgetEnv } from "@engenty/local-models/clients";
 import type { Event, Message, Setup } from "@wizards-bot/protocol";
-import { CLIENTS, type Client } from "../models/subscription.ts";
 import { FakeOllama, type TestHome, testHome, textOf } from "../test/fakes.ts";
 import { explainClaude, explainCodex, explainGateway, explainOllama } from "./explain.ts";
 import { codexSetting, probeClient, probeGateway, probeOllama } from "./probes.ts";
@@ -23,7 +23,7 @@ const OLLAMA_MEMORY = "model requires more system memory (24.0 GiB) than is avai
 const bin = mkdtempSync(join(tmpdir(), "wizards-bot-clients-"));
 after(() => rmSync(bin, { recursive: true, force: true }));
 
-/** An installed client that prints `lines` (JSON) and ends with `code`. */
+/** An installed, signed-in client whose turn runs `body` once it has read the message. */
 function fakeClient(base: Client, name: string, body: string): Client {
   const file = join(bin, name);
   writeFileSync(
@@ -37,7 +37,12 @@ process.stdin.on("end", () => {
 `,
   );
   chmodSync(file, 0o755);
-  return { ...base, bin: file };
+  return {
+    ...base,
+    bin: file,
+    version: async () => "1.0.0",
+    auth: async () => "subscription",
+  };
 }
 
 const claudeSays = (text: string, error: boolean) => `
@@ -65,6 +70,7 @@ test("Claude Code: an API key at its usage limit, signed out, and answering", as
 
 test("a client runs its test call without the API key the home was started with", async () => {
   process.env.ANTHROPIC_API_KEY = "sk-ant-limited";
+  forgetEnv("claude");
   try {
     const keyed = fakeClient(
       CLIENTS.claude,
@@ -75,6 +81,7 @@ test("a client runs its test call without the API key the home was started with"
     assert.equal((await probeClient(keyed)).state, "ok");
   } finally {
     delete process.env.ANTHROPIC_API_KEY;
+    forgetEnv("claude");
   }
 });
 
@@ -115,7 +122,11 @@ test("Codex: an Ollama cloud model without an Ollama sign-in, signed out, and an
 });
 
 test("a client that is not installed, and one that does not answer in time", async () => {
-  const missing = await probeClient({ ...CLIENTS.claude, bin: join(bin, "not-there") });
+  const missing = await probeClient({
+    ...CLIENTS.claude,
+    bin: join(bin, "not-there"),
+    version: async () => null,
+  });
   assert.equal(missing.state, "absent");
   assert.match(missing.said.en, /not installed/);
 
@@ -142,8 +153,15 @@ async function ollamaThat(size: number, chat: { status: number; body: unknown })
     request.resume();
     request.on("end", () => {
       response.setHeader("content-type", "application/json");
+      if (request.url === "/api/version") {
+        return response.end(JSON.stringify({ version: "0.0.0" }));
+      }
       if (request.url === "/api/tags") {
-        return response.end(JSON.stringify({ models: [{ name: "big:70b", size }] }));
+        const digest = `sha256:big-${size}`;
+        return response.end(JSON.stringify({ models: [{ name: "big:70b", size, digest }] }));
+      }
+      if (request.url === "/api/ps") {
+        return response.end(JSON.stringify({ models: [] }));
       }
       if (request.url === "/api/show") {
         return response.end(JSON.stringify({ capabilities: ["completion", "tools"] }));

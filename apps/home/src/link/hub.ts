@@ -1,10 +1,5 @@
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
-import type { ModelSource } from "@wizards-bot/protocol";
-import { type WebSocket, WebSocketServer } from "ws";
-import type { Home } from "../home.ts";
-import { type ClientRun, clientModel } from "../models/client-model.ts";
-import { clientSessions, type Engine, type RemoteSources } from "../models/models.ts";
 import {
   base64Of,
   type CallOptions,
@@ -12,8 +7,12 @@ import {
   generateFrom,
   type StreamPart,
   type StreamResult,
-} from "../models/ollama.ts";
-import type { ClientEvent } from "../models/subscription.ts";
+} from "@engenty/local-models/ollama";
+import type { ModelSource } from "@wizards-bot/protocol";
+import { type WebSocket, WebSocketServer } from "ws";
+import type { Home } from "../home.ts";
+import { type ClientEvent, type ClientRun, clientModel } from "../models/client-model.ts";
+import { clientSessions, type Engine, type RemoteSources } from "../models/models.ts";
 import type { DeviceRecord } from "../store/store.ts";
 import type { ToComputer, ToHome } from "./wire.ts";
 
