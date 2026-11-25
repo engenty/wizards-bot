@@ -333,3 +333,87 @@ describe("a model that reads ahead", () => {
     }
   });
 });
+
+// A view never holds a tool: its answer is the person's next message, with what they filled in.
+describe("a view's answer", () => {
+  const form = [
+    "root = Column([form])",
+    'form = Form([people, day], "Send", "Table for Friday")',
+    'people = Field("people", "number", "How many people", true)',
+    'day = Field("day", "select", "Which day", true, ["Friday", "Saturday"], "Friday")',
+  ].join("\n");
+  const shows = (view: string) => ({
+    calls: [{ name: "show_view", arguments: { title: "Table for Friday", text: "A form.", view } }],
+  });
+  const settled = async (t: TestHome) => {
+    do {
+      await t.home.idle();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } while (t.home.store.agents().some((agent) => agent.state === "working"));
+  };
+
+  test("reaches the agent as the person's message, with the form's values", async () => {
+    const t = await testHome("Ada");
+    try {
+      t.model.script.push(shows(form), { text: "Fill it in." });
+      await t.say("Book a table");
+      const card = t.item();
+      t.model.script.push({ text: "Booked for four on Friday." });
+      const answered = await t.request(`/v1/cards/${card.id}/answer`, {
+        body: { action: "view", message: "Send", state: { people: 4, day: "Friday" } },
+      });
+      assert.equal(answered.status, 200);
+      const { card: after } = (await answered.json()) as {
+        card: { state: string; answer?: { message?: string; state?: unknown } };
+      };
+      assert.equal(after.state, "answered");
+      assert.equal(after.answer?.message, "Send");
+      assert.deepEqual(after.answer?.state, { people: 4, day: "Friday" });
+      await settled(t);
+      assert.equal(
+        said(t).at(-1),
+        'user:Send\n\n[home] Sent from the view "Table for Friday". What they filled in:\n- people: 4\n- day: "Friday"',
+      );
+      assert.equal(textOf(t.last()), "Booked for four on Friday.");
+      answeredCalls(t);
+    } finally {
+      t.stop();
+    }
+  });
+
+  test("the first one counts, and only a view that asks takes one", async () => {
+    const t = await testHome("Ada");
+    try {
+      t.model.script.push(shows(form), { text: "Fill it in." });
+      await t.say("Book a table");
+      const card = t.item();
+      const answer = (body: unknown) => t.request(`/v1/cards/${card.id}/answer`, { body });
+      // A view's card has no actions of its own.
+      assert.equal((await answer({ action: "send" })).status, 400);
+      t.model.script.push({ text: "Booked." });
+      assert.equal(
+        (await answer({ action: "view", message: "Send", state: { people: 2 } })).status,
+        200,
+      );
+      const late = await answer({ action: "view", message: "Send", state: { people: 9 } });
+      assert.equal(late.status, 409);
+      await settled(t);
+      const read = said(t).join("\n");
+      assert.match(read, /- people: 2/);
+      assert.doesNotMatch(read, /- people: 9/);
+
+      const table = 'root = Column([rows])\nrows = Table([{"task": "Offer"}])';
+      t.model.script.push(shows(table), { text: "Your tasks." });
+      await t.say("Show my tasks");
+      const shown = t.home.store
+        .openCards(card.conversationId)
+        .find((open) => open.view?.program === table);
+      const pressed = await t.request(`/v1/cards/${shown?.id}/answer`, {
+        body: { action: "view", message: "Go on" },
+      });
+      assert.equal(pressed.status, 400);
+    } finally {
+      t.stop();
+    }
+  });
+});

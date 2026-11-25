@@ -10,6 +10,10 @@ export const FOLDER_PREVIEW_LIMIT = 5000;
 
 /** The `action` of an answer to a question that is a message of the person. */
 export const REPLY_ACTION = "reply";
+/** The `action` of an answer that comes from a card's view rather than one of its actions. */
+export const VIEW_ANSWER = "view";
+/** The most a view's answer may weigh, in bytes of its JSON: the form's values. */
+export const VIEW_STATE_LIMIT = 64 * 1024;
 /** The value of a form's field where the person says they don't know. */
 export const UNSURE = "unsure";
 

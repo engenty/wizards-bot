@@ -17,7 +17,12 @@ export function useAnswer(card: Card) {
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const answer = async (action: string, values: Record<string, string | string[]> = {}) => {
+  const answer = async (
+    action: string,
+    values: Record<string, string | string[]> = {},
+    /** Of a view's answer: what the person says with it, and its form's values. */
+    said?: { message: string; state?: Record<string, unknown> },
+  ) => {
     setBusy(true);
     setProblem(null);
     try {
@@ -26,6 +31,7 @@ export function useAnswer(card: Card) {
           api.post<{ card: Card }>(`/v1/cards/${card.id}/answer`, {
             action,
             ...(Object.keys(values).length ? { values } : {}),
+            ...said,
           }),
         (models) => client.setQueryData(keys.models(), models),
       );

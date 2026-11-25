@@ -34,6 +34,8 @@ export interface PromptInput {
   devices?: string;
   /** What the agents' shell is and when to use it, when it can run here. */
   shell?: string;
+  /** How a view is written, where the turn has `show_view`. */
+  views?: string;
   spoken: boolean;
   /** The turn answers this contact, or this caller from outside (no handle), instead of the person. */
   guest?: { name: string; handle?: string; hears?: boolean };
@@ -155,6 +157,7 @@ export function systemPrompt(input: PromptInput): Prompt {
       `- Work that does not fit into one turn: call \`go_on\` with what is done and what is next. The Bot Server gives you the next turn. Do not stop halfway and wait for ${person} to write.`,
     ].join("\n"),
     artifactRules(person),
+    input.views ?? "",
     agent.instructions.trim() ? `Your task:\n${agent.instructions.trim()}` : "",
     input.tasks?.length
       ? `What you do by yourself (see \`task_list\` for when each ran last):\n${input.tasks.join("\n")}`

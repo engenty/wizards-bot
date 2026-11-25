@@ -263,6 +263,8 @@ export class Home {
       values?: CardValues;
       /** The message that answered a question, and what it would have started. */
       message?: string;
+      /** A view's answer: its form's values. */
+      state?: Record<string, unknown>;
       said?: Trigger;
       by: string;
       person?: HomePerson;
@@ -281,6 +283,7 @@ export class Home {
       action: input.action,
       values: Object.keys(shown).length ? shown : undefined,
       message: input.message,
+      ...(input.state ? { state: input.state } : {}),
       by: input.by,
       ...(input.person ? { person: { id: input.person.id, name: input.person.name } } : {}),
     });

@@ -80,6 +80,7 @@ interface CardRow {
   answer: string | null;
   payload: string | null;
   reply: string | null;
+  view: string | null;
   agent_id: string;
   conversation_id: string;
   message_id: string;
@@ -152,6 +153,8 @@ export interface NewCard {
   fields?: CardField[];
   actions: CardAction[];
   reply?: Card["reply"];
+  /** A view drawn in the card, checked before it is stored here. */
+  view?: Card["view"];
   url?: string;
   qr?: string;
   /** What the home does when the card is answered. Never sent to a device. */
@@ -777,7 +780,7 @@ export class Store {
   ): Card {
     const id = newId("crd");
     this.db.run(
-      "insert into card (id, kind, level, state, title, body, fields, actions, url, qr, payload, reply, agent_id, conversation_id, message_id, created_at) values (?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "insert into card (id, kind, level, state, title, body, fields, actions, url, qr, payload, reply, view, agent_id, conversation_id, message_id, created_at) values (?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       id,
       input.kind,
       input.level,
@@ -789,6 +792,7 @@ export class Store {
       input.qr ?? null,
       input.payload === undefined ? null : JSON.stringify(input.payload),
       input.reply ? JSON.stringify(input.reply) : null,
+      input.view ? JSON.stringify(input.view) : null,
       where.agentId,
       where.conversationId,
       where.messageId,
@@ -1154,6 +1158,7 @@ function toCard(row: CardRow): Card {
     fields: row.fields ? (JSON.parse(row.fields) as CardField[]) : undefined,
     actions: JSON.parse(row.actions) as CardAction[],
     ...(row.reply ? { reply: JSON.parse(row.reply) as Card["reply"] } : {}),
+    ...(row.view ? { view: JSON.parse(row.view) as Card["view"] } : {}),
     url: row.url ?? undefined,
     qr: row.qr ?? undefined,
     answer: row.answer ? (JSON.parse(row.answer) as CardAnswer) : undefined,

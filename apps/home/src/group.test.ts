@@ -283,6 +283,46 @@ describe("a group home", () => {
     assert.match(told, /Ben answered\./);
   });
 
+  test("a view waits for every admin; the first answer counts and is that admin's message", async () => {
+    const view = [
+      "root = Column([form])",
+      'form = Form([people], "Send", "Hall")',
+      'people = Field("people", "number", "How many people", true)',
+    ].join("\n");
+    t.model.script.push(
+      { calls: [{ name: "show_view", arguments: { title: "Hall", text: "A form.", view } }] },
+      { text: "Fill it in." },
+    );
+    const conversationId = t.home.store.mainAgent().conversationId;
+    await t.request(`/v1/conversations/${conversationId}/messages`, {
+      token: ada,
+      body: { text: "Ask how many come" },
+    });
+    await t.home.idle();
+    const card = t.home.store.openCards(conversationId).find((open) => open.view) as Card;
+    assert.equal(card.view?.program, view);
+    t.model.script.push({ text: "Forty it is." });
+    const answer = (token: string, people: number) =>
+      t.request(`/v1/cards/${card.id}/answer`, {
+        token,
+        body: { action: "view", message: "Send", state: { people } },
+      });
+    const answered = await answer(ben, 40);
+    assert.equal(answered.status, 200);
+    const { card: after } = (await answered.json()) as { card: Card };
+    assert.deepEqual(after.answer?.person, { id: "usr_ben", name: "Ben" });
+    assert.deepEqual(after.answer?.state, { people: 40 });
+    assert.equal((await answer(ada, 12)).status, 409);
+    await t.home.idle();
+    const told = (t.model.requests.at(-1)?.messages ?? []).findLast(
+      (message) => message.role === "user",
+    )?.content;
+    assert.equal(
+      told,
+      'Ben writes:\nSend\n\n[home] Sent from the view "Hall". What they filled in:\n- people: 40',
+    );
+  });
+
   test("a pairing code an admin asks for pairs the device as theirs", async () => {
     t.model.script.push({ calls: [{ name: "device_pair", arguments: {} }] }, { text: "Scan it." });
     const conversationId = t.home.store.mainAgent().conversationId;

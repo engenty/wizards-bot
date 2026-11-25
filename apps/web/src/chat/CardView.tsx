@@ -1,9 +1,11 @@
 import type { Card, CardField } from "@wizards-bot/protocol";
 import { Check } from "lucide-react";
+import { lazy, Suspense } from "react";
 import { type Draft, useDraft } from "../lib/drafts";
 import { t } from "../lib/i18n";
 import { nameOf } from "../lib/paths";
 import { useThisDevice } from "../lib/queries";
+import { VIEW_LIBRARY } from "../lib/views";
 import { Button, cn, Input } from "../ui";
 import { Markdown } from "../ui/Markdown";
 import { QrCode } from "../ui/Qr";
@@ -109,9 +111,21 @@ function Field({
   );
 }
 
-/** A card, or a question of an agent: its own words, which the chat answers. */
+// The views' library comes with the first card that carries a view.
+const ViewCard = lazy(() => import("./ViewCard").then((module) => ({ default: module.ViewCard })));
+
+/**
+ * A card, a question of an agent (its own words, which the chat answers), or a view an agent
+ * wrote. A view of a library this app does not draw shows as the card's title and body.
+ */
 export function CardView({ card }: { card: Card }) {
-  return card.reply ? <QuestionView card={card} /> : <PlainCard card={card} />;
+  if (card.reply) return <QuestionView card={card} />;
+  if (card.view?.library !== VIEW_LIBRARY) return <PlainCard card={card} />;
+  return (
+    <Suspense fallback={<PlainCard card={card} />}>
+      <ViewCard card={card} />
+    </Suspense>
+  );
 }
 
 /**

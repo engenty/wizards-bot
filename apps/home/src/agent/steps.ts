@@ -34,6 +34,7 @@ const ASKS: Entry = { kind: "ask" };
 
 const STEPS: Record<string, Entry> = {
   ask: of("ask", "title"),
+  show_view: of("ask", "title"),
   go_on: of("go_on", "next"),
   remember: of("memory"),
   remember_suggest: ASKS,

@@ -4,9 +4,11 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { Crashed } from "./Crashed";
 import { applyTheme } from "./lib/theme";
+import { speakViews } from "./lib/views";
 import "./styles/app.css";
 
 applyTheme();
+speakViews();
 
 // The home's events keep the lists current, so a list is asked for once: when the stream
 // stands, and again each time it comes back (lib/stream.ts).

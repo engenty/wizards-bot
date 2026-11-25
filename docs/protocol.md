@@ -385,6 +385,7 @@ form), in place of `fields`. `view.program` is OpenUI Lang, written for the comp
 before the card is stored: what is shown is what was checked. The device draws it with that
 library; a device that knows no such library shows `title` and `body`, which the home always
 fills. A view never asks for passwords, card numbers or other secrets: those are `secret` cards.
+The home stores no view that names a file (`Image`, `File`, the `image` of a `Row` or a `Card`).
 
 A view that only shows is an `info` card. One with a form, or with a button that asks the agent,
 is a `question` card and waits for the person. Its buttons answer it, not `actions` (which may be
@@ -392,8 +393,11 @@ empty):
 
 `POST /v1/cards/:id/answer` with `{ "action": "view", "message": "<what the person says>",
 "state": { "<field name>": <value> } }`. `message` is the button's or the form's send label,
-`state` the form's values as the person left them (texts, numbers, yes/no, lists). The answer
-reaches the agent as the person's message, and the first answer wins as for every card.
+`state` the form's values as the person left them (texts, numbers, yes/no, lists; `null` where a
+field is empty), at most 64 KB as JSON. The home takes it only for an open card whose view asks
+(400 `invalid` otherwise, also for any other `action` on such a card). The answer reaches the
+agent as the person's message, and the first answer wins as for every card: the card's `answer`
+keeps `message` and `state`.
 
 ### What a connection asks
 
