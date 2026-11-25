@@ -33,17 +33,29 @@ importers:
         specifier: ^4.45.0
         version: 4.45.0(ai@7.0.163(zod@4.6.7))(zod@4.6.7)
       '@engenty/browser':
-        specifier: 0.20.6
-        version: 0.20.6(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)
+        specifier: 0.21.0
+        version: 0.21.0(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)
+      '@engenty/decision-model':
+        specifier: 0.21.0
+        version: 0.21.0
       '@engenty/local-models':
-        specifier: 0.20.6
-        version: 0.20.6(ai@7.0.163(zod@4.6.7))
+        specifier: 0.21.0
+        version: 0.21.0(ai@7.0.163(zod@4.6.7))
+      '@engenty/model-setup':
+        specifier: 0.21.0
+        version: 0.21.0(@xterm/addon-fit@0.11.0)(@xterm/addon-web-links@0.12.0)(@xterm/xterm@6.0.0)(ai@7.0.163(zod@4.6.7))(dompurify@3.4.18)(hono@4.13.19)(lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1))(marked@18.2.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       '@engenty/plugins':
-        specifier: 0.20.6
-        version: 0.20.6(zod@4.6.7)
+        specifier: 0.21.0
+        version: 0.21.0(zod@4.6.7)
+      '@engenty/search-index':
+        specifier: 0.21.0
+        version: 0.21.0
+      '@engenty/tool-harness':
+        specifier: 0.21.0
+        version: 0.21.0
       '@engenty/vault':
-        specifier: 0.20.6
-        version: 0.20.6
+        specifier: 0.21.0
+        version: 0.21.0
       '@hono/node-server':
         specifier: 2.1.11
         version: 2.1.11(hono@4.13.19)
@@ -129,6 +141,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@engenty/chatviews':
+        specifier: 0.21.0
+        version: 0.21.0(dompurify@3.4.18)(lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1))(marked@18.2.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@engenty/model-setup':
+        specifier: 0.21.0
+        version: 0.21.0(@xterm/addon-fit@0.11.0)(@xterm/addon-web-links@0.12.0)(@xterm/xterm@6.0.0)(ai@7.0.163(zod@4.6.7))(dompurify@3.4.18)(hono@4.13.19)(lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1))(marked@18.2.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
       '@floating-ui/dom':
         specifier: 1.8.0
         version: 1.8.0
@@ -186,6 +204,15 @@ importers:
       '@wizards-bot/avatar':
         specifier: workspace:*
         version: link:../../packages/avatar
+      '@xterm/addon-fit':
+        specifier: 0.11.0
+        version: 0.11.0
+      '@xterm/addon-web-links':
+        specifier: 0.12.0
+        version: 0.12.0
+      '@xterm/xterm':
+        specifier: 6.0.0
+        version: 6.0.0
       dompurify:
         specifier: ^3.4.17
         version: 3.4.18
@@ -433,24 +460,88 @@ packages:
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
 
-  '@engenty/browser@0.20.6':
-    resolution: {integrity: sha512-IdyYBMyGwHwLXEfcP8/IVhINad+IbglGZuZeWeI3QwFW3dPdTzQPCHnLa6M9l1f1Eogl/s4n9i2YoXHxV2TCsA==}
+  '@engenty/browser@0.21.0':
+    resolution: {integrity: sha512-Hh9e3iSrnEuDwMo51YGsusIJ73GvNiNE333oX0oUc0BJE3mswTWIKLE1e+YQX5XWT9bzT8aO2an/T+9iKTWMfg==}
     peerDependencies:
       '@mastra/core': '>=1.22.0 <2.0.0'
       zod: ^4.1.0
 
-  '@engenty/local-models@0.20.6':
-    resolution: {integrity: sha512-6NvahObVeBrUZiMHmS9Rcpx7tB1mvtFUBuWcVlhyp/4NRyyL2r4kfFDRnykL0zLrRyiQQ3TGYQCd33qtkUBZNw==}
+  '@engenty/chatviews@0.21.0':
+    resolution: {integrity: sha512-xjQTn8RHBBbq2jICtadjLsPH7Az8WiNC5ypR5kzVd7Nqq94/bUxj6nGmGosT+TrZkcBh0zX1XKy3h3GDS0zjRg==}
+    peerDependencies:
+      '@openuidev/lang-core': 1.1.0
+      '@openuidev/react-lang': 1.1.0
+      dompurify: ^3.4.17
+      lucide-react: ^1.69.0
+      marked: ^18.1.3
+      react: ^18.3.0 || ^19.0.0
+      react-dom: ^18.3.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@openuidev/lang-core':
+        optional: true
+      '@openuidev/react-lang':
+        optional: true
+      dompurify:
+        optional: true
+      lucide-react:
+        optional: true
+      marked:
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
+  '@engenty/decision-model@0.21.0':
+    resolution: {integrity: sha512-2jCrQCXsNahCI64WH7mZQ/8+pFNDJ7lR0W9glY/eMNpnskSy2G7J+vGm2TL59Q9zp71t17DwIM0wvs+nHGxQ/g==}
+
+  '@engenty/local-models@0.21.0':
+    resolution: {integrity: sha512-ToPLiJw3kok0gd8pK7AKF7bDoI1eO8iRo7V9YDgLu+YRRl6ofR8coUNf+wrbaIftnxORVB+epBSZx0Ot/gbv6A==}
     peerDependencies:
       ai: '>=7.0.0'
 
-  '@engenty/plugins@0.20.6':
-    resolution: {integrity: sha512-FUYfXyG+xflvclYcK+R5sxngQnnCpEBlx7+iQiKcuyqqTrKWvaN3Z9A9UwMHxOIsBk4FtBeQ2fax7OY9L5mbfA==}
+  '@engenty/model-setup@0.21.0':
+    resolution: {integrity: sha512-7MnFOoMX+yIWj96LTqi/FHaYPBD1h7hz2zNhpWEHdjdCXQ3+LriGu9Xisoef8E9wJ+czYj4xWV8PMLaG0St1lw==}
+    peerDependencies:
+      '@xterm/addon-fit': 0.11.0
+      '@xterm/addon-web-links': 0.12.0
+      '@xterm/xterm': 6.0.0
+      hono: ^4.6.0
+      lucide-react: ^1.69.0
+      react: ^18.3.0 || ^19.0.0
+      react-dom: ^18.3.0 || ^19.0.0
+      zod: ^4.1.0
+    peerDependenciesMeta:
+      '@xterm/addon-fit':
+        optional: true
+      '@xterm/addon-web-links':
+        optional: true
+      '@xterm/xterm':
+        optional: true
+      hono:
+        optional: true
+      lucide-react:
+        optional: true
+      react:
+        optional: true
+      react-dom:
+        optional: true
+      zod:
+        optional: true
+
+  '@engenty/plugins@0.21.0':
+    resolution: {integrity: sha512-HUktv3VGf5QgsOrD/5dji2R0cjdQXLhrDOQi70bJ4JVA4drmuM33BUOGfWS2OPFdU6h1LApxlczGXxp5tJ0HLg==}
     peerDependencies:
       zod: ^4.1.0
 
-  '@engenty/vault@0.20.6':
-    resolution: {integrity: sha512-Y1mCVqXj+Nv+0egyV/bDvGmYo7nfYekGMt/Y3qi9GvyGdUdFmT/woR6KXBWI2ivVG61B6GBb7de49HLt1qNCTQ==}
+  '@engenty/search-index@0.21.0':
+    resolution: {integrity: sha512-jFN1hm85v5s6IiagwyPRH3JeicKrQPcIJYiiZdQrjbSCjOYyvbaQecnC67bCkUdwrisrWdWd0FRAEuaOBkq9lA==}
+
+  '@engenty/tool-harness@0.21.0':
+    resolution: {integrity: sha512-7F0vqcLtq/iWztm+Pcj9FtDdXStddhPkkW7H+TO67VzX/wEH4yMYsrjYuaoWMVUDXD2xCife2jRs+By37/2BWQ==}
+
+  '@engenty/vault@0.21.0':
+    resolution: {integrity: sha512-pOEBb1gBKH8JsNRFRqgS1ZdsQxvzgw9wNcxPf/s7ZGccg1zGAR6M6X+t1233VMylDEkO6PRd7QozeEC2Ob8O+A==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -729,6 +820,39 @@ packages:
   '@lukeed/uuid@2.0.1':
     resolution: {integrity: sha512-qC72D4+CDdjGqJvkFMMEAtancHUQ7/d/tAiHf64z8MopFDmcrtbcJuerDtFceuAfQJ2pDSfCKCtbqoGBNnwg0w==}
     engines: {node: '>=8'}
+
+  '@lydell/node-pty-darwin-arm64@1.1.0':
+    resolution: {integrity: sha512-7kFD+owAA61qmhJCtoMbqj3Uvff3YHDiU+4on5F2vQdcMI3MuwGi7dM6MkFG/yuzpw8LF2xULpL71tOPUfxs0w==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@lydell/node-pty-darwin-x64@1.1.0':
+    resolution: {integrity: sha512-XZdvqj5FjAMjH8bdp0YfaZjur5DrCIDD1VYiE9EkkYVMDQqRUPHYV3U8BVEQVT9hYfjmpr7dNaELF2KyISWSNA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@lydell/node-pty-linux-arm64@1.1.0':
+    resolution: {integrity: sha512-yyDBmalCfHpLiQMT2zyLcqL2Fay4Xy7rIs8GH4dqKLnEviMvPGOK7LADVkKAsbsyXBSISL3Lt1m1MtxhPH6ckg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@lydell/node-pty-linux-x64@1.1.0':
+    resolution: {integrity: sha512-NcNqRTD14QT+vXcEuqSSvmWY+0+WUBn2uRE8EN0zKtDpIEr9d+YiFj16Uqds6QfcLCHfZmC+Ls7YzwTaqDnanA==}
+    cpu: [x64]
+    os: [linux]
+
+  '@lydell/node-pty-win32-arm64@1.1.0':
+    resolution: {integrity: sha512-JOMbCou+0fA7d/m97faIIfIU0jOv8sn2OR7tI45u3AmldKoKoLP8zHY6SAvDDnI3fccO1R2HeR1doVjpS7HM0w==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@lydell/node-pty-win32-x64@1.1.0':
+    resolution: {integrity: sha512-3N56BZ+WDFnUMYRtsrr7Ky2mhWGl9xXcyqR6cexfuCqcz9RNWL+KoXRv/nZylY5dYaXkft4JaR1uVu+roiZDAw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@lydell/node-pty@1.1.0':
+    resolution: {integrity: sha512-VDD8LtlMTOrPKWMXUAcB9+LTktzuunqrMwkYR1DMRBkS6LQrCt+0/Ws1o2rMml/n3guePpS7cxhHF7Nm5K4iMw==}
 
   '@mastra/agent-browser@0.6.0':
     resolution: {integrity: sha512-+tOiKsMAjzbWoCtwYAJ9hfXuyc8EdU1meHYWm2STRAufYyDilcWX4LHizUnA4LC3PHmpznKeiGlyZOxdQd+ZKQ==}
@@ -1569,6 +1693,15 @@ packages:
 
   '@workflow/serde@4.1.0-beta.2':
     resolution: {integrity: sha512-8kkeoQKLDaKXefjV5dbhBj2aErfKp1Mc4pb6tj8144cF+Em5SPbyMbyLCHp+BVrFfFVCBluCtMx+jjvaFVZGww==}
+
+  '@xterm/addon-fit@0.11.0':
+    resolution: {integrity: sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g==}
+
+  '@xterm/addon-web-links@0.12.0':
+    resolution: {integrity: sha512-4Smom3RPyVp7ZMYOYDoC/9eGJJJqYhnPLGGqJ6wOBfB8VxPViJNSKdgRYb8NpaM6YSelEKbA2SStD7lGyqaobw==}
+
+  '@xterm/xterm@6.0.0':
+    resolution: {integrity: sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==}
 
   '@zip.js/zip.js@2.25.0':
     resolution: {integrity: sha512-oNRqUuU1XFu6G5d7Z0jufJ9dS9WteO0xiU/PNxsUrb4itZCsSbn191jpJzU00Gmc6S680X3DPZeF5EV4zAEMAg==}
@@ -4060,7 +4193,7 @@ snapshots:
       tslib: 2.9.1
     optional: true
 
-  '@engenty/browser@0.20.6(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)':
+  '@engenty/browser@0.21.0(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)':
     dependencies:
       '@mastra/agent-browser': 0.6.0(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)
       '@mastra/core': 1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7)
@@ -4074,16 +4207,59 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@engenty/local-models@0.20.6(ai@7.0.163(zod@4.6.7))':
+  '@engenty/chatviews@0.21.0(dompurify@3.4.18)(lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1))(marked@18.2.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
+      zod: 4.6.7
+    optionalDependencies:
+      dompurify: 3.4.18
+      lucide-react: 1.77.0(@types/react@19.3.0)(react@19.3.1)
+      marked: 18.2.1
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
+
+  '@engenty/decision-model@0.21.0':
+    dependencies:
+      undici: 7.30.2
+
+  '@engenty/local-models@0.21.0(ai@7.0.163(zod@4.6.7))':
+    dependencies:
+      '@modelcontextprotocol/server': 2.4.0
       ai: 7.0.163(zod@4.6.7)
       cross-spawn: 7.0.6
 
-  '@engenty/plugins@0.20.6(zod@4.6.7)':
+  '@engenty/model-setup@0.21.0(@xterm/addon-fit@0.11.0)(@xterm/addon-web-links@0.12.0)(@xterm/xterm@6.0.0)(ai@7.0.163(zod@4.6.7))(dompurify@3.4.18)(hono@4.13.19)(lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1))(marked@18.2.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)':
+    dependencies:
+      '@engenty/chatviews': 0.21.0(dompurify@3.4.18)(lucide-react@1.77.0(@types/react@19.3.0)(react@19.3.1))(marked@18.2.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@engenty/local-models': 0.21.0(ai@7.0.163(zod@4.6.7))
+      '@lydell/node-pty': 1.1.0
+    optionalDependencies:
+      '@xterm/addon-fit': 0.11.0
+      '@xterm/addon-web-links': 0.12.0
+      '@xterm/xterm': 6.0.0
+      hono: 4.13.19
+      lucide-react: 1.77.0(@types/react@19.3.0)(react@19.3.1)
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - '@openuidev/lang-core'
+      - '@openuidev/react-lang'
+      - ai
+      - dompurify
+      - marked
+
+  '@engenty/plugins@0.21.0(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
 
-  '@engenty/vault@0.20.6':
+  '@engenty/search-index@0.21.0': {}
+
+  '@engenty/tool-harness@0.21.0':
+    dependencies:
+      '@engenty/decision-model': 0.21.0
+      '@engenty/search-index': 0.21.0
+
+  '@engenty/vault@0.21.0':
     dependencies:
       tldts: 7.4.24
 
@@ -4286,6 +4462,33 @@ snapshots:
   '@lukeed/uuid@2.0.1':
     dependencies:
       '@lukeed/csprng': 1.1.0
+
+  '@lydell/node-pty-darwin-arm64@1.1.0':
+    optional: true
+
+  '@lydell/node-pty-darwin-x64@1.1.0':
+    optional: true
+
+  '@lydell/node-pty-linux-arm64@1.1.0':
+    optional: true
+
+  '@lydell/node-pty-linux-x64@1.1.0':
+    optional: true
+
+  '@lydell/node-pty-win32-arm64@1.1.0':
+    optional: true
+
+  '@lydell/node-pty-win32-x64@1.1.0':
+    optional: true
+
+  '@lydell/node-pty@1.1.0':
+    optionalDependencies:
+      '@lydell/node-pty-darwin-arm64': 1.1.0
+      '@lydell/node-pty-darwin-x64': 1.1.0
+      '@lydell/node-pty-linux-arm64': 1.1.0
+      '@lydell/node-pty-linux-x64': 1.1.0
+      '@lydell/node-pty-win32-arm64': 1.1.0
+      '@lydell/node-pty-win32-x64': 1.1.0
 
   '@mastra/agent-browser@0.6.0(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)':
     dependencies:
@@ -5087,6 +5290,12 @@ snapshots:
   '@workflow/serde@4.1.0': {}
 
   '@workflow/serde@4.1.0-beta.2': {}
+
+  '@xterm/addon-fit@0.11.0': {}
+
+  '@xterm/addon-web-links@0.12.0': {}
+
+  '@xterm/xterm@6.0.0': {}
 
   '@zip.js/zip.js@2.25.0': {}
 

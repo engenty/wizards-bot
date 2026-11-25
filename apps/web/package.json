@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@floating-ui/dom": "1.8.0",
-    "@engenty/chatviews": "0.20.8",
-    "@engenty/model-setup": "0.20.8",
+    "@engenty/chatviews": "0.21.0",
+    "@engenty/model-setup": "0.21.0",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
     "@fontsource-variable/space-grotesk": "5.3.0",
