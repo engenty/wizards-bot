@@ -62,7 +62,7 @@ a {
 
 ::selection {
   color: var(--ink);
-  background: var(--ember-veil);
+  background: var(--selection, var(--ember-veil));
 }
 
 :focus-visible {
@@ -161,6 +161,19 @@ a {
   border-left: 3px solid var(--border);
   padding-left: 0.9em;
   color: var(--ink-2);
+}
+
+/* On a bubble, code and a table's lines are told apart by a wash of the ink: the page's own steps
+   may be the bubble's. */
+.bubble .prose-zen code {
+  background: color-mix(in oklab, var(--ink) 8%, transparent);
+}
+/* A bubble of the branded theme is too close to the accent for type in it: a link there is ink. */
+.branded .bubble .prose-zen a {
+  color: var(--ink);
+}
+.bubble .prose-zen :is(th, td) {
+  border-color: color-mix(in oklab, var(--ink) 16%, transparent);
 }
 
 /* What can be clicked shows the hand. */

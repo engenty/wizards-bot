@@ -18,6 +18,8 @@
   --color-focus: var(--focus-line);
   --color-focus-glow: var(--focus-glow);
   --color-card: var(--card);
+  --color-bubble: var(--bubble);
+  --color-bubble-agent: var(--bubble-agent);
   --color-ember: var(--ember-mark);
   --color-ember-tint: var(--ember-tint);
   --color-ember-strong: var(--ember-strong-mark);

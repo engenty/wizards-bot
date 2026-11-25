@@ -42,7 +42,7 @@ import {
 import { toMac } from "./lib/mac";
 import { useLingering } from "./lib/motion";
 import { noticesOf, notify } from "./lib/notify";
-import { useAgents, useAvatar, useItems, useSetup } from "./lib/queries";
+import { useAgents, useAvatar, useHomeLook, useItems, useSetup } from "./lib/queries";
 import { setDeviceToken } from "./lib/session";
 import { useStored } from "./lib/stored";
 import { useEvents, useLink } from "./lib/stream";
@@ -200,6 +200,7 @@ export function Home() {
   const agents = useAgents();
   const items = useItems();
   const avatar = useAvatar();
+  useHomeLook();
   const setup = useSetup();
   const [agentId, setAgentId] = useState(lastAgent);
   const [documentId, setDocumentId] = useState<string | null>(null);

@@ -23,6 +23,7 @@ import { Folders } from "./folders/folders.ts";
 import { Group } from "./group.ts";
 import { Hosted } from "./hosted.ts";
 import { Identity, Secrets } from "./identity.ts";
+import { Looks } from "./look.ts";
 import { HomeMastra } from "./mastra.ts";
 import { Models } from "./models/models.ts";
 import { Notifier } from "./notify/notifier.ts";
@@ -69,6 +70,7 @@ export class Home {
   readonly apps: Apps;
   readonly sharing: Sharing;
   readonly avatars: Avatars;
+  readonly looks: Looks;
   readonly models: Models;
   readonly turns: Turns;
   /** Tasks agents handed to other agents, until their answer comes. */
@@ -127,6 +129,7 @@ export class Home {
     this.apps = new Apps(this);
     this.sharing = new Sharing(this);
     this.avatars = new Avatars(this);
+    this.looks = new Looks(this);
     this.channels = new Channels(this, adapters);
     this.setup = new Setup(this);
     this.hosted = new Hosted(this);

@@ -40,6 +40,8 @@ export const keys = {
   sentFiles: (conversationId: string) => ["sentFiles", conversationId] as const,
   /** The person's avatar; null: none made yet. */
   avatar: () => ["avatar"] as const,
+  /** How the chat looks to the person. */
+  look: () => ["look"] as const,
   /** Whose home this is. */
   home: () => ["home"] as const,
   /** The checks of the first start, with each model's last test call. */

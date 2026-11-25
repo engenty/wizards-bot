@@ -21,6 +21,11 @@
   --border-soft: color-mix(in oklch, var(--border) 50%, transparent);
   --input: color-mix(in oklch, var(--ink) calc(10% * var(--contrast)), var(--paper));
 
+  /* On the card the chat stands on: the person's own messages, and an agent's where the chat
+     shows it in bubbles, a quieter step, so the two sides are told apart. */
+  --bubble: color-mix(in oklab, var(--ink) 14%, var(--card));
+  --bubble-agent: color-mix(in oklab, var(--ink) 5.5%, var(--card));
+
   /* About 8px for a control; cards use the larger steps (theme.css). */
   --radius: 0.5rem;
 
@@ -31,12 +36,24 @@
 }
 
 .dark {
+  --bubble-agent: color-mix(in oklab, var(--ink) 8%, var(--card));
   /* The card sits one step above the page. Lines and the hover wash sit on cards as often as on
      the page, so they are mixed from the card up. */
   --card: oklch(from var(--stage) calc(l + 0.06) calc(c * 0.95) h);
   --accent: color-mix(in oklch, var(--ink) 10%, var(--card));
   --border: color-mix(in oklch, var(--ink) 18%, var(--card));
   --input: color-mix(in oklch, var(--ink) 24%, var(--card));
+}
+
+/* The light and the dark theme take the base colour also for the person's messages, the focus and
+   what is selected; the branded one stands on it already. */
+:root:not(.branded) {
+  --bubble: color-mix(in oklab, var(--primary) 13%, var(--card));
+  --focus-line: var(--ember-mark);
+  --selection: color-mix(in oklab, var(--primary) 24%, transparent);
+}
+.dark:not(.branded) {
+  --bubble: color-mix(in oklab, var(--primary) 17%, var(--card));
 }
 
 @media (prefers-contrast: more) {
