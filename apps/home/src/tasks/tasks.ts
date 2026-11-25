@@ -8,6 +8,7 @@ import type { Incoming } from "../channels/channels.ts";
 import type { Home } from "../home.ts";
 import { newId, newToken, now } from "../ids.ts";
 import { nextAfter, ruleOf, When } from "../schedule.ts";
+import { langOf } from "../setup/words.ts";
 import type { AgentRecord, NewCard } from "../store/store.ts";
 import { offerMorningLook } from "./morning.ts";
 import { describeRule, eventText, type Happened, QUIET } from "./words.ts";
@@ -511,13 +512,34 @@ export class Tasks {
           quiet,
         }),
         label: () => "Scheduling a task",
+        // The times themselves: whoever reads them sees whether they are meant.
+        says: (input) => {
+          const when = When.safeParse(input);
+          const rule = when.success ? ruleOf(when.data) : "";
+          const lang = langOf(this.home.db);
+          const times: string[] = [];
+          let from = new Date();
+          while (typeof rule !== "string" && times.length < 3) {
+            const next = nextAfter(rule, from);
+            if (!next) break;
+            times.push(next.toLocaleString(lang, { dateStyle: "full", timeStyle: "short" }));
+            from = next;
+          }
+          return [
+            `**${String(input.title ?? "")}**`,
+            String(input.prompt ?? ""),
+            times.map((time) => `- ${time}`).join("\n"),
+          ]
+            .filter(Boolean)
+            .join("\n\n");
+        },
         run: async (input) => {
           const rule = ruleOf(input);
           if (typeof rule === "string") return rule;
           const set = full() ?? this.schedule(agent.id, rule, whatOf(input));
           if (typeof set === "string") return set;
           if (!set) return "That time is in the past.";
-          return `Scheduled as ${set.id}. Next: ${set.next.toLocaleString("en-GB")}.`;
+          return `Scheduled as ${set.id}: ${describeRule(rule)}. Next: ${set.next.toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}. If that is not what the person asked for, remove it and set it again.`;
         },
       }),
       defineTool({

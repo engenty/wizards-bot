@@ -6,13 +6,15 @@ import { lmStudioFetch } from "@engenty/local-models/lmstudio";
 import { mlxModel, type Waiting } from "@engenty/local-models/mlx";
 import { type ChatModel, ollamaModel } from "@engenty/local-models/ollama";
 import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
+import { defineEmbedder, type SearchEmbedder } from "@engenty/search-index";
+import { type Level, levelOf } from "@engenty/tool-harness";
 import {
   type ModelService,
   type ModelSource,
   type Models as ModelsView,
   waitingForYes,
 } from "@wizards-bot/protocol";
-import type { LanguageModel } from "ai";
+import { embedMany, type LanguageModel } from "ai";
 import type { Config } from "../config.ts";
 import type { Secrets } from "../identity.ts";
 import type { Db } from "../store/db.ts";
@@ -37,6 +39,10 @@ const SERVERS_HERE: readonly ServerId[] = ["ollama", "lmstudio", "mlx"];
 /** What answers a turn: a model Mastra asks. A subscription's model needs the turn's MCP token. */
 export interface Engine {
   ref: string;
+  /** What the model can be trusted with. */
+  level: Level;
+  /** A client that steps by itself and reaches the tools over MCP. */
+  steps?: true;
   model(turn: {
     mcpToken: string;
     conversationId: string;
@@ -101,6 +107,8 @@ export interface Account {
 }
 
 const ACCOUNT_KEY = "account.gateway";
+/** Names the space of the account's vectors; their own length is what the search compares. */
+const ACCOUNT_DIMENSIONS = 1536;
 
 /**
  * A model of the account's gateway: the AI SDK's gateway client, as engenty wizards' runtime
@@ -118,6 +126,18 @@ export function accountModel(
     apiKey: key,
     ...(doFetch ? { fetch: doFetch } : {}),
   })(model);
+}
+
+/** The account's embedding model, for the search over tools. */
+export function accountEmbedder(account: Account, key: string): SearchEmbedder {
+  const model = createGateway({
+    baseURL: `${account.gatewayUrl}/v4/ai`,
+    apiKey: key,
+  }).embeddingModel("wizards/embedding");
+  return defineEmbedder(async (texts) => (await embedMany({ model, values: texts })).embeddings, {
+    dimensions: ACCOUNT_DIMENSIONS,
+    modelId: "wizards/embedding",
+  });
 }
 
 /** The sources the person picked in the setup. */
@@ -458,7 +478,7 @@ export class Models {
   localEngine(sourceId: string, model: string, ref = `${sourceId}:${model}`): Engine | undefined {
     if (sourceId === "ollama") {
       const chat = this.localChat(model);
-      return chat && { ref, model: () => chat };
+      return chat && { ref, level: this.localLevel(sourceId, model), model: () => chat };
     }
     if (sourceId === "lmstudio") {
       if (!this.held.lmstudio.some((held) => held.name === model)) return undefined;
@@ -468,7 +488,7 @@ export class Models {
         baseURL: `${url}/v1`,
         fetch: lmStudioFetch(url, { context: CONTEXT }),
       })(model);
-      return { ref, model: () => chat };
+      return { ref, level: this.localLevel(sourceId, model), model: () => chat };
     }
     if (sourceId === "mlx") {
       const found = this.held.mlx.find((held) => held.name === model);
@@ -481,6 +501,7 @@ export class Models {
       };
       return {
         ref,
+        level: this.localLevel(sourceId, model),
         model: ({ onWaiting }) => mlxModel({ ...chat, onWaiting }),
         ahead: () => mlxModel({ ...chat, warm: true }),
       };
@@ -489,6 +510,8 @@ export class Models {
     if (run) {
       return {
         ref,
+        level: "high",
+        steps: true,
         model: ({ mcpToken, conversationId }) =>
           clientModel({
             provider: sourceId,
@@ -506,7 +529,8 @@ export class Models {
       const key = this.accountKey();
       if (!key) return undefined;
       const chat = accountModel(account, key, model);
-      return { ref, model: () => chat };
+      const level = model === ACCOUNT.models[0] ? "standard" : "high";
+      return { ref, level, model: () => chat };
     }
     const gateway = this.gateways().find((g) => g.id === sourceId);
     const key = this.secrets.get(`gateway.${sourceId}`);
@@ -516,7 +540,13 @@ export class Models {
       baseURL: gateway.baseUrl,
       apiKey: key,
     })(model);
-    return { ref, model: () => chat };
+    return { ref, level: levelOf({ model }), model: () => chat };
+  }
+
+  /** What an open model on this computer can be trusted with, by its name and its size. */
+  private localLevel(id: ServerId, model: string): Level {
+    const size = this.held[id].find((held) => held.name === model)?.size;
+    return levelOf({ model, local: true, ...(size ? { size } : {}) });
   }
 
   /** An Ollama model of this computer. A linked computer serves it to its home through this. */

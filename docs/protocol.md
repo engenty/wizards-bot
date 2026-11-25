@@ -231,6 +231,8 @@ Rules for a device that draws messages:
   that is being written waits for: a model on the home's computer is `loading`, is `reading` the
   conversation (`share`, 0 to 1) or is `thinking`. Show it as one line until `none` or the next
   text arrives.
+- A message with `unsourced: true` was written by a small model out of itself: no tool, file or page
+  was read for it. Say so beside it.
 - A `reasoning` part (`{ "type": "reasoning", "text" }`) is what the model thought before it
   answered, as far as it shows it, in Markdown. Draw it quiet, open while the message streams and
   folded away once it is done. It is not the answer: a voice, a notification and a channel read
