@@ -16,6 +16,8 @@ export interface Tool<I = any> {
   input: z.ZodType<I>;
   /** What the person sees while it runs, e.g. "Writing “Packing list”". */
   label?(input: Record<string, unknown>): string;
+  /** What is wrong with an input, for the model, before the person is asked about it. */
+  wrong?(input: Record<string, unknown>): string | undefined;
   /** What a call does, in the person's words, for a card that asks before it runs. Markdown. */
   says?(input: Record<string, unknown>): string;
   /** Set on a tool that asks the person with `call.ask`: it runs again with the answer. */

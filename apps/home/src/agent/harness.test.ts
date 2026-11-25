@@ -115,6 +115,22 @@ describe("a small model", () => {
     }
   });
 
+  test("does not ask the person about an input that cannot be meant", async () => {
+    const t = await testHome("Ada", undefined, { level: "basic" });
+    try {
+      const input = { ...friday, weekday: 5, at: "2026-01-01T09:00" };
+      t.model.script.push(
+        { calls: [{ name: "tool_call", arguments: { name: "schedule_set", input } }] },
+        { text: "I try again." },
+      );
+      await t.say("Remind me of the bills every Friday");
+      assert.match(heard(t), /Nothing was done[\s\S]*not both/);
+      assert.equal(t.home.store.items().length, 0);
+    } finally {
+      t.stop();
+    }
+  });
+
   test("is not given what it cannot be trusted with, whatever way it calls it", async () => {
     const t = await testHome("Ada", undefined, { level: "basic" });
     try {

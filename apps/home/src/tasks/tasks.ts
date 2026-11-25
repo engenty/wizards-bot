@@ -8,7 +8,7 @@ import type { Incoming } from "../channels/channels.ts";
 import type { Home } from "../home.ts";
 import { newId, newToken, now } from "../ids.ts";
 import { nextAfter, ruleOf, When } from "../schedule.ts";
-import { langOf, say, w } from "../setup/words.ts";
+import { langOf } from "../setup/words.ts";
 import type { AgentRecord, NewCard } from "../store/store.ts";
 import { offerMorningLook } from "./morning.ts";
 import { describeRule, eventText, type Happened, QUIET } from "./words.ts";
@@ -512,6 +512,12 @@ export class Tasks {
           quiet,
         }),
         label: () => "Scheduling a task",
+        wrong: (input) => {
+          const when = When.safeParse(input);
+          const rule = when.success ? ruleOf(when.data) : "That is no time.";
+          if (typeof rule === "string") return rule;
+          return nextAfter(rule, new Date()) ? undefined : "That time is in the past.";
+        },
         // The times themselves: whoever reads them sees whether they are meant.
         says: (input) => {
           const when = When.safeParse(input);
@@ -528,8 +534,7 @@ export class Tasks {
           return [
             `**${String(input.title ?? "")}**`,
             String(input.prompt ?? ""),
-            times.map((time) => `- ${time}`).join("\n") ||
-              say(w("That time is in the past.", "Diese Zeit ist vorbei."), lang),
+            times.map((time) => `- ${time}`).join("\n"),
           ]
             .filter(Boolean)
             .join("\n\n");

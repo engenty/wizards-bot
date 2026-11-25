@@ -114,7 +114,7 @@ const TRAITS: Record<string, Trait> = {
     uses: "Change the person's picture: hair, eyes, clothes, look.",
   },
   home_check: { uses: "Is the server fine, its status, its health, what is wrong." },
-  device_pair: { changes: true, uses: "Connect a new phone, watch or computer." },
+  device_pair: { uses: "Connect a new phone, watch or computer." },
   channel_connect: {
     changes: true,
     uses: "Telegram, WhatsApp, Slack, Signal, e-mail: be reached and answer there.",
@@ -241,6 +241,8 @@ export function guarded(
         return run(input, { ...call, answer: undefined });
       }
       if (level() !== "basic") return run(input, call);
+      const wrong = tool.wrong?.(input as Record<string, unknown>);
+      if (wrong) return `Nothing was done. ${wrong}`;
       const lang = langOf(home.db);
       return call.ask({
         kind: "approval",
