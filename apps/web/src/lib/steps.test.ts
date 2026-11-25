@@ -8,6 +8,7 @@ import {
   rowsOf,
   runsOf,
   type Step,
+  shownOf,
   summaryOf,
   targetOf,
 } from "./steps";
@@ -128,6 +129,29 @@ describe("rowsOf", () => {
       details: ["2×"],
       failed: "1 fehlgeschlagen",
     });
+  });
+});
+
+describe("shownOf", () => {
+  const steps = [
+    file("a"),
+    file("a"),
+    file("b", { state: "failed" }),
+    file("c", { state: "running" }),
+  ];
+  const titles = (detail: "none" | "summary" | "all") =>
+    shownOf(steps, detail).map((row) => rowLine(row).title);
+
+  it("has what runs now and what failed, each thing once, or every step", () => {
+    expect(titles("none")).toEqual(["b", "c"]);
+    expect(titles("summary")).toEqual(["a", "b", "c"]);
+    expect(titles("all")).toEqual(["a", "a", "b", "c"]);
+    const keys = shownOf(steps, "all").map((row) => row.key);
+    expect(new Set(keys).size).toBe(4);
+  });
+
+  it("has nothing of steps that all went well, where the person wants none", () => {
+    expect(shownOf([file("a"), file("b")], "none")).toEqual([]);
   });
 });
 

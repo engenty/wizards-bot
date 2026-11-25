@@ -30,13 +30,14 @@ import {
 } from "lucide-react";
 import { createContext, type ReactNode, useContext } from "react";
 import { t } from "../lib/i18n";
+import { useToolDetail } from "../lib/look";
 import {
   durationOf,
   nowLine,
   type Row,
   rowLine,
-  rowsOf,
   type Step,
+  shownOf,
   summaryOf,
   type Target,
   targetOf,
@@ -143,10 +144,30 @@ function StepRow({ row, running }: { row: Row; running: boolean }) {
   );
 }
 
+/** What the model thought between the steps, folded away. */
+function Thoughts({ parts }: { parts: Part[] }) {
+  const thoughts = parts.flatMap((part) => (part.type === "reasoning" ? [part.text.trim()] : []));
+  return thoughts.length ? (
+    <TraceCollapsible
+      line={
+        <TraceLine className="text-inherit">
+          <TraceIcon className="text-ink-4">
+            <Brain />
+          </TraceIcon>
+          <TraceTitle>{t("chat.reasoning")}</TraceTitle>
+        </TraceLine>
+      }
+    >
+      <Markdown text={thoughts.join("\n\n")} className="text-[0.8125rem]" />
+    </TraceCollapsible>
+  ) : null;
+}
+
 /**
  * The steps between two texts of an answer. One is its own line. Several are one line: while the
  * agent is at them the newest with its spinner and how many there are, then what was done,
- * counted, and what failed. It opens to the things they were done to, each once.
+ * counted, and what failed. It opens to the things they were done to, each once. The person may
+ * want less, what runs now and what failed, or more: every step, open.
  */
 export function Steps({
   parts,
@@ -159,17 +180,30 @@ export function Steps({
   /** The agent is still at them. */
   live: boolean;
 }) {
-  const rows = rowsOf(steps);
+  const detail = useToolDetail();
+  const rows = shownOf(steps, detail);
   const [first] = rows;
+  if (detail === "none") {
+    return rows.length || parts.length > steps.length ? (
+      <Trace>
+        {rows.map((row) => (
+          <StepRow key={row.key} row={row} running={live} />
+        ))}
+        <Thoughts parts={parts} />
+      </Trace>
+    ) : null;
+  }
   if (steps.length === 1) {
     return first ? <StepRow row={first} running={live} /> : null;
   }
   const newest = steps.findLast((step) => step.state === "running") ?? steps.at(-1);
   const { done, failed } = summaryOf(steps);
   const took = live ? undefined : durationOf(steps);
-  const thoughts = parts.flatMap((part) => (part.type === "reasoning" ? [part.text.trim()] : []));
   return (
     <TraceCollapsible
+      // The setting says how it stands at first; a click changes this one.
+      key={detail}
+      start={detail === "all"}
       line={
         <TraceLine status={live ? "running" : undefined} className="text-inherit">
           {live ? (
@@ -205,20 +239,7 @@ export function Steps({
         {rows.map((row) => (
           <StepRow key={row.key} row={row} running={live} />
         ))}
-        {thoughts.length ? (
-          <TraceCollapsible
-            line={
-              <TraceLine className="text-inherit">
-                <TraceIcon className="text-ink-4">
-                  <Brain />
-                </TraceIcon>
-                <TraceTitle>{t("chat.reasoning")}</TraceTitle>
-              </TraceLine>
-            }
-          >
-            <Markdown text={thoughts.join("\n\n")} className="text-[0.8125rem]" />
-          </TraceCollapsible>
-        ) : null}
+        <Thoughts parts={parts} />
       </Trace>
     </TraceCollapsible>
   );

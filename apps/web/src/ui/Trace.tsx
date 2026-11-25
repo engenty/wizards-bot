@@ -55,15 +55,18 @@ export function TraceDescription({ className, ...props }: ComponentProps<"span">
 /** A line that opens what is under it. What is folded away is not reached by the keyboard. */
 export function TraceCollapsible({
   line,
+  start = false,
   className,
   children,
 }: {
   line: ReactNode;
+  /** It stands open at first. */
+  start?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   const id = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(start);
   return (
     <div className="flex w-full min-w-0 flex-col">
       <button

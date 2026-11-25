@@ -1,5 +1,6 @@
 import type { Part, StepKind } from "@wizards-bot/protocol";
 import { type Key, t } from "./i18n";
+import type { ToolDetail } from "./look";
 
 /** A step of an agent, as its part of the message says it. */
 export type Step = Extract<Part, { type: "activity" }>;
@@ -201,6 +202,18 @@ export function rowsOf(steps: Step[]): Row[] {
   // A step on no page (it closed the browser) is none of its own beside the pages.
   if (rows.size > 1 && rows.get("page:")?.failed === 0) rows.delete("page:");
   return [...rows.values()];
+}
+
+/**
+ * A run's lines, as much as the person wants to see: what runs now and what failed (`none`), each
+ * thing once (`summary`), or every step (`all`).
+ */
+export function shownOf(steps: Step[], detail: ToolDetail): Row[] {
+  if (detail === "none") return rowsOf(steps.filter((step) => step.state !== "done"));
+  if (detail === "summary") return rowsOf(steps);
+  return steps.flatMap((step, at) =>
+    rowsOf([step]).map((row) => ({ ...row, key: `${at}:${row.key}` })),
+  );
 }
 
 const hostOf = (url: string): string => {

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import type { Thread, Waiting } from "../lib/events";
 import { t } from "../lib/i18n";
+import { useToolDetail } from "../lib/look";
 import type { Waited } from "../lib/needs";
 import { askToNotify, canAskToNotify, notifyLater } from "../lib/notify";
 import { useThisDevice } from "../lib/queries";
@@ -222,6 +223,7 @@ function MessageView({
   onProblem: (text: string) => void;
 }) {
   const me = useThisDevice();
+  const tools = useToolDetail();
   if (message.role === "note") {
     return (
       <div className="enter-rise flex flex-col items-center gap-2 text-center text-[0.8125rem] text-ink-3 [&_.prose-zen]:text-ink-3">
@@ -263,7 +265,7 @@ function MessageView({
     !message.parts.some((part) => part.type === "activity" && part.state === "running");
   const run = runsOf(message.parts).at(-1);
   // The line of several steps turns until the answer goes on: it says the same.
-  const turning = run?.type === "steps" && run.steps.length > 1;
+  const turning = tools !== "none" && run?.type === "steps" && run.steps.length > 1;
   // An answer that was stopped before its first word is done and holds nothing: no figure
   // stands beside nothing.
   if (!drawn && message.state === "done") {
