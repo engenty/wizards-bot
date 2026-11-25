@@ -252,3 +252,35 @@ describe("applyEvent", () => {
     expect(() => applyEvent(client, { type: "home.renamed" } as never)).not.toThrow();
   });
 });
+
+describe("what a message waits for", () => {
+  const waiting = (state: "loading" | "reading" | "none", share?: number) => ({
+    type: "message.waiting" as const,
+    conversationId: "cnv_1",
+    messageId: "msg_1",
+    state,
+    ...(share === undefined ? {} : { share }),
+  });
+
+  it("is kept beside the conversation until the message goes on", () => {
+    const client = loaded();
+    applyEvent(client, waiting("loading"));
+    applyEvent(client, waiting("reading", 0.5));
+    expect(thread(client)?.waiting).toMatchObject({ state: "reading", share: 0.5 });
+    applyEvent(client, waiting("none"));
+    expect(thread(client)?.waiting).toBeUndefined();
+  });
+
+  it("is gone with the next text", () => {
+    const client = loaded();
+    applyEvent(client, waiting("reading"));
+    applyEvent(client, {
+      type: "message.delta",
+      conversationId: "cnv_1",
+      messageId: "msg_1",
+      part: 0,
+      text: " free",
+    });
+    expect(thread(client)?.waiting).toBeUndefined();
+  });
+});

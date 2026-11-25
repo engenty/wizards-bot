@@ -509,6 +509,14 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     return c.body(null, 204);
   });
 
+  app.post("/v1/conversations/:id/warm", (c) => {
+    if (!store.conversation(c.req.param("id"))) return notFound(c, "conversation");
+    void home.turns
+      .readAhead(c.req.param("id"))
+      .catch((error) => console.error("[turn] reading ahead:", error));
+    return c.body(null, 204);
+  });
+
   app.post("/v1/conversations/:id/stop", (c) => {
     home.turns.stop(c.req.param("id"));
     return c.body(null, 204);

@@ -3,7 +3,7 @@ import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { detectClient } from "@engenty/local-models/clients";
 import { lmStudioFetch } from "@engenty/local-models/lmstudio";
-import { mlxModel } from "@engenty/local-models/mlx";
+import { mlxModel, type Waiting } from "@engenty/local-models/mlx";
 import { type ChatModel, ollamaModel } from "@engenty/local-models/ollama";
 import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
 import {
@@ -37,7 +37,14 @@ const SERVERS_HERE: readonly ServerId[] = ["ollama", "lmstudio", "mlx"];
 /** What answers a turn: a model Mastra asks. A subscription's model needs the turn's MCP token. */
 export interface Engine {
   ref: string;
-  model(turn: { mcpToken: string; conversationId: string }): LanguageModel;
+  model(turn: {
+    mcpToken: string;
+    conversationId: string;
+    /** What a model on this computer waits for before its first word; null once it answers. */
+    onWaiting?: (waiting: Waiting | null) => void;
+  }): LanguageModel;
+  /** The model as one that only reads ahead, when it can: a turn after it starts at once. */
+  ahead?(): LanguageModel;
 }
 
 /** Where a subscription client's own conversation is remembered, per conversation and source. */
@@ -466,13 +473,17 @@ export class Models {
     if (sourceId === "mlx") {
       const found = this.held.mlx.find((held) => held.name === model);
       if (!found) return undefined;
-      const chat = mlxModel({
+      const chat = {
         folder: this.config.mlxFolder,
         model,
         tools: found.tools,
         ...(found.thinking ? { thinking: true } : {}),
-      });
-      return { ref, model: () => chat };
+      };
+      return {
+        ref,
+        model: ({ onWaiting }) => mlxModel({ ...chat, onWaiting }),
+        ahead: () => mlxModel({ ...chat, warm: true }),
+      };
     }
     const run = this.localClient(sourceId);
     if (run) {

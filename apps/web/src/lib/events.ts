@@ -16,7 +16,14 @@ import { keys } from "./keys";
 export interface Thread {
   messages: Message[];
   more: boolean;
+  /** What a message being written waits for, until it goes on. */
+  waiting?: Waiting;
 }
+
+export type Waiting = Pick<
+  Extract<Event, { type: "message.waiting" }>,
+  "messageId" | "state" | "share"
+>;
 
 /** The thread with a message the home made or changed: in its place, or at the end. */
 export function withMessage(thread: Thread, message: Message): Thread {
@@ -44,6 +51,7 @@ export function withDelta(
   );
   return {
     ...thread,
+    waiting: thread.waiting?.messageId === message.id ? undefined : thread.waiting,
     messages: thread.messages.map((m) => (m === message ? { ...message, parts } : m)),
   };
 }
@@ -111,6 +119,11 @@ export function applyEvent(client: QueryClient, event: Event) {
     case "message.delta":
       client.setQueryData<Thread>(keys.thread(event.conversationId), (thread) =>
         thread ? withDelta(thread, event) : thread,
+      );
+      return;
+    case "message.waiting":
+      client.setQueryData<Thread>(keys.thread(event.conversationId), (thread) =>
+        thread ? { ...thread, waiting: event.state === "none" ? undefined : event } : thread,
       );
       return;
     case "card.updated":

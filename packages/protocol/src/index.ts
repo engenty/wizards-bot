@@ -1287,6 +1287,17 @@ export const Event = z.discriminatedUnion("type", [
     part: z.number(),
     text: z.string(),
   }),
+  /**
+   * What a message being written waits for: a model on the home's computer is loaded, reads the
+   * conversation (`share`, 0 to 1) or thinks; `none` once it goes on. Not replayed after a reconnect.
+   */
+  z.object({
+    type: z.literal("message.waiting"),
+    conversationId: z.string(),
+    messageId: z.string(),
+    state: z.enum(["loading", "reading", "thinking", "none"]),
+    share: z.number().optional(),
+  }),
   z.object({ type: z.literal("message.updated"), message: Message }),
   z.object({ type: z.literal("card.updated"), card: Card }),
   z.object({ type: z.literal("agent.updated"), agent: Agent }),

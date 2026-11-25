@@ -297,3 +297,39 @@ describe("a message for after the answer", () => {
     }
   });
 });
+
+describe("a model that reads ahead", () => {
+  test("reads what the next turn starts with, and leaves nothing in the conversation", async () => {
+    const t = await testHome("Ada");
+    try {
+      const { models, store, turns } = t.home;
+      const { conversationId } = store.mainAgent();
+      t.model.script.push({ text: "Hello." });
+      await t.say("Hi.");
+
+      const before = store.messages(conversationId, { limit: 50 }).messages.length;
+      await turns.readAhead(conversationId);
+      assert.equal(t.model.requests.length, 1, "a model that cannot read ahead is not asked");
+
+      const engine = models.engine.bind(models);
+      models.engine = (ref) => {
+        const found = engine(ref);
+        return found && { ...found, ahead: () => found.model({ mcpToken: "", conversationId }) };
+      };
+      t.model.script.push({ text: "" });
+      await turns.readAhead(conversationId);
+      const ahead = t.model.requests.at(-1);
+      assert.equal(said(t).at(-1), "user:.");
+      assert.equal(store.messages(conversationId, { limit: 50 }).messages.length, before);
+
+      t.model.script.push({ text: "Yes." });
+      await t.say("And?");
+      const turn = t.model.requests.at(-1);
+      assert.deepEqual(ahead?.tools, turn?.tools);
+      assert.deepEqual(ahead?.messages?.slice(0, -1), turn?.messages?.slice(0, -1));
+      assert.ok(!said(t).includes("user:."));
+    } finally {
+      t.stop();
+    }
+  });
+});

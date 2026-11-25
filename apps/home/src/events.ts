@@ -1,7 +1,7 @@
 import type { Event } from "@wizards-bot/protocol";
 
 export interface StoredEvent {
-  /** Missing on `message.delta`, which is never replayed. */
+  /** Missing on `message.delta` and `message.waiting`, which are never replayed. */
   id?: number;
   event: Event;
 }
@@ -18,7 +18,9 @@ export class Events {
 
   emit(event: Event): void {
     const stored: StoredEvent =
-      event.type === "message.delta" ? { event } : { id: ++this.seq, event };
+      event.type === "message.delta" || event.type === "message.waiting"
+        ? { event }
+        : { id: ++this.seq, event };
     if (stored.id !== undefined) {
       this.log.push(stored);
       if (this.log.length > KEEP) this.log.shift();
