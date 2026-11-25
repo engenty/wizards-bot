@@ -13,7 +13,7 @@ import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { TerminalError } from "@engenty/model-setup/server";
 import { CsvRefused, OriginRefused } from "@engenty/vault";
-import type { Admin, Agent, Event } from "@wizards-bot/protocol";
+import type { Admin, Agent, CardField, Event } from "@wizards-bot/protocol";
 import {
   AddMark,
   type AgentDetail,
@@ -46,6 +46,7 @@ import {
 import { type Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
+import { formOf, readForm } from "./agent/ask.ts";
 import { LeavesHome, NoPictureModel, NotAPicture } from "./avatar/avatars.ts";
 import { isHosted, tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
@@ -58,6 +59,7 @@ import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
 import { OllamaRefused, PullRefused } from "./setup/setup.ts";
 import { sharedSetup } from "./setup/shared.ts";
+import { langOf } from "./setup/words.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
 import { AddressRefused } from "./tunnel/tunnel.ts";
 import { VaultRefused } from "./vault/vault.ts";
@@ -68,6 +70,8 @@ const AnswerCard = z.object({
   action: z.string(),
   values: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
 });
+/** The fields whose value the person wrote, or gave as a file. */
+const TYPED = new Set<CardField["type"]>(["text", "long_text", "number", "date", "file"]);
 const AddDevice = z.object({
   name: z.string().min(1),
   kind: z.enum(["watch", "phone", "computer", "browser"]),
@@ -485,24 +489,29 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       from: writer ? { name: writer.name, admin: writer.id } : undefined,
     });
     store.markRead(conversation.id, writer?.id);
+    // Asking about a passage is no answer to what the agent asked.
+    const answers = about && body.answers === undefined ? null : body.answers;
     const asked = about
       ? `About this passage of the document "${about.title}" (${about.id}):\n${passage}\n\n${body.text}`
       : body.text;
-    void home.turns.enqueue({
-      conversationId: conversation.id,
-      messageId: message.id,
-      later: body.later,
-      // In a room the group home is one member: the others read who of it wrote.
-      text: !writer
-        ? asked
-        : store.agent(conversation.agentId)?.origin === "room"
-          ? `${writer.name}: ${asked}`
-          : `${writer.name} writes:\n${asked}`,
-      writer,
-      channel,
-      spoken: body.spoken,
-      files: attached,
-    });
+    home.said(
+      {
+        conversationId: conversation.id,
+        messageId: message.id,
+        later: body.later,
+        // In a room the group home is one member: the others read who of it wrote.
+        text: !writer
+          ? asked
+          : store.agent(conversation.agentId)?.origin === "room"
+            ? `${writer.name}: ${asked}`
+            : `${writer.name} writes:\n${asked}`,
+        writer,
+        channel,
+        spoken: body.spoken,
+        files: attached,
+      },
+      { answers, words: body.text, by: c.get("device").name, admin: writer },
+    );
     return c.json({ message }, 202);
   });
 
@@ -638,13 +647,15 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const body = AnswerCard.parse(await c.req.json());
     const before = store.card(c.req.param("id"));
     if (!before) return notFound(c, "card");
-    if (before.actions.length && !before.actions.some((action) => action.id === body.action)) {
+    const actions = before.actions;
+    // A question without any is answered by a message alone.
+    if ((actions.length || before.reply) && !actions.some((action) => action.id === body.action)) {
       return fail(c, 400, "invalid", "This card has no such answer.");
     }
     // Words the person typed into a card reach the model like a message; a choice, a yes and a
     // secret (which no model reads) do not wait.
     const typed = (before.fields ?? []).some(
-      (field) => field.type === "text" && String(body.values?.[field.id] ?? "").trim(),
+      (field) => TYPED.has(field.type) && String(body.values?.[field.id] ?? "").trim(),
     );
     if (typed) {
       const refused = await waitsForYes(c);
@@ -663,6 +674,12 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
           return folderProblem(c, error);
         }
       }
+    }
+    const form = before.state === "open" ? formOf(before) : undefined;
+    if (form) {
+      const lang = langOf(home.db);
+      const read = readForm(form, body.values ?? {}, (id) => home.files.get(id), lang);
+      if ("problem" in read) return fail(c, 400, "invalid", read.problem);
     }
     try {
       const card = await home.answer(before.id, {

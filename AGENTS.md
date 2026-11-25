@@ -138,6 +138,10 @@ no emoji, no "please".
 - A tool that waits for the person makes a card and stops. New tools ask with `call.ask`, which
   suspends the run in Mastra; older cards start a new turn through their handler
   (`home.onCard`). A message is never held back by a card: it ends the suspended run.
+- A question of an agent (`ask`, `agent/ask.ts`) is the agent's own message: what the person
+  writes in the chat answers it in the suspended run. A decision has its choices as buttons,
+  several things at once are a form with typed values. Only an approval is a card of its own.
+  In the store and for every device a question is a card with `reply`.
 - A tool of a connection that is not marked read-only asks first.
 - A plugin is off until the person switches it on. Its code runs in a process of its own
   (`@engenty/plugins`): its folder, its data folder, no environment, no `Secrets`. Its tools

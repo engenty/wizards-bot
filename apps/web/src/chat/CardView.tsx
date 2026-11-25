@@ -1,13 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
 import type { Card, CardField } from "@wizards-bot/protocol";
 import { Check } from "lucide-react";
-import { useState } from "react";
-import { ApiError, api } from "../lib/api";
-import { withConsent } from "../lib/consent";
 import { type Draft, useDraft } from "../lib/drafts";
-import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
-import { keys } from "../lib/keys";
 import { nameOf } from "../lib/paths";
 import { useThisDevice } from "../lib/queries";
 import { Button, cn, Input } from "../ui";
@@ -15,6 +9,8 @@ import { Markdown } from "../ui/Markdown";
 import { QrCode } from "../ui/Qr";
 import { FolderPicker } from "./FolderPicker";
 import { PersonCard } from "./PersonCard";
+import { QuestionView } from "./QuestionView";
+import { useAnswer } from "./useAnswer";
 
 const STYLES = { primary: "primary", plain: "secondary", danger: "danger" } as const;
 
@@ -113,16 +109,19 @@ function Field({
   );
 }
 
+/** A card, or a question of an agent: its own words, which the chat answers. */
+export function CardView({ card }: { card: Card }) {
+  return card.reply ? <QuestionView card={card} /> : <PlainCard card={card} />;
+}
+
 /**
  * A card, drawn from its data alone: title, body, fields, a sign-in link, a QR code and one
  * button per action. Answered or expired, it stays with its title and what was chosen. The
  * first answer wins: a card someone answered meanwhile shows that answer.
  */
-export function CardView({ card }: { card: Card }) {
-  const client = useQueryClient();
+function PlainCard({ card }: { card: Card }) {
   const [draft, setDraft] = useDraft(card.id);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const { answer, busy, problem } = useAnswer(card);
   const me = useThisDevice();
 
   if (card.state !== "open") {
@@ -166,30 +165,9 @@ export function CardView({ card }: { card: Card }) {
   const fields = card.fields ?? [];
   const values = valuesOf(fields, draft);
   const complete = filled(fields, values);
-  const answer = async (action: string) => {
-    setBusy(true);
-    setProblem(null);
-    try {
-      const { card: answered } = await withConsent(
-        () =>
-          api.post<{ card: Card }>(`/v1/cards/${card.id}/answer`, {
-            action,
-            ...(Object.keys(values).length ? { values } : {}),
-          }),
-        (models) => client.setQueryData(keys.models(), models),
-      );
+  const send = async (action: string) => {
+    if (await answer(action, values)) {
       setDraft(null);
-      applyEvent(client, { type: "card.updated", card: answered });
-    } catch (err) {
-      const kept = err instanceof ApiError && err.code === "already_answered" && err.body?.card;
-      if (kept) {
-        setProblem(t("card.already"));
-        applyEvent(client, { type: "card.updated", card: kept as Card });
-      } else {
-        setProblem((err as Error).message || t("card.failed"));
-      }
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -230,7 +208,7 @@ export function CardView({ card }: { card: Card }) {
               key={action.id}
               variant={STYLES[action.style]}
               disabled={busy || (action.style === "primary" && !complete)}
-              onClick={() => void answer(action.id)}
+              onClick={() => void send(action.id)}
               className={cn(action.style === "danger" && "border border-border")}
             >
               {action.label}

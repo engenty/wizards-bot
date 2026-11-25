@@ -46,7 +46,7 @@ export class Notifier {
     const body = preview(message);
     if (cards.length || !body) return;
     // An agent answering another agent is not news for the person.
-    if (trigger.channel === "home" && (trigger.done || trigger.handed?.length)) return;
+    if (trigger.handed?.length || (trigger.channel === "home" && trigger.done)) return;
     await this.alert({
       title: agent.name,
       body,

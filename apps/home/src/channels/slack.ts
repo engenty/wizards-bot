@@ -233,7 +233,9 @@ export function slackAdapter(options: SlackOptions = {}): ChannelAdapter {
     },
 
     async send(settings, peer, out) {
-      const text = mrkdwn([out.text, cardsAsText(out.cards)].filter(Boolean).join("\n\n"));
+      const text = mrkdwn(
+        [out.text, cardsAsText(out.cards, out.lang)].filter(Boolean).join("\n\n"),
+      );
       // With blocks, Slack shows `text` in the notification only.
       const body = out.cards.some(hasButtons)
         ? { channel: peer, text, blocks: blocks(out) }
@@ -344,7 +346,7 @@ export function blocks(out: Outgoing): Block[] {
   const list: Block[] = chunks(mrkdwn(out.text), SECTION_LIMIT).map(section);
   for (const card of out.cards) {
     if (!hasButtons(card)) {
-      list.push(...chunks(mrkdwn(cardsAsText([card])), SECTION_LIMIT).map(section));
+      list.push(...chunks(mrkdwn(cardsAsText([card], out.lang)), SECTION_LIMIT).map(section));
       continue;
     }
     const about = [`*${entities(card.title)}*`, mrkdwn(card.body ?? ""), entities(card.url ?? "")];

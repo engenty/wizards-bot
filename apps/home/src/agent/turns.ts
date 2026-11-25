@@ -6,6 +6,7 @@ import {
   RequestContext,
 } from "@mastra/core/request-context";
 import type { Admin, Card, Channel, FileRef, Message } from "@wizards-bot/protocol";
+import type { Picture } from "../files/pictures.ts";
 import type { Home } from "../home.ts";
 import { newToken } from "../ids.ts";
 import { LAST_MESSAGES } from "../mastra.ts";
@@ -66,7 +67,7 @@ export interface Trigger {
    * A tool asked the person and no run of Mastra waits for the answer: the home runs the
    * tool again with the answer, and the agent reads what it then says.
    */
-  again?: { tool: string; input: unknown; answer: Answer };
+  again?: { tool: string; input: unknown; answer: Answer; said?: boolean };
   done?: (message: Message) => void;
   /** Tasks other agents handed over that this is about (`agent/handed.ts`). */
   handed?: string[];
@@ -195,6 +196,11 @@ class Turn {
   /** The engine the last step that did not fail ran on, and what went wrong. */
   model: string | undefined;
   problem = "";
+  /**
+   * The run goes on at this tool call. A thread read anew replays the run from its start: what
+   * comes before the call goes on was said in an earlier turn.
+   */
+  resumes: string | undefined;
   /** The run's own output reached the turn: a status before it belongs to an earlier run. */
   seen = false;
   private readonly home: Home;
@@ -486,7 +492,7 @@ class Turn {
       // A card without a button only shows something: a pairing code, a task's address.
       waiting: home.store
         .openCards(trigger.conversationId)
-        .filter((card) => card.actions.length)
+        .filter((card) => card.reply || card.actions.length)
         .map((card) => card.title),
       spoken: trigger.spoken === true,
       guest: trigger.guest,
@@ -599,6 +605,20 @@ function nextTurn(turn: Turn, message: Message): Trigger {
   };
 }
 
+/** What a card's answer starts: as the person's message says, where the answer is one. */
+function answeredWith(card: Card, said: Trigger | undefined): Trigger {
+  const { channel = "home", messageId, spoken, replyTo, writer } = said ?? {};
+  return {
+    conversationId: card.conversationId,
+    text: "",
+    channel,
+    messageId,
+    spoken,
+    replyTo,
+    writer,
+  };
+}
+
 /**
  * Runs the agents' turns. What is said to an agent is a Mastra signal on the conversation's
  * thread: it wakes the agent when it is idle and is delivered into the running turn when it
@@ -658,14 +678,21 @@ export class Turns {
         engine: String(payload.engine),
       });
     });
-    home.onCard("tool", ({ card, action, values, payload }) =>
-      this.answered(card, payload, {
-        action,
-        values,
-        card: { id: card.id, title: card.title, actions: card.actions },
-        kept: payload.kept,
-        by: card.answer?.admin?.name,
-      }),
+    home.onCard("tool", ({ card, action, values, payload, said }) =>
+      this.answered(
+        card,
+        payload,
+        {
+          action,
+          values,
+          card: { id: card.id, title: card.title, actions: card.actions },
+          kept: payload.kept,
+          by: card.answer?.admin?.name,
+          message: card.answer?.message,
+          files: said?.files,
+        },
+        said,
+      ),
     );
   }
 
@@ -679,26 +706,30 @@ export class Turns {
     card: Card,
     payload: Record<string, unknown>,
     answer: Answer,
+    said: Trigger | undefined,
   ): Promise<void> {
     const parked = this.parked.get(card.conversationId);
     if (parked?.cardId === card.id) {
       this.parked.delete(card.conversationId);
       try {
-        return await this.resume(card, parked, answer);
+        return await this.resume(card, parked, answer, said);
       } catch (error) {
         console.error("[turn] the suspended run did not go on:", (error as Error).message);
       }
     }
     await this.enqueue({
-      conversationId: card.conversationId,
-      text: "",
-      channel: "home",
-      again: { tool: String(payload.tool), input: payload.input, answer },
+      ...answeredWith(card, said),
+      again: { tool: String(payload.tool), input: payload.input, answer, said: Boolean(said) },
     });
   }
 
   /** Lets Mastra go on with a suspended run: the tool runs again inside its call. */
-  private async resume(card: Card, parked: Parked, answer: Answer): Promise<void> {
+  private async resume(
+    card: Card,
+    parked: Parked,
+    answer: Answer,
+    said: Trigger | undefined,
+  ): Promise<void> {
     const { store } = this.home;
     const conversation = store.conversation(card.conversationId);
     const agent = conversation && store.agent(conversation.agentId);
@@ -710,12 +741,8 @@ export class Turns {
       .map((ref) => this.home.models.engine(ref))
       .filter((engine) => engine !== undefined);
     const handed = this.goesOn(conversation.id, card.id);
-    const turn = new Turn(
-      this.home,
-      agent,
-      { conversationId: conversation.id, text: "", channel: "home", handed },
-      engines,
-    );
+    const turn = new Turn(this.home, agent, { ...answeredWith(card, said), handed }, engines);
+    turn.resumes = parked.toolCallId;
     this.answers.set(card.id, answer);
     try {
       await this.follow(agent, conversation.id);
@@ -823,6 +850,12 @@ export class Turns {
     if (!turn) return undefined;
     const { work, task } = turn.trigger;
     return { what: work?.next || task?.title || "", turn: turn.number, turns: WORK_TURNS };
+  }
+
+  /** The message an agent writes right now, where it works. */
+  writing(conversationId: string): string | undefined {
+    const turn = this.runs.get(conversationId);
+    return turn?.begun ? turn.parts.draft.id : undefined;
   }
 
   /** Says something to an agent. Resolves when the turn that read it is done. */
@@ -976,6 +1009,7 @@ export class Turns {
       this.parked.delete(conversation.id);
       this.mastraAgent(agent).abortRunStream(parked.runId);
     }
+    let pictures: Picture[] = [];
     if (trigger.again) {
       while (this.runs.has(conversation.id)) await this.runs.get(conversation.id)?.finished;
       trigger.handed = [
@@ -987,11 +1021,15 @@ export class Turns {
       const tool = tools.find((candidate) => candidate.name === name);
       const ran = tool
         ? await runTool(tool, input, draft, { ...asking, answer })
-        : { text: `There is no tool ${name} any more.` };
+        : { text: `There is no tool ${name} any more.`, pictures: [] };
       // The tool asked again: its new card waits, and no model has anything to read yet.
       if (draft.asks) return this.close(turn, "done", undefined);
       const chosen = answer.card.actions.find((action) => action.id === answer.action);
-      trigger.text = `[home] ${answer.by ?? "The person"} answered "${answer.card.title}" with "${chosen?.label ?? answer.action}". ${name} says:\n${ran.text}`;
+      // What the person wrote or filled in stands in the tool's answer already.
+      trigger.text = trigger.again.said
+        ? `[home] ${ran.text}`
+        : `[home] ${answer.by ?? "The person"} answered "${answer.card.title}" with "${chosen?.label ?? answer.action}". ${name} says:\n${ran.text}`;
+      pictures = ran.pictures;
     }
 
     // A message that names a kind of document loads its skill before the model starts.
@@ -999,7 +1037,7 @@ export class Turns {
     await this.follow(agent, conversation.id);
     const mastra = this.mastraAgent(agent);
     const thread = { resourceId: agent.id, threadId: conversation.id };
-    const contents = await this.contents(trigger);
+    const contents = await this.contents(trigger, pictures);
     const streamOptions = this.streamOptions(turn);
     // Mastra's queue: what waits there runs after the running turn, one turn each, in order.
     const queue = {
@@ -1063,6 +1101,7 @@ export class Turns {
   /** What the agent reads: the text, and with attached files their text and the pictures. */
   private async contents(
     trigger: Trigger,
+    looked: Picture[],
   ): Promise<
     | string
     | (
@@ -1070,11 +1109,12 @@ export class Turns {
         | { type: "file"; data: string; mediaType: string; filename: string }
       )[]
   > {
-    if (!trigger.files?.length) return trigger.text;
-    const { text, pictures } = await this.home.files.forModel(trigger.files);
+    const files = trigger.files ?? [];
+    if (!(files.length || looked.length)) return trigger.text;
+    const { text, pictures } = await this.home.files.forModel(files);
     return [
       { type: "text", text: [trigger.text, text].filter(Boolean).join("\n\n") },
-      ...pictures.map((picture) => ({
+      ...[...pictures, ...looked].map((picture) => ({
         type: "file" as const,
         data: picture.base64,
         mediaType: picture.mime,
@@ -1153,12 +1193,16 @@ export class Turns {
       if (turn.seen || live) this.settle(turn, chunk.payload?.status);
       return;
     }
+    const payload = chunk.payload ?? {};
+    if (chunk.type === "tool-call-resumed" && payload.toolCallId === turn.resumes)
+      turn.resumes = undefined;
+    if (turn.resumes && chunk.type !== "error") return;
     if (!turn.seen) this.begin(turn);
     turn.seen = true;
     const { draft } = turn.parts;
-    const payload = chunk.payload ?? {};
     if (chunk.type === "text-delta") {
-      draft.write(payload.text ?? payload.delta ?? "");
+      // The question is the message's last word: a client that steps by itself often repeats it.
+      if (!draft.questions) draft.write(payload.text ?? payload.delta ?? "");
     } else if (chunk.type === "reasoning-delta") {
       draft.reason(payload.text ?? payload.delta ?? "");
     } else if (chunk.type === "source" && payload.sourceType === "url" && payload.url) {
