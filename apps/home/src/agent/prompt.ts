@@ -1,5 +1,6 @@
-import type { ArtifactMeta, DocumentMeta, FileRef, Folder } from "@wizards-bot/protocol";
+import type { ArtifactMeta, DocumentMeta, FileRef, Folder, Space } from "@wizards-bot/protocol";
 import { artifactRules } from "../artifacts/page.ts";
+import { spaceLine } from "../connections/studio.ts";
 import type { AgentRecord } from "../store/store.ts";
 
 export interface PromptInput {
@@ -12,6 +13,11 @@ export interface PromptInput {
   group?: { admins: string[] };
   agents: AgentRecord[];
   connections: string[];
+  /**
+   * The studio the team works in is one of the connections: the space that is open in it where
+   * the message was written, if one is.
+   */
+  studio?: { space?: Space };
   /** The conversation's documents, newest first. */
   documents?: DocumentMeta[];
   /** The conversation's artifacts, newest first. */
@@ -188,6 +194,7 @@ export function systemPrompt(input: PromptInput): Prompt {
           .join("\n")}`
       : "",
     input.devices ?? "",
+    input.studio ? spaceLine(input.studio.space) : "",
     input.waiting?.length
       ? `Questions and cards that still wait for ${person}'s answer: ${input.waiting.map((title) => `"${title}"`).join(", ")}.`
       : "",

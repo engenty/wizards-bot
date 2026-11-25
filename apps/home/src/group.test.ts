@@ -365,6 +365,38 @@ describe("a group home", () => {
     assert.equal(await frames(), "'none'");
   });
 
+  test("the studio is a connection that comes, moves and goes with what the Manage-App names", async () => {
+    const { connections } = t.home;
+    const info = async () => (await (await fetch(`${t.url}/v1/home`)).json()) as HomeInfo;
+    assert.equal(connections.byName("studio"), undefined);
+    assert.equal((await info()).studio, undefined);
+
+    manage.studio = { mcp: `${STUDIO}/api/mcp` };
+    await t.home.group.pull();
+    const made = connections.byName("studio");
+    assert.ok(made && connections.isStudio(made));
+    assert.equal(made.url, `${STUDIO}/api/mcp`);
+    assert.deepEqual(connections.names(), ["studio"]);
+    assert.equal((await info()).studio, STUDIO);
+    // The same address again changes nothing.
+    await t.home.group.pull();
+    assert.equal(connections.byName("studio")?.id, made.id);
+
+    manage.studio = { mcp: "https://other.example/api/mcp" };
+    await t.home.group.pull();
+    const moved = connections.byName("studio");
+    assert.ok(moved && connections.isStudio(moved));
+    assert.equal(moved.url, "https://other.example/api/mcp");
+    assert.equal(connections.list().length, 1);
+    assert.equal((await info()).studio, "https://other.example");
+
+    manage.studio = null;
+    await t.home.group.pull();
+    assert.deepEqual(connections.list(), []);
+    assert.equal(connections.hasStudio(), false);
+    assert.equal((await info()).studio, undefined);
+  });
+
   test("answers another site's page only when a device was paired from it", async () => {
     const preflight = (path: string, origin: string) =>
       fetch(`${t.url}${path}`, {

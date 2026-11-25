@@ -187,6 +187,7 @@ export class Home {
       publicKey: this.identity.publicKey,
       hosted: isHosted(this.config),
       ...(this.group.isGroup() ? { group: { name: this.person() } } : {}),
+      ...(this.group.studio() ? { studio: this.group.studio() } : {}),
     };
   }
 

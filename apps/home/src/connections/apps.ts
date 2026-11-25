@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Home } from "../home.ts";
 import type { Carried } from "./calls.ts";
 import type { Connection, ConnectionTool } from "./connections.ts";
+import { StudioRefused } from "./studio.ts";
 
 /**
  * MCP Apps views: the page a connection's server shows a tool's result in (`ui://…`). The home
@@ -33,6 +34,8 @@ export interface AppCall {
   result: { content: unknown[]; structuredContent?: unknown; _meta?: Record<string, unknown> };
   /** What the view last told the agent (`ui/update-model-context`). */
   context?: string;
+  /** In a group home: who the call was for. The view's own calls run as them. */
+  person?: string;
 }
 
 interface View {
@@ -71,8 +74,12 @@ export function viewPolicy(csp: View["csp"]): string {
     .join("; ");
 }
 
-/** The policy of the host page: it frames the view and asks the home for this one artifact. */
-function hostPolicy(home: string): string {
+/**
+ * The policy of the host page: it frames the view and asks the home for this one artifact. The
+ * home's own page frames it, and with it the studio whose page shows the home's inside itself:
+ * a browser asks every page above a frame.
+ */
+export function hostPolicy(home: string, studio?: string): string {
   return [
     "sandbox allow-scripts",
     "default-src 'none'",
@@ -80,7 +87,7 @@ function hostPolicy(home: string): string {
     "style-src 'unsafe-inline'",
     `connect-src ${home}`,
     `frame-src ${home}`,
-    "frame-ancestors 'self'",
+    `frame-ancestors 'self'${studio ? ` ${studio}` : ""}`,
     "base-uri 'none'",
   ].join("; ");
 }
@@ -110,6 +117,7 @@ export class Apps {
     text: string;
     carried: Carried | undefined;
     conversationId: string;
+    person?: string;
   }): { id: string; title: string } | undefined {
     const uri = this.viewOf(input.tool, input.carried);
     if (!uri) return undefined;
@@ -126,6 +134,7 @@ export class Apps {
           : {}),
         ...(input.carried?.meta ? { _meta: input.carried.meta } : {}),
       },
+      ...(input.person ? { person: input.person } : {}),
     };
     const artifact = this.home.artifacts.writeApp({
       title: input.tool?.title ?? `${input.connection.name}: ${input.name}`,
@@ -152,7 +161,7 @@ export class Apps {
       return await this.readAt(call);
     } catch (error) {
       const fresh = await this.home.connections
-        .refreshTools(call.connectionId)
+        .refreshTools(call.connectionId, call.person)
         .catch(() => undefined);
       const uri = fresh?.find((tool) => tool.name === call.tool)?.view;
       if (!uri || uri === call.uri) throw error;
@@ -167,7 +176,11 @@ export class Apps {
     const key = `${call.connectionId}\n${call.uri}`;
     const known = this.views.get(key);
     if (known) return known;
-    const read = (await this.home.connections.readResource(call.connectionId, call.uri)) as {
+    const read = (await this.home.connections.readResource(
+      call.connectionId,
+      call.uri,
+      call.person,
+    )) as {
       contents?: {
         text?: string;
         blob?: string;
@@ -231,7 +244,7 @@ export class Apps {
       const home = new URL(c.req.url).origin;
       return c.body(html, 200, {
         "content-type": "text/html; charset=utf-8",
-        "content-security-policy": hostPolicy(home),
+        "content-security-policy": hostPolicy(home, this.home.group.studio()),
         "cache-control": "private, no-store",
         "referrer-policy": "no-referrer",
       });
@@ -306,6 +319,8 @@ export class Apps {
         // What the view sends came from the server's page: data the person sent along.
         text: `From the view "${artifact.title}" of ${found.call.connection}, sent by the person:\n${text.data.text}`,
         channel: "app",
+        // The person whose call made the view pressed something in it.
+        writer: found.call.person ? this.home.group.known(found.call.person) : undefined,
       });
       return c.json({ ok: true }, 200, cors);
     });
@@ -335,10 +350,18 @@ export class Apps {
       return failed("The person does not allow this tool.");
     if (tool.destructive) {
       const artifact = this.home.artifacts.get(id);
-      if (artifact) this.home.connections.askFromView(artifact, connection, tool, input.arguments);
+      if (artifact)
+        this.home.connections.askFromView(artifact, connection, tool, input.arguments, call.person);
       return failed("This changes something for good: the person is asked in the chat first.");
     }
-    const step = await this.home.connections.use(connection, tool.name, input.arguments);
+    const step = await this.home.connections
+      .use(connection, tool.name, input.arguments, call.person)
+      .catch((error: unknown) => {
+        // The studio is not reached as this person: the view reads why.
+        if (error instanceof StudioRefused) return error;
+        throw error;
+      });
+    if (step instanceof StudioRefused) return failed(step.message);
     if (!("result" in step)) {
       if ("held" in step) this.home.connections.dropCall(step.held);
       return failed("The service wants to ask the person something: use it from the chat.");

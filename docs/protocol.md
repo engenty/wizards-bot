@@ -109,6 +109,21 @@ The home answers cross-origin requests from an origin a device was paired from, 
 token and no cookies; `POST /v1/pair/pass` hears every origin, and the pass decides. A device
 paired this way is forgotten when it was not seen for 30 days.
 
+### Inside the studio's page
+
+`HomeInfo.studio` is the origin of the studio the team works in (`docs/hosted.md`, Contract 10),
+left out where there is none. That studio shows the home's web app in a frame, and the two pages
+speak with `postMessage`, each only to the other's origin:
+
+| From       | Message                                     | When                                                          |
+| ---------- | ------------------------------------------- | ------------------------------------------------------------- |
+| the home   | `{ "type": "wizards.ready" }`               | once, when the web app runs inside a frame and listens        |
+| the studio | `{ "type": "wizards.space", "id", "name" }` | after `wizards.ready`, and again when another space is opened |
+
+The web app posts `wizards.ready` to its parent with `HomeInfo.studio` as the target origin, and
+takes `wizards.space` only from that origin: a message from any other page is ignored. It sends
+the space it heard last as `space` with every message of the person (`SendMessage`).
+
 ## Agents and conversations
 
 `GET /v1/agents` → `{ "agents": Agent[] }`. The main agent comes first. Each agent has one
@@ -178,6 +193,13 @@ first and the passage as a Markdown quote above the question; the agent is told 
 document it is.
 
 `POST /v1/conversations/:id/read` marks the conversation read.
+
+With `space: { "id", "name" }` the message says which space is open in the studio whose page
+shows the home's own inside it (below, "Inside the studio's page"). The agent reads its name, and
+the home fills its id in as `spaceId` where a tool of the `studio` connection takes a space and
+the agent names none. It stays with the turn across longer work and a card's answer. Without it
+the agent reads which spaces there are and asks when there are several. A device outside the
+studio sends none.
 
 A message written while the agent writes its reply goes into that reply: the agent reads it
 before its next step. With `later: true` it waits instead, for after the answer: the stored
@@ -529,7 +551,9 @@ What the home does to keep the page closed off:
   data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none';
   base-uri 'none'; frame-ancestors 'self'`, and writes the same policy into the page's head,
   before anything the agent wrote. `sandbox` holds in a tab as well: the page reads no storage
-  and no cookie of the web app.
+  and no cookie of the web app. Where a studio shows the home's page inside its own
+  (`HomeInfo.studio`), its origin stands beside `'self'` in `frame-ancestors`, here and on the
+  host page of a connection's view: a browser asks every page above a frame.
 - The page can ask no address for anything: not the home's routes, not the network. Its
   libraries are part of the page (below), and no answer of the home carries
   `Access-Control-Allow-Origin`.

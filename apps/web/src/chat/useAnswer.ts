@@ -6,6 +6,7 @@ import { withConsent } from "../lib/consent";
 import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
+import { inOpenSpace } from "../lib/studio";
 import { uuid } from "../lib/uuid";
 
 /**
@@ -54,6 +55,7 @@ export function useAnswer(card: Card) {
             text,
             answers: card.id,
             clientId: uuid(),
+            ...inOpenSpace(),
           }),
         (models) => client.setQueryData(keys.models(), models),
       );

@@ -424,6 +424,13 @@ export const Message = z.object({
 });
 export type Message = z.infer<typeof Message>;
 
+/** A space of the studio the team works in: its id there, and its name as people read it. */
+export const Space = z.object({
+  id: z.string().min(1).max(200),
+  name: z.string().trim().min(1).max(200),
+});
+export type Space = z.infer<typeof Space>;
+
 export const SendMessage = z.object({
   /** May be empty when files are attached. */
   text: z.string(),
@@ -445,6 +452,11 @@ export const SendMessage = z.object({
    * else. Left out: the newest question that waits in the conversation, if there is one.
    */
   answers: z.string().nullable().optional(),
+  /**
+   * The space that is open in the studio whose page shows the home's own inside it. The agent
+   * uses the studio's connection in it. Left out where no studio is around.
+   */
+  space: Space.optional(),
 });
 export type SendMessage = z.infer<typeof SendMessage>;
 
@@ -1127,6 +1139,11 @@ export const HomeInfo = z.object({
    * above is the same). Its people pair their own devices; a card waits for any of its admins.
    */
   group: z.object({ name: z.string() }).optional(),
+  /**
+   * The origin of the studio the team works in. Its page may show the home's own inside a frame;
+   * the two pages speak only to each other there.
+   */
+  studio: z.string().optional(),
 });
 export type HomeInfo = z.infer<typeof HomeInfo>;
 

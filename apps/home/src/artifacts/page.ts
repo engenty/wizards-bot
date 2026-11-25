@@ -24,9 +24,12 @@ export const PAGE_POLICY = [
 /**
  * The policy as a response header. `sandbox` without `allow-same-origin` gives the page an
  * origin of its own, also when it is opened in a tab: it reads no storage and no cookie of
- * the home's web app. `allow-modals` is there for the print dialog.
+ * the home's web app. `allow-modals` is there for the print dialog. The home's own page frames
+ * it, and with it the studio whose page shows the home's inside itself: a browser asks every
+ * page above a frame.
  */
-export const PAGE_HEADER_POLICY = `sandbox allow-scripts allow-modals; ${PAGE_POLICY}; frame-ancestors 'self'`;
+export const pageHeaderPolicy = (studio?: string): string =>
+  `sandbox allow-scripts allow-modals; ${PAGE_POLICY}; frame-ancestors 'self'${studio ? ` ${studio}` : ""}`;
 
 /**
  * The home's own styles. On the screen every rule sits in `:where()`, so any rule of the

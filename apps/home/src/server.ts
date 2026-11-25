@@ -544,6 +544,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
             ? `${writer.name}: ${asked}`
             : `${writer.name} writes:\n${asked}`,
         writer,
+        space: body.space,
         channel,
         spoken: body.spoken,
         files: attached,

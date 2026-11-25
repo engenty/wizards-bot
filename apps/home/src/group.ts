@@ -24,7 +24,8 @@ const People = z.object({
       }),
     )
     .max(5000),
-  // The runtime the team works in. Its studio shows this home's page inside its own.
+  // The runtime the team works in: the home uses it as a connection, each call as the person it
+  // is for, and its studio shows this home's page inside its own.
   studio: z.object({ mcp: z.string().url() }).nullable().catch(null).default(null),
 });
 
@@ -78,7 +79,8 @@ export class Group {
    * the home's own page inside itself.
    */
   studio(): string | undefined {
-    return this.home.db.meta("studio.origin") || undefined;
+    const mcp = this.home.db.meta("studio.mcp");
+    return mcp ? new URL(mcp).origin : undefined;
   }
 
   /** The team's name when this is a group home. */
@@ -156,10 +158,11 @@ export class Group {
     if (!response.ok) return false;
     const parsed = People.safeParse(await response.json().catch(() => undefined));
     if (!parsed.success) return false;
-    const studio = parsed.data.studio ? new URL(parsed.data.studio.mcp).origin : "";
-    if (studio !== (this.home.db.meta("studio.origin") ?? "")) {
-      this.home.db.setMeta("studio.origin", studio);
-    }
+    const studio = parsed.data.studio?.mcp ?? "";
+    if (studio !== (this.home.db.meta("studio.mcp") ?? ""))
+      this.home.db.setMeta("studio.mcp", studio);
+    // The studio is a connection of the home's own for as long as the Manage-App names it.
+    this.home.connections.keepStudio(studio || undefined);
     this.take(parsed.data);
     return true;
   }

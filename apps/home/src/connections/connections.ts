@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { noopLogger } from "@mastra/core/logger";
+import type { RequestContext } from "@mastra/core/request-context";
 import { MCPClient } from "@mastra/mcp";
 import {
   auth,
@@ -23,8 +24,12 @@ import {
   type Where,
 } from "./calls.ts";
 import { contentOf, type ElicitAnswer } from "./elicitation.ts";
+import { inSpace, STUDIO, STUDIO_SAYS, Studio, StudioRefused } from "./studio.ts";
 
 const REGISTRY = "https://registry.modelcontextprotocol.io/v0/servers";
+/** Where the home keeps which connection is the studio's. */
+const KEPT = "studio.connection";
+const TAKEN = `${STUDIO} is the studio your team works in, which the Bot Server connects by itself. Pick another name.`;
 
 /** Where `connection_call` was when it asked the person. */
 type Kept =
@@ -36,7 +41,11 @@ type Kept =
 interface Runs {
   execute(
     args: unknown,
-    context: { abortSignal: AbortSignal; writer?: { write(chunk: unknown): Promise<void> } },
+    context: {
+      abortSignal: AbortSignal;
+      writer?: { write(chunk: unknown): Promise<void> };
+      requestContext?: RequestContext;
+    },
   ): Promise<unknown>;
 }
 
@@ -191,9 +200,12 @@ export class Connections {
   private readonly runs = new Map<string, Record<string, Runs>>();
   private readonly home: Home;
   private readonly calls: Calls;
+  /** How the studio the team works in is reached: as the person a call is for. */
+  private readonly studio: Studio;
 
   constructor(home: Home) {
     this.home = home;
+    this.studio = new Studio(home);
     this.calls = new Calls({
       over: (held, connection, tool, said) => {
         // The server gave up, or the home did: the question's card is closed, the agent hears it.
@@ -300,6 +312,7 @@ export class Connections {
           text: said,
           carried,
           conversationId: where.conversationId,
+          person: where.person,
         })
       : undefined;
     if (kept) {
@@ -363,6 +376,7 @@ export class Connections {
   }): Promise<{ connection: Connection; signIn?: string }> {
     const name = input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     const existing = this.byName(name);
+    if (existing && this.isStudio(existing)) throw new Error(TAKEN);
     const id = existing?.id ?? newId("con");
     if (!existing) {
       this.home.db.run(
@@ -415,27 +429,40 @@ export class Connections {
     return typeof step.result === "string" ? step.result : step.result.text;
   }
 
-  /** Starts one tool and waits until it answers or its server asks the person. */
-  async use(connection: Connection, tool: string, args: Record<string, unknown>): Promise<Step> {
-    if (!this.clients.has(connection.id)) await this.reconnect(connection.id);
+  /**
+   * Starts one tool and waits until it answers or its server asks the person. `person` is who
+   * the call is for in a group home: the studio is called as them, and not at all for no one.
+   */
+  async use(
+    connection: Connection,
+    tool: string,
+    args: Record<string, unknown>,
+    person?: string,
+  ): Promise<Step> {
+    const studio = this.isStudio(connection);
+    if (studio) this.studio.needs(person);
+    if (!this.clients.has(connection.id)) await this.reconnect(connection.id, person);
     const runs = this.runs.get(connection.id)?.[tool];
     if (!runs) throw new Error(`${connection.name} has no tool ${tool} any more.`);
+    // Mastra's client hands the request context to the studio's `fetch` for every request of
+    // the call, also those of a task it follows after the turn.
+    const requestContext = studio ? this.studio.context(person) : undefined;
     return this.calls.start(connection, tool, (abortSignal, writer) =>
-      runs.execute(args, { abortSignal, writer }),
+      runs.execute(args, { abortSignal, writer, ...(requestContext ? { requestContext } : {}) }),
     );
   }
 
   /** Reads one resource of a connection's server: an MCP Apps view (connections/apps.ts). */
-  async readResource(connectionId: string, uri: string): Promise<unknown> {
+  async readResource(connectionId: string, uri: string, person?: string): Promise<unknown> {
     const row = this.home.db.get<Row>("select * from connection where id = ?", connectionId);
     if (!row) throw new Error("The connection is gone.");
-    const client = this.clients.get(connectionId) ?? (await this.reconnect(connectionId));
-    return client.resources.read(row.name, uri);
+    const client = this.clients.get(connectionId) ?? (await this.reconnect(connectionId, person));
+    return this.studio.as(person, () => client.resources.read(row.name, uri));
   }
 
   /** Connects again and reads the tools anew, as the server lists them now. */
-  async refreshTools(connectionId: string): Promise<ConnectionTool[] | undefined> {
-    await this.connect(connectionId);
+  async refreshTools(connectionId: string, person?: string): Promise<ConnectionTool[] | undefined> {
+    await this.connect(connectionId, person);
     const row = this.home.db.get<Row>("select * from connection where id = ?", connectionId);
     return row ? toConnection(row).tools : undefined;
   }
@@ -454,6 +481,7 @@ export class Connections {
     connection: Connection,
     tool: ConnectionTool,
     args: Record<string, unknown>,
+    person?: string,
   ): void {
     const { store } = this.home;
     const agent = store.agents().find((one) => one.conversationId === artifact.conversationId);
@@ -475,7 +503,7 @@ export class Connections {
           { id: "once", label: "Allow once", style: "primary" },
           { id: "deny", label: "Don't", style: "plain" },
         ],
-        payload: { type: "app_tool", connection: connection.name, tool: tool.name, args },
+        payload: { type: "app_tool", connection: connection.name, tool: tool.name, args, person },
       },
       { agentId: agent.id, conversationId: artifact.conversationId, messageId: empty.id },
     );
@@ -488,9 +516,65 @@ export class Connections {
       ?.disconnect()
       .catch(() => {});
     this.clients.delete(connection.id);
+    this.runs.delete(connection.id);
     this.home.secrets.delete(`connection.${connection.id}.oauth`);
     this.home.secrets.delete(`connection.${connection.id}.key`);
     this.home.db.run("delete from connection where id = ?", connection.id);
+  }
+
+  // ── The studio the team works in ──────────────────────────────────────────
+
+  /** Whether this is the connection the home keeps for the studio. */
+  isStudio(connection: Pick<Connection, "id">): boolean {
+    return this.home.db.meta(KEPT) === connection.id;
+  }
+
+  /** Whether the home keeps a connection for the studio. */
+  hasStudio(): boolean {
+    const id = this.home.db.meta(KEPT);
+    return Boolean(id && this.home.db.get("select id from connection where id = ?", id));
+  }
+
+  /**
+   * Keeps the studio's connection as the Manage-App names the studio's MCP endpoint: made when
+   * the address arrives, moved with it, gone with it. Its tools are read the first time someone
+   * uses it, as that person.
+   */
+  keepStudio(url: string | undefined): void {
+    const { db } = this.home;
+    const id = db.meta(KEPT);
+    const kept = id ? db.get<Row>("select * from connection where id = ?", id) : undefined;
+    if (kept?.url === url) return;
+    this.studio.forget();
+    if (kept) this.remove(toConnection(kept));
+    db.setMeta(KEPT, "");
+    if (!url) return;
+    // A connection of that name the person made by hand gives way: the studio signs nobody in.
+    const named = this.byName(STUDIO);
+    if (named) this.remove(named);
+    const made = newId("con");
+    db.run(
+      "insert into connection (id, name, url, state, created_at) values (?, ?, ?, 'connected', ?)",
+      made,
+      STUDIO,
+      url,
+      now(),
+    );
+    db.setMeta(KEPT, made);
+  }
+
+  /**
+   * A connection by its name, for a turn of `person`. The studio's is connected here when it is
+   * not yet: Mastra's client lists a server's tools without a request context, so the home
+   * reads them as the person who asks.
+   */
+  private async asked(name: string, person: string | undefined): Promise<Connection | undefined> {
+    const connection = this.byName(name);
+    if (!connection || !this.isStudio(connection) || this.clients.has(connection.id))
+      return connection;
+    this.studio.needs(person);
+    await this.connect(connection.id, person);
+    return this.byName(name);
   }
 
   setPolicy(connection: Connection, tool: string, policy: "always" | "never"): void {
@@ -507,8 +591,8 @@ export class Connections {
     this.clients.clear();
   }
 
-  private async reconnect(id: string): Promise<MCPClient> {
-    const signIn = await this.connect(id);
+  private async reconnect(id: string, person?: string): Promise<MCPClient> {
+    const signIn = await this.connect(id, person);
     const client = this.clients.get(id);
     if (!client)
       throw new Error(
@@ -517,10 +601,14 @@ export class Connections {
     return client;
   }
 
-  /** Connects and reads the tools. Returns the sign-in address when the server asks for one. */
-  private async connect(id: string): Promise<string | undefined> {
+  /**
+   * Connects and reads the tools. Returns the sign-in address when the server asks for one.
+   * The studio is read as `person`.
+   */
+  private async connect(id: string, person?: string): Promise<string | undefined> {
     const row = this.home.db.get<Row>("select * from connection where id = ?", id);
     if (!row) return undefined;
+    const studio = this.isStudio(row);
     const oauth = new StoredOAuth(this.home, id);
     const key = this.home.secrets.get(`connection.${id}.key`);
     await this.clients
@@ -537,13 +625,16 @@ export class Connections {
       servers: {
         [row.name]: {
           url: new URL(row.url),
-          ...(key
-            ? {
-                requestInit: {
-                  headers: { Authorization: key.startsWith("Bearer ") ? key : `Bearer ${key}` },
-                },
-              }
-            : { authProvider: oauth }),
+          ...(studio
+            ? // A person's token goes to the studio and nowhere else.
+              { fetch: this.studio.fetch, allowedHosts: [new URL(row.url).host] }
+            : key
+              ? {
+                  requestInit: {
+                    headers: { Authorization: key.startsWith("Bearer ") ? key : `Bearer ${key}` },
+                  },
+                }
+              : { authProvider: oauth }),
           clientInfo: { name: "wizards.bot", version: "1" },
           // A failed tool comes back as its answer, for the agent to read.
           onToolError: "return",
@@ -558,9 +649,12 @@ export class Connections {
     // What fails is told to the agent or the person, not written to the console.
     client.__setLogger(noopLogger);
     try {
-      const listed = await client.listToolDefinitionsWithErrors();
-      const found = listed.definitions[row.name];
-      if (!found) throw new Error(listed.errors[row.name] ?? "The connection does not answer.");
+      const { found, toolsets } = await this.studio.as(person, async () => {
+        const listed = await client.listToolDefinitionsWithErrors();
+        const found = listed.definitions[row.name];
+        if (!found) throw new Error(listed.errors[row.name] ?? "The connection does not answer.");
+        return { found, toolsets: await client.listToolsets() };
+      });
       const tools: ConnectionTool[] = Object.values(found).map((tool) => ({
         name: tool.name,
         ...(tool.title ? { title: tool.title } : {}),
@@ -572,7 +666,7 @@ export class Connections {
         ...(tool.annotations?.destructiveHint === true ? { destructive: true } : {}),
       }));
       this.clients.set(id, client);
-      this.runs.set(id, ((await client.listToolsets())[row.name] ?? {}) as Record<string, Runs>);
+      this.runs.set(id, (toolsets[row.name] ?? {}) as Record<string, Runs>);
       this.home.db.run(
         "update connection set state = 'connected', tools = ? where id = ?",
         JSON.stringify(tools),
@@ -585,6 +679,8 @@ export class Connections {
         this.home.db.run("update connection set state = 'needs_sign_in' where id = ?", id);
         return oauth.pending.toString();
       }
+      // The studio stays the team's connection: it is tried again for whoever asks next.
+      if (studio) throw refused(error);
       this.home.db.run("update connection set state = 'failed' where id = ?", id);
       throw error;
     }
@@ -610,6 +706,7 @@ export class Connections {
             text,
             carried: step.carried,
             conversationId: where.conversationId,
+            person: where.person,
           })
         : undefined;
       if (!kept || !view) return Promise.resolve(step.result);
@@ -638,6 +735,8 @@ export class Connections {
   private tools(context: TurnContext): Tool[] {
     const { home, agent, conversationId, draft } = context;
     const where = { agentId: agent.id, conversationId, messageId: draft.id };
+    // In a group home: who the turn is for. The studio is used as them.
+    const person = context.trigger.writer?.id;
     const use: Tool[] = [
       defineTool({
         name: "connection_tools",
@@ -649,7 +748,7 @@ export class Connections {
         }),
         label: (input) => `Looking at ${String(input.tool ?? input.name ?? "a connection")}`,
         run: async (input) => {
-          const connection = this.byName(input.name);
+          const connection = await this.asked(input.name, person);
           if (!connection)
             return `There is no connection ${input.name}. Connected: ${this.names().join(", ") || "none"}.`;
           if (connection.state !== "connected")
@@ -681,7 +780,7 @@ export class Connections {
         label: (input) => `${String(input.name ?? "")}: ${String(input.tool ?? "")}`,
         asks: true,
         run: async (input, call) => {
-          const connection = this.byName(input.name);
+          const connection = await this.asked(input.name, person);
           if (connection?.state !== "connected") return `${input.name} is not connected.`;
           const tool = connection.tools.find(
             (candidate) => candidate.name === input.tool && !candidate.appOnly,
@@ -690,14 +789,17 @@ export class Connections {
             return `${connection.name} has no tool ${input.tool}. Call connection_tools first.`;
           const policy = connection.policies[tool.name];
           if (policy === "never") return "The person does not allow this tool.";
+          // The studio's tools work in the space that is open there, unless the agent names one.
+          const args = this.isStudio(connection)
+            ? inSpace(input.arguments, tool.inputSchema, context.trigger.space)
+            : input.arguments;
+          const at = { agentId: agent.id, conversationId, person };
           const go = async () =>
-            this.shown(
-              connection,
-              await this.use(connection, tool.name, input.arguments),
-              call,
-              { agentId: agent.id, conversationId },
-              { tool, args: input.arguments, draft },
-            );
+            this.shown(connection, await this.use(connection, tool.name, args, person), call, at, {
+              tool,
+              args,
+              draft,
+            });
           const kept = call.answer?.kept as Kept | undefined;
           if (!call.answer || !kept) {
             // In a turn that read data from outside the home, "always" does not count: what
@@ -708,7 +810,7 @@ export class Connections {
                 kind: "approval",
                 level: "needs_you",
                 title: input.why,
-                body: `**${connection.name}** · \`${tool.name}\`\n\n\`\`\`json\n${JSON.stringify(input.arguments, null, 2).slice(0, 1500)}\n\`\`\``,
+                body: `**${connection.name}** · \`${tool.name}\`\n\n\`\`\`json\n${JSON.stringify(args, null, 2).slice(0, 1500)}\n\`\`\``,
                 actions: [
                   { id: "once", label: "Allow once", style: "primary" },
                   { id: "always", label: "Always allow", style: "plain" },
@@ -750,13 +852,7 @@ export class Connections {
               : answer.action === "decline"
                 ? `The person said no to what ${connection.name} asked. Do not try it another way. ${connection.name} answered:\n`
                 : `The person put off what ${connection.name} asked. ${connection.name} answered:\n`;
-          const result = await this.shown(
-            connection,
-            await next,
-            call,
-            { agentId: agent.id, conversationId },
-            { tool, args: input.arguments, draft },
-          );
+          const result = await this.shown(connection, await next, call, at, { tool, args, draft });
           if (!said || result === ENDS_TURN) return result;
           return typeof result === "string"
             ? said + result
@@ -820,6 +916,8 @@ export class Connections {
         }),
         label: (input) => `Connecting ${String(input.name ?? "")}`,
         run: async (input) => {
+          const named = this.byName(input.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+          if (named && this.isStudio(named)) return TAKEN;
           if (input.needsKey) {
             const card = home.store.createCard(
               {
@@ -870,6 +968,8 @@ export class Connections {
         run: async (input) => {
           const connection = this.byName(input.name);
           if (!connection) return `There is no connection ${input.name}.`;
+          if (this.isStudio(connection))
+            return `${connection.name} is the studio your team works in. The Bot Server keeps it as long as the team has that studio: it cannot be disconnected here.`;
           this.remove(connection);
           return `${connection.name} is disconnected.`;
         },
@@ -891,7 +991,13 @@ export class Connections {
       const connection = this.byName(name);
       if (connection?.state !== "connected")
         return home.tell(card.conversationId, `${name} is not connected.`);
-      const step = await this.use(connection, toolName, payload.args as Record<string, unknown>);
+      const step = await this.use(
+        connection,
+        toolName,
+        payload.args as Record<string, unknown>,
+        // The view runs as the person whose call made it.
+        typeof payload.person === "string" ? payload.person : undefined,
+      );
       if (!("result" in step)) {
         this.calls.drop(step.held);
         return home.tell(
@@ -946,7 +1052,7 @@ export class Connections {
       const name = String(payload.name);
       if (action === "cancel") {
         const connection = this.byName(name);
-        if (connection) this.remove(connection);
+        if (connection && !this.isStudio(connection)) this.remove(connection);
         return home.tell(card.conversationId, `The person did not sign in to ${name}.`);
       }
       const connection = this.byName(name);
@@ -978,6 +1084,16 @@ export class Connections {
       }
     });
   }
+}
+
+/**
+ * Why the studio was not reached, as the agent reads it: the home's own sentence where Mastra's
+ * client wrapped it, and what the studio itself said otherwise.
+ */
+function refused(error: unknown): unknown {
+  const said = String((error as Error)?.message ?? error);
+  const own = STUDIO_SAYS.find((sentence) => said.includes(sentence));
+  return own ? new StudioRefused(own) : error;
 }
 
 function toConnection(row: Row): Connection {

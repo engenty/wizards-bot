@@ -52,6 +52,8 @@ export interface FakeTool {
   readOnly?: boolean;
   /** The tool's own `_meta` in the list (MCP Apps: `ui.resourceUri`, `ui.visibility`). */
   meta?: Record<string, unknown>;
+  /** The properties of the tool's input, as its schema lists them. */
+  input?: Record<string, unknown>;
   run(call: Retry, state: unknown): Outcome;
 }
 
@@ -72,6 +74,8 @@ export class FakeMcp {
   readonly calls: Retry[] = [];
   /** Every body the server got, as text: to look for what must not have been sent. */
   readonly bodies: string[] = [];
+  /** Every request by its method, with the `Authorization` it came with. */
+  readonly requests: { method: string; authorization?: string }[] = [];
   /** How long a legacy call waits for the person before the server gives up. */
   patience = 5000;
   /** Whether the server wants a sign-in first (OAuth with a code), as a service on the internet does. */
@@ -128,7 +132,7 @@ export class FakeMcp {
       name,
       ...(tool.title ? { title: tool.title } : {}),
       description: tool.description ?? name,
-      inputSchema: { type: "object", properties: {} },
+      inputSchema: { type: "object", properties: tool.input ?? {} },
       annotations: { readOnlyHint: tool.readOnly === true },
       ...(tool.meta ? { _meta: tool.meta } : {}),
     }));
@@ -176,6 +180,7 @@ export class FakeMcp {
     if (request.method !== "POST") return json(405, {});
     this.bodies.push(body);
     const rpc = JSON.parse(body) as Rpc;
+    this.requests.push({ method: rpc.method ?? "", authorization: request.headers.authorization });
     const reply = (result: unknown) => json(200, { jsonrpc: "2.0", id: rpc.id, result });
     const fail = (status: number, code: number, message: string) =>
       json(status, { jsonrpc: "2.0", id: rpc.id ?? null, error: { code, message } });

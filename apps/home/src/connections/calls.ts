@@ -52,6 +52,8 @@ export type Step =
 export interface Where {
   agentId: string;
   conversationId: string;
+  /** In a group home: who the call is for. */
+  person?: string;
 }
 
 /** What a call does that nobody waits for: the connection is told through these. */
