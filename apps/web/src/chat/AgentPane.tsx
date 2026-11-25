@@ -15,6 +15,7 @@ import { Face } from "./Face";
  */
 export function AgentPane({
   agent,
+  runs,
   over,
   leaving,
   onFolder,
@@ -22,6 +23,11 @@ export function AgentPane({
   onClose,
 }: {
   agent: Agent;
+  /**
+   * The person runs the home. A member of a team reads who the agent is and what it works on;
+   * its tasks, its data and what it remembers are the team's admins'.
+   */
+  runs: boolean;
   /** It lies over the chat, as on a phone, instead of standing beside it. */
   over: boolean;
   /** It is on its way out. */
@@ -33,9 +39,6 @@ export function AgentPane({
   onClose: () => void;
 }) {
   const detail = useAgentDetail(agent.id, true);
-  // Every agent of the home uses the connected folders; one shared with you does not.
-  const usesFolders = agent.origin === "own";
-  const tasks = detail.data?.tasks;
   const doing = agent.state === "working" ? detail.data?.doing : undefined;
   const title = t("agent.about", { name: agent.name });
   return (
@@ -81,63 +84,92 @@ export function AgentPane({
             </p>
           ) : null}
         </div>
-        <section className="mt-6">
-          <h3 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("agent.tasks")}</h3>
-          {tasks?.length ? (
-            <>
-              <ul className="enter-fade divide-y divide-border-soft rounded-xl border border-border-soft bg-card px-4">
-                {tasks.map((task) => (
-                  <li key={task.id} className="flex items-start gap-3 py-3">
-                    <TaskIcon rule={task.rule} paused={task.paused !== undefined} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[0.9375rem] leading-snug" title={task.prompt}>
-                        {task.title}
-                      </p>
-                      <p className="mt-0.5 text-[0.8125rem] text-ink-3">{taskLine(task, lang)}</p>
-                      {task.paused ? (
-                        <p className="mt-0.5 text-[0.8125rem] text-rose">
-                          {t("task.paused", { why: task.paused })}
-                        </p>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-[0.8125rem] text-ink-3">
-                {t("agent.tasksHint", { name: agent.name })}
-              </p>
-            </>
-          ) : tasks ? (
-            <p className="enter-fade text-[0.875rem] text-ink-2 leading-relaxed">
-              {t("agent.noTasks", { name: agent.name })}
-            </p>
-          ) : detail.error ? (
-            <p role="alert" className="text-[0.8125rem] text-rose">
-              {detail.error.message}
-            </p>
-          ) : (
-            <Spinner className="size-4 text-ink-4" />
-          )}
-        </section>
-        {usesFolders ? (
-          <AgentData
-            agentId={agent.id}
-            name={agent.name}
-            conversationId={agent.conversationId}
+        {runs ? (
+          <AgentKeeps
+            agent={agent}
+            detail={detail}
             onFolder={onFolder}
             onOpenFolder={onOpenFolder}
           />
         ) : null}
-        {detail.data?.memory.trim() ? (
-          <section className="enter-fade mt-6">
-            <h3 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("agent.memory")}</h3>
-            <div className="max-h-56 overflow-y-auto rounded-xl bg-paper-2 px-4 py-3">
-              <Markdown text={detail.data.memory} className="text-[0.875rem]" />
-            </div>
-          </section>
-        ) : null}
       </div>
     </aside>
+  );
+}
+
+/** What an agent does by itself, what it reads and what it remembers: for who runs the home. */
+function AgentKeeps({
+  agent,
+  detail,
+  onFolder,
+  onOpenFolder,
+}: {
+  agent: Agent;
+  detail: ReturnType<typeof useAgentDetail>;
+  onFolder: () => void;
+  onOpenFolder: (id: string) => void;
+}) {
+  // Every agent of the home uses the connected folders; one shared with you does not.
+  const usesFolders = agent.origin === "own";
+  const tasks = detail.data?.tasks;
+  return (
+    <>
+      <section className="mt-6">
+        <h3 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("agent.tasks")}</h3>
+        {tasks?.length ? (
+          <>
+            <ul className="enter-fade divide-y divide-border-soft rounded-xl border border-border-soft bg-card px-4">
+              {tasks.map((task) => (
+                <li key={task.id} className="flex items-start gap-3 py-3">
+                  <TaskIcon rule={task.rule} paused={task.paused !== undefined} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.9375rem] leading-snug" title={task.prompt}>
+                      {task.title}
+                    </p>
+                    <p className="mt-0.5 text-[0.8125rem] text-ink-3">{taskLine(task, lang)}</p>
+                    {task.paused ? (
+                      <p className="mt-0.5 text-[0.8125rem] text-rose">
+                        {t("task.paused", { why: task.paused })}
+                      </p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[0.8125rem] text-ink-3">
+              {t("agent.tasksHint", { name: agent.name })}
+            </p>
+          </>
+        ) : tasks ? (
+          <p className="enter-fade text-[0.875rem] text-ink-2 leading-relaxed">
+            {t("agent.noTasks", { name: agent.name })}
+          </p>
+        ) : detail.error ? (
+          <p role="alert" className="text-[0.8125rem] text-rose">
+            {detail.error.message}
+          </p>
+        ) : (
+          <Spinner className="size-4 text-ink-4" />
+        )}
+      </section>
+      {usesFolders ? (
+        <AgentData
+          agentId={agent.id}
+          name={agent.name}
+          conversationId={agent.conversationId}
+          onFolder={onFolder}
+          onOpenFolder={onOpenFolder}
+        />
+      ) : null}
+      {detail.data?.memory.trim() ? (
+        <section className="enter-fade mt-6">
+          <h3 className="mb-2 font-medium text-[0.8125rem] text-ink-3">{t("agent.memory")}</h3>
+          <div className="max-h-56 overflow-y-auto rounded-xl bg-paper-2 px-4 py-3">
+            <Markdown text={detail.data.memory} className="text-[0.875rem]" />
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 

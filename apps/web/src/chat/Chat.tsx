@@ -90,7 +90,8 @@ export function Chat({
   focus?: { cardId: string; at: number };
   onDocument: (id: string) => void;
   onArtifact: (id: string) => void;
-  onFolder: () => void;
+  /** Connects a folder from this chat; missing for who does not run the home. */
+  onFolder?: () => void;
   /** A file the person named in the file browser, to put into what they are writing. */
   reference?: { text: string; at: number };
 }) {
@@ -300,7 +301,8 @@ export function Chat({
           onDocument={onDocument}
           onArtifact={onArtifact}
           onProblem={flash}
-          onStart={(text) => void send(text, [])}
+          // The first ideas need folders and tasks, which are for who runs the home.
+          onStart={onFolder ? (text) => void send(text, []) : undefined}
           waited={waitedFor(agent, agents)}
           onChat={({ agent: other, cardId }) => onChat(other, cardId)}
           focus={focus}
@@ -340,7 +342,11 @@ export function Chat({
             void api.post(`/v1/conversations/${agent.conversationId}/stop`).catch(() => undefined)
           }
           onSend={send}
-          plus={[{ icon: <FolderPlus />, label: t("composer.folder"), onSelect: onFolder }]}
+          plus={
+            onFolder
+              ? [{ icon: <FolderPlus />, label: t("composer.folder"), onSelect: onFolder }]
+              : []
+          }
         />
       </div>
     </main>

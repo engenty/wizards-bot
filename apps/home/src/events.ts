@@ -1,9 +1,16 @@
 import type { Event } from "@wizards-bot/protocol";
 
+/**
+ * Who hears an event, where that is not every device that hears its kind: the people who run
+ * the home, or the one member of a group in whose own conversation it happened.
+ */
+export type Audience = "admins" | { person: string };
+
 export interface StoredEvent {
   /** Missing on `message.delta` and `message.waiting`, which are never replayed. */
   id?: number;
   event: Event;
+  to?: Audience;
 }
 
 type Listener = (stored: StoredEvent) => void;
@@ -15,12 +22,14 @@ export class Events {
   private seq = Date.now();
   private readonly log: StoredEvent[] = [];
   private readonly listeners = new Set<Listener>();
+  /** Who hears an event that is emitted without an audience. The store knows whose conversation it is in. */
+  audience: (event: Event) => Audience | undefined = () => undefined;
 
-  emit(event: Event): void {
+  emit(event: Event, to: Audience | undefined = this.audience(event)): void {
     const stored: StoredEvent =
       event.type === "message.delta" || event.type === "message.waiting"
-        ? { event }
-        : { id: ++this.seq, event };
+        ? { event, to }
+        : { id: ++this.seq, event, to };
     if (stored.id !== undefined) {
       this.log.push(stored);
       if (this.log.length > KEEP) this.log.shift();

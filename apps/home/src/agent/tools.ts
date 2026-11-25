@@ -1,5 +1,6 @@
 import { EngentyColor, EngentyKind } from "@wizards-bot/protocol";
 import { z } from "zod";
+import { runsHome } from "../group.ts";
 import { GATEWAY_PRESETS } from "../models/models.ts";
 import { langOf, pairingCard } from "../setup/words.ts";
 import { askTool } from "./ask.ts";
@@ -16,6 +17,16 @@ export function buildTools(context: TurnContext): Tool[] {
   const { home, agent, conversationId, draft } = context;
   const { store } = home;
   const where = { agentId: agent.id, conversationId, messageId: draft.id };
+  /**
+   * A document this turn reads and writes: one of its own conversation, and for who runs the
+   * home any that is not in a member's own conversation, which nobody else reads.
+   */
+  const reached = (id: string) => {
+    const document = store.document(id);
+    if (!document || document.conversationId === conversationId) return document;
+    const others = runsHome(context.trigger.writer) && !store.memberOf(document.conversationId);
+    return others ? document : undefined;
+  };
 
   const own: Tool[] = [
     askTool(context),
@@ -51,13 +62,14 @@ export function buildTools(context: TurnContext): Tool[] {
         };
       },
       run: async (input) => {
-        const document = input.id
-          ? store.saveDocument(input.id, {
+        const document = !input.id
+          ? store.createDocument({ title: input.title, content: input.content, conversationId })
+          : reached(input.id) &&
+            store.saveDocument(input.id, {
               content: input.content,
               title: input.title,
               by: "agent",
-            })
-          : store.createDocument({ title: input.title, content: input.content, conversationId });
+            });
         if (!document) return `There is no document ${input.id}.`;
         draft.add({ type: "document", documentId: document.id, title: document.title });
         return `Saved as ${document.id}, version ${document.version}. The person sees it beside the chat.`;
@@ -69,11 +81,11 @@ export function buildTools(context: TurnContext): Tool[] {
       input: z.object({ id: z.string() }),
       label: () => "Reading a document",
       object: (input) => {
-        const document = store.document(String(input.id));
+        const document = reached(String(input.id));
         return document && { name: document.title, documentId: document.id };
       },
       run: async (input) => {
-        const document = store.document(input.id);
+        const document = reached(input.id);
         if (!document) return `There is no document ${input.id}.`;
         const text = `# ${document.title} (version ${document.version}, last changed by ${document.updatedBy})\n\n${document.content}`;
         const marks = store.marks(document.id);

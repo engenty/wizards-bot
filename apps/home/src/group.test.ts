@@ -466,11 +466,14 @@ describe("a group home", () => {
     for (const token of [cleo, dora]) {
       assert.equal((await t.request("/v1/device", { token })).status, 200);
       assert.equal((await t.request("/v1/look", { token })).status, 200);
+      // A member chats with the group's agents, each in a conversation of their own
+      // (members.test.ts); the team's is not theirs. A client has no chat.
+      const chat = token === cleo ? 404 : 403;
+      for (const path of [`/v1/agents/${id}`, "/v1/agents", "/v1/items"])
+        assert.equal((await t.request(path, { token })).status, token === cleo ? 200 : 403, path);
+      const read = await t.request(`/v1/conversations/${conversationId}/messages`, { token });
+      assert.equal(read.status, chat);
       for (const path of [
-        "/v1/agents",
-        `/v1/agents/${id}`,
-        `/v1/conversations/${conversationId}/messages`,
-        "/v1/items",
         "/v1/search?q=hello",
         "/v1/devices",
         "/v1/vault",
@@ -487,7 +490,7 @@ describe("a group home", () => {
         token,
         body: { text: "Hello" },
       });
-      assert.equal(written.status, 403);
+      assert.equal(written.status, chat);
       const watch = await t.request("/v1/devices", { token, body: { name: "W", kind: "watch" } });
       assert.equal(watch.status, 403);
     }

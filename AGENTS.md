@@ -197,9 +197,19 @@ no emoji, no "please".
   is in the team and who runs it. Every admin reads the conversations of the group's agents, a
   card waits for any of them and the first answer counts. A device of it offers nothing to the
   agents: what one person's phone keeps would reach the turns of the others.
-- A member's or a client's device reaches only the routes named for it (`OWN_DEVICE` in
-  `server.ts`): a new route is the admins' until it is named there. Their turns have only the
-  tools named for them (`agent/roles.ts`).
+- A client's device reaches only the routes in `OWN_DEVICE` (`server.ts`), a member's those in
+  `MEMBER_DEVICE` too: a new route is the admins' until it is named there. A route named for a
+  member answers only for a conversation that is theirs (`theirs`), and reaches a card, a
+  document and an artifact through their conversation.
+- A member of a group chats with its own agents, each in a conversation of their own
+  (`conversation.person_id`). Nobody else reads it: an admin's device gets 404 for it and hears
+  none of its events, and no push, search or list of the admins names it. What happens in a
+  conversation is told to who reads it (`Events.audience`), so a new kind of event that
+  happens in one carries its `conversationId`.
+- A turn in a member's conversation is that member's, whatever started it, and has only the
+  tools named in `agent/roles.ts`: a new tool is the admins' until it is named there. It reads
+  the agent's memory and does not write it, uses no connection but the studio, as that member,
+  and is offered "Allow once", never "Always allow". A client's turn has a question back.
 - What a device keeps stays on the device. Its own agent works on it and sends back only the
   answer; it asks the person on the device before every change and before a file leaves the
   device. Only the person's own agents hand a device anything, each only after the person

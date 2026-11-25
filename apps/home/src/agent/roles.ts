@@ -6,10 +6,14 @@ import type { Tool } from "./tool.ts";
  * The tools an agent of a group home has for a member of the team: those that stay in the
  * conversation. What its admins connected (accounts, folders, the Vault, the shell), what starts
  * work that answers to nobody here (tasks, other agents) and what changes the home stay theirs.
+ * `remember` is among those: the agent's memory stands in every turn of every admin, so a
+ * member's turn reads it and does not write it. The two tools of a connection are held to the
+ * studio the team works in (`connections/connections.ts`), which is called as that member.
  */
 const MEMBER = new Set([
   "ask",
-  "remember",
+  "connection_tools",
+  "connection_call",
   "skill_load",
   "go_on",
   "document_read",

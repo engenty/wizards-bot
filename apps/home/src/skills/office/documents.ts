@@ -4,6 +4,7 @@ import type { FileRef } from "@wizards-bot/protocol";
 import { z } from "zod";
 import { defineTool, type Tool } from "../../agent/tool.ts";
 import type { TurnContext } from "../../agent/turns.ts";
+import { runsHome } from "../../group.ts";
 import type { Home } from "../../home.ts";
 import { type DocumentKind, documentKind, documentText, kindName, piece } from "./read.ts";
 
@@ -30,6 +31,10 @@ export const TARGET = {
     .describe("A connected folder to write the file into as well. The person is asked first."),
   path: z.string().optional().describe("Where in that folder, e.g. offers/lena.docx."),
 };
+
+/** What a turn reads that is for someone who does not run the group home. */
+const ADMINS_FOLDERS =
+  "The connected folders are for the team's admins: nothing was read from or written into one.";
 
 export interface Source {
   name: string;
@@ -70,6 +75,7 @@ export function openSource(
 ): Source {
   const { home } = context;
   const fits = (name: string): boolean => !kind || documentKind(name) === kind;
+  if (input.folder && !runsHome(context.trigger.writer)) throw new Error(ADMINS_FOLDERS);
   if (input.folder) {
     const folder = home.folders.byName(input.folder);
     if (!folder) throw new Error(`There is no connected folder ${input.folder}.`);
@@ -130,6 +136,7 @@ export function keepFile(
   draft.add({ type: "file", file });
   const inMessage = `${file.name} (${file.id}) is in your message; the person saves it from there.`;
   if (!target) return `${inMessage} Say so in one sentence; do not repeat its text.`;
+  if (!runsHome(context.trigger.writer)) return `${inMessage} ${ADMINS_FOLDERS}`;
   const folder = home.folders.byName(target.folder);
   if (!folder)
     return `${inMessage} There is no connected folder ${target.folder}, so it was not written into one.`;

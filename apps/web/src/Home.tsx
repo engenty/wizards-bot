@@ -41,9 +41,10 @@ import {
   split,
 } from "./lib/layout";
 import { toMac } from "./lib/mac";
+import { sidebarOffers } from "./lib/member";
 import { useLingering } from "./lib/motion";
 import { noticesOf, notify } from "./lib/notify";
-import { useAgents, useAvatar, useHomeLook, useItems, useSetup } from "./lib/queries";
+import { useAgents, useAvatar, useHomeLook, useItems, useRunsHome, useSetup } from "./lib/queries";
 import { setDeviceToken } from "./lib/session";
 import { useStored } from "./lib/stored";
 import { useEvents, useLink } from "./lib/stream";
@@ -201,10 +202,13 @@ export function Home() {
   const link = useLink();
   const agents = useAgents();
   const items = useItems();
-  const avatar = useAvatar();
+  // The home's avatar and its setup are for who runs it: a member's device asks for neither.
+  const runs = useRunsHome() === true;
+  const offers = sidebarOffers(runs);
+  const avatar = useAvatar(runs);
   useHomeLook();
   useStudioSpace();
-  const setup = useSetup();
+  const setup = useSetup(runs);
   const [agentId, setAgentId] = useState(lastAgent);
   const [documentId, setDocumentId] = useState<string | null>(null);
   // An artifact opens where a document opens, and so does what there is to know about the
@@ -246,7 +250,11 @@ export function Home() {
   const pane = Boolean(documentId || artifactId || about || folderView);
   const side = sidebar(windowWidth, pane, collapsed);
   // ⌘K (Ctrl+K) opens the search, wherever the focus is.
+  const searches = offers.search;
   useEffect(() => {
+    if (!searches) {
+      return;
+    }
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && !(e.shiftKey || e.altKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -255,7 +263,7 @@ export function Home() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [searches]);
   useEffect(() => {
     if (side === "open") {
       setDrawer(false);
@@ -432,19 +440,31 @@ export function Home() {
       avatar={avatar.data ?? null}
       rail={rail}
       onPick={pick}
-      onSearch={() => {
-        setDrawer(false);
-        setDialog("search");
-      }}
-      onNew={() => {
-        setDrawer(false);
-        setDialog("new");
-      }}
-      onSettings={settings}
-      onAvatar={() => {
-        setDrawer(false);
-        setDialog("avatar");
-      }}
+      onSearch={
+        offers.search
+          ? () => {
+              setDrawer(false);
+              setDialog("search");
+            }
+          : undefined
+      }
+      onNew={
+        offers.add
+          ? () => {
+              setDrawer(false);
+              setDialog("new");
+            }
+          : undefined
+      }
+      onSettings={offers.settings ? settings : undefined}
+      onAvatar={
+        offers.avatar
+          ? () => {
+              setDrawer(false);
+              setDialog("avatar");
+            }
+          : undefined
+      }
       onSignOut={() => void signOut()}
     />
   );
@@ -518,10 +538,14 @@ export function Home() {
                 onDocument={showDocument}
                 onArtifact={showArtifact}
                 reference={reference}
-                onFolder={() => {
-                  setFolderFrom(agent.conversationId);
-                  setDialog("folder");
-                }}
+                onFolder={
+                  runs
+                    ? () => {
+                        setFolderFrom(agent.conversationId);
+                        setDialog("folder");
+                      }
+                    : undefined
+                }
               />
             </OpenArtifact.Provider>
           </StepTargets.Provider>
@@ -574,6 +598,7 @@ export function Home() {
                 <AgentPane
                   key={agent.id}
                   agent={agent}
+                  runs={runs}
                   {...paneProps}
                   onFolder={() => {
                     setFolderFrom(agent.conversationId);
@@ -603,15 +628,18 @@ export function Home() {
           if (hit.kind === "artifact") setArtifactId(hit.id);
         }}
       />
-      <SettingsDialog
-        open={dialog === "settings"}
-        onFolder={() => {
-          setFolderFrom(undefined);
-          setDialog("folder");
-        }}
-        asker={asker}
-        onClose={close.settings}
-      />
+      {/* The settings read the home's folders, plugins, models and setup as soon as they stand. */}
+      {runs ? (
+        <SettingsDialog
+          open={dialog === "settings"}
+          onFolder={() => {
+            setFolderFrom(undefined);
+            setDialog("folder");
+          }}
+          asker={asker}
+          onClose={close.settings}
+        />
+      ) : null}
       <ItemsDialog
         open={dialog === "items"}
         items={items.data ?? []}

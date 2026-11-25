@@ -54,6 +54,7 @@ import { formOf, readForm } from "./agent/ask.ts";
 import { LeavesHome, NoPictureModel, NotAPicture } from "./avatar/avatars.ts";
 import { isHosted, tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
+import type { StoredEvent } from "./events.ts";
 import { FileRefused, isText, sniff } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
 import { PassRefused, runsHome } from "./group.ts";
@@ -154,6 +155,35 @@ const OWN_DEVICE = new Set([
   "PUT /v1/look",
   "GET /v1/events",
 ]);
+
+/**
+ * What a member's device may ask for besides: the group's own agents, and what is in the
+ * member's own conversations with them. Each of these routes answers only for a conversation
+ * that is theirs (`theirs`), or for a file by its id, which stands only in messages they read.
+ */
+const MEMBER_DEVICE = [
+  "GET /v1/agents",
+  "GET /v1/agents/:id",
+  "GET /v1/conversations/:id/messages",
+  "POST /v1/conversations/:id/messages",
+  "POST /v1/conversations/:id/read",
+  "POST /v1/conversations/:id/warm",
+  "POST /v1/conversations/:id/stop",
+  "GET /v1/conversations/:id/documents",
+  "GET /v1/conversations/:id/files",
+  "GET /v1/conversations/:id/artifacts",
+  "GET /v1/items",
+  "POST /v1/cards/:id/answer",
+  "GET /v1/documents/:id",
+  "PUT /v1/documents/:id",
+  "GET /v1/documents/:id/marks",
+  "POST /v1/documents/:id/marks",
+  "DELETE /v1/documents/:id/marks/:mark",
+  "GET /v1/artifacts/:id",
+  "POST /v1/files",
+  "GET /v1/files/:id",
+  "DELETE /v1/files/:id",
+].map((route) => new RegExp(`^${route.replace(/:\w+/g, "[^/]+")}$`));
 
 /** The largest file the person drops into a connected folder in the file browser. */
 const DROPPED_BYTES = 200 * 1024 * 1024;
@@ -363,7 +393,11 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         "This device is not paired with the Bot Server any more.",
       );
     c.set("device", device);
-    if (!runsHome(device.person) && !OWN_DEVICE.has(`${c.req.method} ${c.req.path}`))
+    const asked = `${c.req.method} ${c.req.path}`;
+    const named =
+      OWN_DEVICE.has(asked) ||
+      (device.person?.role === "member" && MEMBER_DEVICE.some((route) => route.test(asked)));
+    if (!runsHome(device.person) && !named)
       return fail(
         c,
         403,
@@ -437,34 +471,77 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   // ── Agents and conversations ──────────────────────────────────────────────
 
-  /** An agent's line as one device sees it: in a group home, with what its person has not read. */
+  /**
+   * An agent's line as one device sees it: in a group home, with what its person has not read.
+   * For a member of the group it is the line of their own conversation with the agent.
+   */
   const seenBy = (agent: Agent, device: DeviceRecord): Agent =>
-    device.person
-      ? { ...agent, unread: store.unread(agent.conversationId, device.person.id) }
-      : agent;
+    !device.person
+      ? agent
+      : runsHome(device.person)
+        ? { ...agent, unread: store.unread(agent.conversationId, device.person.id) }
+        : store.agentFor(agent, device.person.id);
 
-  app.get("/v1/agents", (c) =>
-    c.json({ agents: store.agents().map((agent) => seenBy(publicAgent(agent), c.get("device"))) }),
-  );
+  /** Whether a device lists an agent: a member of the group has the group's own agents. */
+  const lists = (agent: Agent, device: DeviceRecord): boolean =>
+    runsHome(device.person) || agent.origin === "own";
+
+  /**
+   * Whether a conversation is this device's to read, write in and stop. The team's is, for who
+   * runs the home; a member's own is that member's alone; one someone else has with an agent (a
+   * contact it is shared with, a caller, a room it answers) is no device's. A card, a document
+   * and an artifact are reached through their conversation.
+   */
+  const theirs = (c: Context<Env>, conversationId: string): boolean => {
+    if (store.isGuest(conversationId)) return false;
+    const person = c.get("device").person;
+    const member = store.memberOf(conversationId);
+    return runsHome(person) ? member === undefined : member !== undefined && member === person?.id;
+  };
+
+  app.get("/v1/agents", (c) => {
+    const device = c.get("device");
+    const agents = store.agents().map(publicAgent);
+    return c.json({
+      agents: agents.filter((agent) => lists(agent, device)).map((agent) => seenBy(agent, device)),
+    });
+  });
 
   app.get("/v1/search", (c) => c.json({ hits: store.search(c.req.query("q") ?? "") }));
 
   app.get("/v1/agents/:id", (c) => {
     const agent = store.agent(c.req.param("id"));
-    if (!agent) return c.json({ error: "not_found" }, 404);
+    const device = c.get("device");
+    if (!agent || !lists(agent, device)) return c.json({ error: "not_found" }, 404);
+    const seen = seenBy(publicAgent(agent), device);
+    // What an agent remembers and does by itself is for who runs the home.
+    const runs = runsHome(device.person);
     const detail: AgentDetail = {
-      agent: seenBy(publicAgent(agent), c.get("device")),
-      memory: agent.memory,
-      tasks: home.tasks.list(agent.id),
-      doing: home.turns.doing(agent.conversationId),
+      agent: seen,
+      memory: runs ? agent.memory : "",
+      tasks: runs ? home.tasks.list(agent.id) : [],
+      doing: home.turns.doing(seen.conversationId),
     };
     return c.json(detail);
   });
 
-  // A conversation someone else has with one of the person's agents is theirs: no device
-  // reads it, writes in it or stops it. It answers as one that is not there.
+  // A conversation that is not this device's answers as one that is not there: no device reads
+  // it, writes in it or stops it.
   app.use("/v1/conversations/:id/*", async (c, next) => {
-    if (store.isGuest(c.req.param("id"))) return notFound(c, "conversation");
+    if (!theirs(c, c.req.param("id"))) return notFound(c, "conversation");
+    await next();
+  });
+
+  // A document and an artifact are their conversation's.
+  for (const path of ["/v1/documents/:id", "/v1/documents/:id/*"])
+    app.use(path, async (c, next) => {
+      const document = store.document(c.req.param("id") ?? "");
+      if (document && !theirs(c, document.conversationId)) return notFound(c, "document");
+      await next();
+    });
+  app.use("/v1/artifacts/:id", async (c, next) => {
+    const artifact = home.artifacts.get(c.req.param("id"));
+    if (artifact && !theirs(c, artifact.conversationId)) return notFound(c, "artifact");
     await next();
   });
 
@@ -484,6 +561,14 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     await home.models.refresh();
     const waiting = home.models.waitingForYes();
     if (!waiting.length) return undefined;
+    // The yes to a service is said for the whole home, by who runs it.
+    if (!runsHome(c.get("device").person))
+      return fail(
+        c,
+        409,
+        "admins_consent",
+        `Your team's Bot Server uses ${waiting.map((service) => service.label).join(" and ")}. An admin of the team says yes to that first.`,
+      );
     return fail(
       c,
       409,
@@ -545,12 +630,14 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         conversationId: conversation.id,
         messageId: message.id,
         later: body.later,
-        // In a room the group home is one member: the others read who of it wrote.
-        text: !writer
-          ? asked
-          : store.agent(conversation.agentId)?.origin === "room"
-            ? `${writer.name}: ${asked}`
-            : `${writer.name} writes:\n${asked}`,
+        // In a room the group home is one member: the others read who of it wrote. In a
+        // member's own conversation nobody else writes.
+        text:
+          !writer || store.memberOf(conversation.id)
+            ? asked
+            : store.agent(conversation.agentId)?.origin === "room"
+              ? `${writer.name}: ${asked}`
+              : `${writer.name} writes:\n${asked}`,
         writer,
         space: body.space,
         channel,
@@ -688,12 +775,16 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   // ── Cards ─────────────────────────────────────────────────────────────────
 
-  app.get("/v1/items", (c) => c.json({ items: store.items() }));
+  app.get("/v1/items", (c) => {
+    const person = c.get("device").person;
+    return c.json({ items: store.itemsFor(runsHome(person) ? undefined : person?.id) });
+  });
 
   app.post("/v1/cards/:id/answer", async (c) => {
     const body = AnswerCard.parse(await c.req.json());
     const before = store.card(c.req.param("id"));
-    if (!before) return notFound(c, "card");
+    // A card is answered by who reads its conversation.
+    if (!before || !theirs(c, before.conversationId)) return notFound(c, "card");
     const actions = before.actions;
     // A view's own buttons answer its card, and only where the view asks.
     const fromView = body.action === VIEW_ANSWER;
@@ -1211,26 +1302,37 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       const device = c.get("device");
       const deviceId = device.id;
       const runs = runsHome(device.person);
-      const forThis = (event: Event) =>
-        event.type === "handoff.updated"
-          ? event.handoff.deviceId === deviceId
-          : // How the chat looks is each person's own. All else is for who runs the home.
-            event.type === "look.updated"
-            ? event.person === device.person?.id
-            : runs;
-      // An agent's line carries what this device's person has not read.
-      const asSeen = (event: Event): Event =>
-        event.type === "agent.updated" ? { ...event, agent: seenBy(event.agent, device) } : event;
+      const member = device.person?.role === "member";
+      const forThis = ({ event, to }: StoredEvent) => {
+        if (event.type === "handoff.updated") return event.handoff.deviceId === deviceId;
+        // How the chat looks is each person's own.
+        if (event.type === "look.updated") return event.person === device.person?.id;
+        // What happens in a member's own conversation is that member's, and no admin's.
+        if (to && to !== "admins") return member && to.person === device.person?.id;
+        if (runs) return true;
+        // A member hears of the group's own agents besides. All else is for who runs the home.
+        if (!member || to) return false;
+        return (
+          event.type === "agent.removed" ||
+          (event.type === "agent.updated" && lists(event.agent, device))
+        );
+      };
+      // An agent's line as this device's person sees it. Nothing of an agent that is gone since.
+      const asSeen = (event: Event): Event | undefined => {
+        if (event.type !== "agent.updated") return event;
+        if (!runs && !store.agent(event.agent.id)) return undefined;
+        return { ...event, agent: seenBy(event.agent, device) };
+      };
+      const hear = (stored: StoredEvent) => {
+        const event = forThis(stored) ? asSeen(stored.event) : undefined;
+        if (event) push(stored.id, event);
+      };
       if (!Number.isNaN(lastId)) {
         const missed = home.events.since(lastId);
-        if (missed) {
-          for (const stored of missed)
-            if (forThis(stored.event)) push(stored.id, asSeen(stored.event));
-        } else push(undefined, { type: "reset" });
+        if (missed) for (const stored of missed) hear(stored);
+        else push(undefined, { type: "reset" });
       }
-      const unsubscribe = home.events.subscribe((stored) => {
-        if (forThis(stored.event)) push(stored.id, asSeen(stored.event));
-      });
+      const unsubscribe = home.events.subscribe(hear);
       const unlisten = home.handoffs.listen(deviceId);
       const ping = setInterval(() => {
         // A device that signed out: its stream ends with the next ping.

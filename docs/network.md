@@ -372,14 +372,34 @@ A group home is a home on a VPS that belongs to a group: a club, a company, a fo
 Built on 2026-11-24, for a team's hosted home (`apps/home/src/group.ts`, `docs/hosted.md`
 Contracts 10 and 11): the team's people in the Manage-App are its people, and the owners and
 admins among them the admins; each pairs their first device with a pass from the Manage-App and
-an admin further devices with a code they ask for; every device is marked with whose it is. A
-member's or client's device reaches nothing of the admins'. Every admin sees the conversations of the
-group's agents, each message names who wrote it, a card waits for all of them and
-the first answer counts and is named. A device offers nothing to the group's agents. Not built
-from this section: the group's record listing its admins (the record is signed by the key the
-first admin made), conversations of members and clients other than through rooms and shared
-agents, limits per member,
-private conversations of one admin, and a group home not made by the Manage-App.
+an admin further devices with a code they ask for; every device is marked with whose it is.
+Every admin sees the team's conversations with the group's agents, each message names who wrote
+it, a card waits for all of them and the first answer counts and is named. A device offers
+nothing to the group's agents.
+
+Built on 2026-11-25, for the team's members (`docs/protocol.md`, "A member of a group home"): a
+member is a person of the team with a device of the group home, paired with a pass like an
+admin's. They chat with the group's own agents, each in a conversation of their own
+(`conversation.person_id`), made the first time their device lists the agents.
+
+| Of a member's conversation | How it is                                                                                                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| who reads it               | the member alone. An admin's device gets 404 for it and for its cards, documents and artifacts, hears none of its events and gets no push from it; the admins' search and "what needs you" do not list it |
+| what the member reaches    | the group's own agents and what is in their own conversations. Not the team's conversations, rooms, shared and outside agents, the settings, the Vault, folders, devices, models, sharing                 |
+| the agent's tools          | what stays in the conversation: questions, documents, artifacts, the conversation's files, skills, longer work. No folder, no shell, no Vault, no device, no task, no other agent                         |
+| connections                | the studio the team works in, and no other: it is called with the member's own token, so the studio decides what they see and run. A tool that changes something asks the member, each time               |
+| the agent's memory         | read, not written: it stands in every turn of every admin                                                                                                                                                 |
+| cards                      | answered by that member alone. No more capable model is offered                                                                                                                                           |
+| credits                    | a member's turns spend the team's, like an admin's                                                                                                                                                        |
+| someone who leaves         | their conversations go with their devices. Someone who becomes an admin keeps theirs stored, and they are not shown                                                                                       |
+
+A client of the team has no chat: their device reaches itself and their look.
+
+Not built from this section: the group's record listing its admins (the record is signed by the
+key the first admin made), a conversation the whole team shares with its members, conversations
+of clients, admins reading or listing members' conversations, a member's phone or Mac (a pairing
+code is an admin's, and push goes to admins), limits per member, private conversations of one
+admin, and a group home not made by the Manage-App.
 
 - **Identity.** The group has a record like a person: `club@wizards.id` or `@example.club`, a
   group id, the home's key. The record lists the **admins** by person id instead of one person
@@ -420,7 +440,8 @@ one rule each:
 
 - In a room, other members' messages are from outside, also when they come through a home you
   trust.
-- An agent of a group home answers to the admins, not to the members who talk to it.
+- An agent of a group home answers to the admins, not to the members who talk to it: a member's
+  turn changes nothing of the home and nothing the agent remembers.
 
 ## 7. Prior art
 

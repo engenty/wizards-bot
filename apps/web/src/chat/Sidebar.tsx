@@ -210,12 +210,12 @@ export function Sidebar({
   avatar: Avatar | null;
   rail?: boolean;
   onPick: (agent: Agent) => void;
-  /** Opens the search (⌘K). */
-  onSearch: () => void;
+  /** Opens the search (⌘K). Missing, like the three below, for who does not run the home. */
+  onSearch?: () => void;
   /** Asks the main Wizard for a new bot. */
-  onNew: () => void;
-  onSettings: () => void;
-  onAvatar: () => void;
+  onNew?: () => void;
+  onSettings?: () => void;
+  onAvatar?: () => void;
   onSignOut: () => void;
 }) {
   const keyboard = useKeyboard();
@@ -247,20 +247,34 @@ export function Sidebar({
       </>
     ),
     items: [
-      {
-        icon: <Smile />,
-        label: t(avatar ? "avatar.title" : "avatar.make"),
-        onSelect: onAvatar,
-      },
-      null,
+      ...(onAvatar
+        ? [
+            {
+              icon: <Smile />,
+              label: t(avatar ? "avatar.title" : "avatar.make"),
+              onSelect: onAvatar,
+            },
+            null,
+          ]
+        : []),
       { icon: <LogOut />, label: t("agents.signOut"), onSelect: onSignOut },
     ],
   };
-  const gear = (
+  const gear = onSettings ? (
     <IconButton label={t("settings.title")} onClick={onSettings}>
       <Settings className="size-[1.125rem]" />
     </IconButton>
-  );
+  ) : null;
+  const find = onSearch ? (
+    <IconButton label={search} onClick={onSearch}>
+      <Search className="size-[1.125rem]" />
+    </IconButton>
+  ) : null;
+  const add = onNew ? (
+    <IconButton label={t("agents.new")} onClick={onNew}>
+      <Plus className="size-[1.125rem]" />
+    </IconButton>
+  ) : null;
   if (rail) {
     return (
       <nav
@@ -273,12 +287,8 @@ export function Sidebar({
         >
           {you}
         </Menu>
-        <IconButton label={search} onClick={onSearch}>
-          <Search className="size-[1.125rem]" />
-        </IconButton>
-        <IconButton label={t("agents.new")} onClick={onNew}>
-          <Plus className="size-[1.125rem]" />
-        </IconButton>
+        {find}
+        {add}
         <ul className="mt-1 flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto">
           {listed.map((agent) => (
             <Figure
@@ -310,12 +320,8 @@ export function Sidebar({
             <span className="truncate text-[0.8125rem] text-ink-3">{where}</span>
           </span>
         </Menu>
-        <IconButton label={t("agents.new")} onClick={onNew}>
-          <Plus className="size-[1.125rem]" />
-        </IconButton>
-        <IconButton label={search} onClick={onSearch}>
-          <Search className="size-[1.125rem]" />
-        </IconButton>
+        {add}
+        {find}
       </div>
       <h2 className="px-4 pt-2 pb-1 font-medium text-[0.75rem] text-ink-3 uppercase tracking-wide">
         {t("agents.title")}
@@ -331,7 +337,7 @@ export function Sidebar({
           />
         ))}
       </ul>
-      <div className="flex px-2 pt-1.5">{gear}</div>
+      {gear ? <div className="flex px-2 pt-1.5">{gear}</div> : null}
     </nav>
   );
 }

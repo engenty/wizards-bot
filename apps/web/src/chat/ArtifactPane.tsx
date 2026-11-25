@@ -2,7 +2,7 @@ import { Printer, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { pageOpens } from "../lib/artifact";
 import { t } from "../lib/i18n";
-import { useArtifact } from "../lib/queries";
+import { useArtifact, useRunsHome } from "../lib/queries";
 import { cn, IconButton, Spinner } from "../ui";
 import { useHostMessages } from "./AppView";
 import { ShareButton } from "./ShareDialog";
@@ -26,6 +26,8 @@ export function ArtifactPane({
   onClose: () => void;
 }) {
   const artifact = useArtifact(id);
+  // Publishing and sending are for who runs the home.
+  const runs = useRunsHome() === true;
   const frame = useRef<HTMLIFrameElement>(null);
   const current = artifact.data;
   // The page the frame shows changes with the version only. The artifact is read again now
@@ -67,7 +69,7 @@ export function ArtifactPane({
         <h2 className="min-w-0 flex-1 truncate font-display font-semibold text-[1.0625rem]">
           {current?.title}
         </h2>
-        {current ? (
+        {current && runs ? (
           <ShareButton
             kind="artifact"
             id={id}

@@ -95,14 +95,61 @@ role is `owner`, `admin`, `member` or `client`. The owners and admins run the ho
 - Each person reads for themselves: `unread` in `GET /v1/agents` and in `agent.updated` is what
   the device's person has not read, and `POST /v1/conversations/:id/read` marks it for them.
 - A device offers nothing to the agents: `PUT /v1/device/resources` answers 409 `group_home`.
-- A member's or a client's device reaches what is its own: `GET`, `PATCH` and `DELETE
-  /v1/device`, `GET` and `PUT /v1/look`, and `GET /v1/events`, which carries its own
-  `look.updated` only. Every other route answers 403 `admins_only`; it gets no push, and links
-  no computer. A turn for a member has only the tools that stay in the conversation, a turn for
-  a client only a question back and nothing the agent remembers.
+- A client's device reaches what is its own: `GET`, `PATCH` and `DELETE /v1/device`, `GET` and
+  `PUT /v1/look`, and `GET /v1/events`, which carries its own `look.updated` only. Every other
+  route answers 403 `admins_only`; it gets no push, and links no computer. A turn for a client
+  has a question back and nothing the agent remembers.
+- A member chats with the group's own agents, each in a conversation of their own, which nobody
+  else reads. See "A member of a group home" below.
 - Someone the Manage-App no longer lists loses their devices within a minute, and so does
   someone who became an admin, a member or a client since: the token answers 401 `unauthorized`
   and the event stream ends.
+
+#### A member of a group home
+
+A member's device lists the group's own agents (`origin: "own"`; no rooms, no shared and no
+outside agents). The first time it does, the home makes the member a conversation with each:
+the `Agent` it gets carries that conversation's `conversationId`, `preview`, `unread`,
+`updatedAt`, `state` and `open`, and no `waitsFor`. The shapes are the ones every device gets.
+
+| A member's device may                                                               | Reaches                                                              |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /v1/agents`, `GET /v1/agents/:id`                                              | the group's own agents; the detail with `memory: ""` and `tasks: []` |
+| `GET` and `POST /v1/conversations/:id/messages`, `POST …/read`, `…/warm`, `…/stop`  | their own conversations                                              |
+| `GET /v1/conversations/:id/documents`, `…/files`, `…/artifacts`                     | their own conversations                                              |
+| `GET /v1/items`, `POST /v1/cards/:id/answer`                                        | the cards of their own conversations                                 |
+| `GET` and `PUT /v1/documents/:id`, `GET` and `POST …/marks`, `DELETE …/marks/:mark` | documents of their own conversations                                 |
+| `GET /v1/artifacts/:id`, and its page, which opens with its key                     | artifacts of their own conversations                                 |
+| `POST /v1/files`, `GET` and `DELETE /v1/files/:id`                                  | a file by its id, which stands only in messages the device reads     |
+| `GET`, `PATCH`, `DELETE /v1/device`, `GET` and `PUT /v1/look`, `GET /v1/events`     | as a client's device                                                 |
+
+- Every other route answers 403 `admins_only`: the search, importing messages, devices,
+  hand-offs, plugins, secrets, the Vault, folders, models, consent, the setup, the avatar,
+  sharing, contacts, invites and the person's record.
+- A conversation that is not theirs (the team's, another member's) answers 404, and so does a
+  card, a document or an artifact in it. An admin's device gets the same 404 for a member's
+  conversation and what is in it: `GET /v1/items` and the search do not list it, and no admin's
+  push names it.
+- `GET /v1/events` carries, for a member: `message.created`, `message.updated`, `message.delta`,
+  `message.waiting`, `card.updated`, `document.updated` and `artifact.updated` of their own
+  conversations; `agent.updated` of a group's own agent, with the line as they see it, and
+  `agent.removed`; their own `look.updated`; `reset`. What changes an agent's line in the
+  team's conversation is told to the admins only, what changes it in a member's own to that
+  member only. An admin's device hears nothing of a member's conversation, also not in what is
+  told again after `last-event-id`.
+- A message that would go to a model service nobody said yes to answers 409 `admins_consent`:
+  the yes is an admin's (`POST /v1/consent`).
+- A turn in a member's conversation is the member's, whatever started it. It has the tools that
+  stay in the conversation: questions, documents, artifacts, the files of the conversation,
+  skills and longer work. It reads what the agent remembers and does not change it (`remember`
+  is not among its tools), and it is offered no more capable model. Of the home's connections it
+  has the studio the team works in, called with the member's own token (`docs/hosted.md`,
+  Contract 12): any other connection is refused. A studio tool that is not read-only asks the
+  member on a card with "Allow once" and "Don't"; "Always allow" is offered to admins only.
+- A card raised in a member's conversation is answered by that member alone.
+- Someone who leaves the team loses their conversations with their devices: the messages, the
+  cards, the documents, the artifacts and the files in them. Someone who becomes an admin reads
+  the team's conversations; their own stay stored and are not shown.
 
 **A page of another site**, such as the studio, reaches a home as a device paired from that page.
 The home answers cross-origin requests from an origin a device was paired from, with a bearer
