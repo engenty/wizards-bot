@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import type { Client } from "@engenty/local-models/clients";
+import type { OllamaModelsState } from "@engenty/model-setup";
 import type { Setup } from "@wizards-bot/protocol";
 import { type TestHome, testHome } from "../test/fakes.ts";
 
@@ -57,6 +58,30 @@ describe("the setup shared with engenty wizards", () => {
     assert.deepEqual(t.home.models.candidates(), ["ollama:fake:1"]);
     const setup = (await (await t.request("/v1/setup")).json()) as Setup;
     assert.equal(setup.working, true);
+  });
+
+  test("the models of Ollama are listed, with those to download, and none is loaded", async () => {
+    const asked = t.model.requests.length;
+    const { body } = await call("GET", "/local-models");
+    const state = body as unknown as OllamaModelsState;
+    assert.deepEqual(
+      state.installed.map((model) => model.name),
+      ["fake:1"],
+    );
+    assert.ok(state.offered?.some((model) => model.name === "gemma4:e4b" && !model.installed));
+    assert.equal(t.model.requests.length, asked);
+    assert.equal((await call("POST", "/local-models/pull", { model: "a b" })).status, 400);
+  });
+
+  test("a chosen model is the one that answers, after a test of its own", async () => {
+    await call("PUT", "/models", { source: "ollama", model: "fake:1" });
+    assert.deepEqual(t.home.models.picked(), ["ollama"]);
+    assert.equal(t.home.models.ollamaModel(), "fake:1");
+    assert.equal(((await (await t.request("/v1/setup")).json()) as Setup).working, false);
+    const { body } = await call("POST", "/models/test", {});
+    assert.equal(body.ok, true);
+    assert.equal(body.ref, "fake:1");
+    assert.deepEqual(t.home.models.candidates(), ["ollama:fake:1"]);
   });
 
   test("another pick takes its place, and a source nobody picked does not answer", async () => {

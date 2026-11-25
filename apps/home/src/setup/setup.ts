@@ -240,7 +240,8 @@ export class Setup {
     await this.changed();
   }
 
-  private forget(id: string): void {
+  /** A source whose last test says nothing any more: another model of it was chosen. */
+  forget(id: string): void {
     const { [id]: _, ...rest } = this.kept();
     this.home.db.setMeta(TESTS, JSON.stringify(rest));
   }
@@ -261,7 +262,9 @@ export class Setup {
     }
     if (!isHosted(config)) {
       probes.set("ollama", () =>
-        (models.ollamaPicked() ? probeOllama : lookAtOllama)(config.ollamaUrl, models.memory),
+        models.ollamaPicked()
+          ? probeOllama(config.ollamaUrl, models.memory, undefined, undefined, models.ollamaModel())
+          : lookAtOllama(config.ollamaUrl, models.memory),
       );
     }
     for (const gateway of models.gateways()) {

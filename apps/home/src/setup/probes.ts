@@ -124,12 +124,15 @@ export async function probeOllama(
   memory: number,
   doFetch: typeof fetch = fetch,
   timeout = OLLAMA_TIMEOUT,
+  /** The model the person named; the one the home would ask first otherwise. */
+  named?: string,
 ): Promise<Probe> {
   const local = onThisComputer(baseUrl);
   // On this computer the model has to leave it room; elsewhere the home cannot tell.
   const result = await probe({
     kind: "ollama",
     url: baseUrl,
+    ...(named ? { model: named } : {}),
     fetch: doFetch,
     timeoutMs: timeout,
     ...(local ? { memory, share: MEMORY_SHARE } : {}),

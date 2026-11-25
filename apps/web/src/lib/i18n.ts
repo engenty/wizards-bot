@@ -236,6 +236,9 @@ export const en = {
   "setup.own.later": "Your wizards change the model later: ask them in the chat.",
   "setup.ollama.desc": "A model on this computer, without an account.",
   "setup.ollama.here": "on this computer",
+  "setup.ollama.heading": "Choose a model",
+  "setup.ollama.hint":
+    "The models run on this computer, without an account. One is loaded only once you use it.",
   "setup.ollama.use": "Use Ollama",
   "setup.ollama.stop": "Stop using Ollama",
   "setup.ollama.memory": "{model} takes about {size} of memory while it is loaded.",
@@ -925,6 +928,9 @@ export const de: Record<Key, Line> = {
   "setup.own.later": "Das Modell ändern deine Wizards später: Sag es ihnen im Chat.",
   "setup.ollama.desc": "Ein Modell auf diesem Computer, ohne Konto.",
   "setup.ollama.here": "auf diesem Computer",
+  "setup.ollama.heading": "Modell wählen",
+  "setup.ollama.hint":
+    "Die Modelle laufen auf diesem Computer, ohne Konto. Geladen wird eines erst, wenn du es nutzt.",
   "setup.ollama.use": "Ollama nutzen",
   "setup.ollama.stop": "Ollama nicht mehr nutzen",
   "setup.ollama.memory": "{model} belegt etwa {size} Arbeitsspeicher, solange es geladen ist.",

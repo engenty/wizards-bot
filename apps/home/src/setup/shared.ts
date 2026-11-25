@@ -1,11 +1,19 @@
 import { mkdirSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { setClientFolders } from "@engenty/local-models/clients";
-import { ClientSetup, setupRoutes, Terminals, Tested } from "@engenty/model-setup/server";
+import { OFFERED_TEXT_MODELS } from "@engenty/model-setup";
+import {
+  ClientSetup,
+  OllamaModels,
+  setupRoutes,
+  Terminals,
+  Tested,
+} from "@engenty/model-setup/server";
 import type { Hono } from "hono";
 import { z } from "zod";
 import type { Home } from "../home.ts";
 import { GATEWAY_PRESETS, type Gateway } from "../models/models.ts";
+import { MEMORY_SHARE } from "../models/ollama.ts";
 import { probeGateway } from "./probes.ts";
 import { GATEWAY_MODELS } from "./setup.ts";
 import { langOf, say } from "./words.ts";
@@ -19,6 +27,8 @@ const PROVIDERS = Object.keys(GATEWAY_MODELS) as [string, ...string[]];
 const Change = z.object({
   /** A source's id; `own`: own keys, which are picked with the first key that works. */
   source: z.string().max(80).optional(),
+  /** With `ollama`: the model the person chose of those it holds. */
+  model: z.string().max(120).optional(),
   /** An empty key takes the stored one away. */
   keys: z.partialRecord(z.enum(PROVIDERS), z.literal("")).optional(),
 });
@@ -65,18 +75,34 @@ export function sharedSetup(home: Home): Hono {
     },
     // The home keeps every test's outcome itself (setup.ts).
     tested: new Tested({ read: async () => [], write: async () => {} }),
+    // The models to download are the package's own list: the home asks no one for it.
+    ollama: new OllamaModels({
+      url: () => config.ollamaUrl,
+      offered: () => OFFERED_TEXT_MODELS,
+      share: MEMORY_SHARE,
+      logs: () => join(config.dataDir, "setup"),
+      memory: () => models.memory,
+      changed: () => void models.refresh(true).then(told, () => {}),
+    }),
     models: {
       source: () => models.picked()?.[0] ?? "",
       settings: () => ({
         source: models.picked()?.[0] ?? null,
+        model: models.ollamaModel() ?? null,
         keys: Object.fromEntries(PROVIDERS.map((id) => [id, stored(id)])),
       }),
       async save(_c, body) {
-        const { source, keys } = Change.parse(body);
+        const { source, model, keys } = Change.parse(body);
         for (const id of Object.keys(keys ?? {})) models.removeGateway(id);
-        // Ollama is picked where its memory need is shown (POST /v1/setup/ollama).
         if (source && setup.clients.some((client) => client.id === source)) {
           models.pickSource(source);
+        }
+        // A model that is there: choosing it picks Ollama, the test call then loads it.
+        if (source === "ollama" && model) {
+          await models.refresh(true);
+          models.pickSource("ollama");
+          models.setOrder([`ollama:${model}`]);
+          setup.forget("ollama");
         }
         await told();
       },

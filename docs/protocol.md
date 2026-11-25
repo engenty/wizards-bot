@@ -1540,8 +1540,10 @@ hosted home has no Ollama (400 `refused`).
 On the person's own computer the setup asks first what the wizards think with, and tests what
 they picked. Its routes below `/v1/setup/local` are engenty wizards' (`@engenty/model-setup`):
 `GET /clients` (Claude Code and Codex, found and signed in or not), `GET` and `PUT /models` (the
-pick, `{ "source": "codex" }`, and which keys are stored), `POST /models/test`, `POST
-/keys/<provider>` (tests a key and keeps it when it works), `POST /ollama`, and for a client
+pick, `{ "source": "codex" }` or `{ "source": "ollama", "model": "gemma4:12b" }`, and which keys are stored), `POST /models/test`, `POST
+/keys/<provider>` (tests a key and keeps it when it works), `POST /ollama`, `GET /local-models` (what
+Ollama holds and what to download; loads nothing), `POST /local-models/pull`, `DELETE
+/local-models?model=…`, `POST /local-models/ollama` (installs and starts Ollama on a Mac), and for a client
 `POST /harness/<id>/detect`, `/install` and `/login`, the last two in a terminal (`GET
 /terminal/<id>/stream` as events, `POST …/input`, `POST …/resize`, `DELETE`) that runs the
 catalog's install command or the client's own sign-in and nothing a request names. Once the person

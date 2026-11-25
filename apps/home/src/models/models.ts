@@ -301,6 +301,12 @@ export class Models {
     }
   }
 
+  /** The model of Ollama the person put first; the home's own choice when they named none. */
+  ollamaModel(): string | undefined {
+    const ref = this.order().find((entry) => splitRef(entry).sourceId === "ollama");
+    return ref && splitRef(ref).model;
+  }
+
   /** The model Ollama would load once the person picks it; none when none leaves the computer room. */
   ollamaOffer(): { model: string; size: number } | undefined {
     const first = this.ollama[0];
@@ -365,6 +371,8 @@ export class Models {
     for (const kind of ["subscription", "ollama", "gateway"] as const) {
       for (const source of available.values()) {
         const first = source.models[0];
+        // Of a source the person picked, the model they named is the one: no other is loaded.
+        if (picked && refs.some((ref) => splitRef(ref).sourceId === source.id)) continue;
         if (source.kind === kind && first) add(`${source.id}:${first.id}`);
       }
     }

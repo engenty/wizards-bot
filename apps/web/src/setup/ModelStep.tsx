@@ -1,8 +1,10 @@
-import type { ClientId, ClientSetupStatus } from "@engenty/model-setup";
+import type { ClientId, ClientSetupStatus, OllamaModelsState } from "@engenty/model-setup";
 import {
   ClientPanel,
   type KeyProvider,
+  LocalModels,
   ModelTest,
+  modelsMoving,
   OwnKeys,
   SETUP_ON_THEME,
   type SetupChoice,
@@ -10,21 +12,17 @@ import {
   type SetupHostApi,
   SetupProvider,
   SetupReady,
-  type SourceResult,
   useCall,
   useClientChoices,
   useClientStage,
-  useSetupHost,
 } from "@engenty/model-setup/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { EngentyKind, Setup, SetupCheck } from "@wizards-bot/protocol";
 import { type ReactNode, useMemo, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import { api } from "../lib/api";
-import { lang, t, useLang } from "../lib/i18n";
+import { t, useLang } from "../lib/i18n";
 import { keys } from "../lib/keys";
-import { Button } from "../ui";
-import { Pull } from "./Checks";
 import { followTerminal } from "./terminal";
 
 // What the wizards think with, as engenty wizards' studio asks it: the same page
@@ -33,6 +31,7 @@ import { followTerminal } from "./terminal";
 const LOCAL = "/v1/setup/local";
 const CLIENTS = ["setup", "clients"] as const;
 const PICK = ["setup", "pick"] as const;
+const OLLAMA = ["setup", "ollama"] as const;
 
 /** Each choice has a figure of its own. */
 const FIGURES: Record<string, EngentyKind> = {
@@ -72,6 +71,8 @@ const PROVIDERS: Omit<KeyProvider, "stored">[] = [
 
 interface Pick {
   source: string | null;
+  /** The model of Ollama the person chose. */
+  model: string | null;
   keys: Record<string, boolean>;
 }
 
@@ -148,11 +149,9 @@ function Sources({ setup }: { setup: Setup }) {
             id: "ollama",
             title: "Ollama",
             description: t("setup.ollama.desc"),
-            note: t(
-              ollama.state === "absent" || ollama.state === "problem"
-                ? `status.state.${ollama.state}`
-                : "setup.ollama.here",
-            ),
+            ...(ollama.state === "absent"
+              ? { note: t("status.state.absent") }
+              : { note: t("setup.ollama.here") }),
           },
         ]
       : []),
@@ -179,7 +178,7 @@ function Sources({ setup }: { setup: Setup }) {
     : selected === "own"
       ? t("setup.own.heading")
       : selected === "ollama"
-        ? t("setup.ollama.use")
+        ? t("setup.ollama.heading")
         : stand.heading;
 
   return (
@@ -208,7 +207,10 @@ function Sources({ setup }: { setup: Setup }) {
                     hint={t("setup.client.hint", { name: status.name })}
                   />
                 ) : selected === "ollama" ? (
-                  <OllamaPanel check={ollama} ready={ready} />
+                  <OllamaPanel
+                    model={source === "ollama" ? (pick.data?.model ?? null) : null}
+                    ready={ready}
+                  />
                 ) : (
                   <OwnKeys
                     providers={PROVIDERS.map((provider) => ({
@@ -233,39 +235,36 @@ function Sources({ setup }: { setup: Setup }) {
   );
 }
 
-/** Ollama loads a model only once the person presses here: it takes much of the memory. */
-function OllamaPanel({ check, ready }: { check: SetupCheck | undefined; ready: boolean }) {
-  const host = useSetupHost();
-  const use = useCall(async () => {
-    const result = await host.post<SourceResult>("/ollama", { url: "http://127.0.0.1:11434" });
-    await host.changed();
-    return result;
+/**
+ * Ollama: what it holds, what to download, Ollama itself installed and started. Choosing a model
+ * picks Ollama, and only then one is loaded, for the test.
+ */
+function OllamaPanel({ model, ready }: { model: string | null; ready: boolean }) {
+  const client = useQueryClient();
+  const state = useQuery({
+    queryKey: OLLAMA,
+    queryFn: ({ signal }) => api.get<OllamaModelsState>(`${LOCAL}/local-models`, signal),
+    // While a download runs or Ollama starts, the page asks how far it got.
+    refetchInterval: (query) => (modelsMoving(query.state.data) ? 1500 : false),
   });
-  if (!check) return null;
-  const failed = use.error ?? (use.data && !use.data.ok ? (use.data.message ?? "") : undefined);
+  const choose = useCall(async (name: string) => {
+    await api.put(`${LOCAL}/models`, { source: "ollama", model: name });
+    await client.invalidateQueries({ queryKey: keys.setup() });
+  });
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-[0.875rem] text-ink-2 leading-relaxed">{check.said}</p>
-      {check.todo && !ready ? <p className="text-[0.8125rem] text-ink-3">{check.todo}</p> : null}
-      {check.start ? (
-        <p className="text-[0.8125rem] text-ink-3">
-          {t("setup.ollama.memory", {
-            model: check.start.model,
-            size: `${new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(check.start.size / 1e9)} GB`,
-          })}
-        </p>
-      ) : null}
-      {check.pull && !ready ? <Pull offer={check.pull} /> : null}
-      {ready ? (
-        <ModelTest />
-      ) : check.start || check.on ? (
-        <div>
-          <Button busy={use.busy} onClick={() => void use.run()}>
-            {t("setup.ollama.use")}
-          </Button>
-        </div>
-      ) : null}
-      {failed !== undefined ? <p className="text-[0.875rem] text-rose">{failed}</p> : null}
+    <div className="flex flex-col gap-5">
+      <p className="text-[0.8125rem] text-ink-3">{t("setup.ollama.hint")}</p>
+      <LocalModels
+        job="text"
+        state={state.data}
+        onState={(next) => client.setQueryData(OLLAMA, next)}
+        inUse={model ? [model] : []}
+        disabled={choose.busy}
+        onChoose={(name) => void choose.run(name)}
+        onlyHeld
+      />
+      {choose.error ? <p className="text-[0.875rem] text-rose">{choose.error}</p> : null}
+      {model ? <ModelTest key={model} auto={!ready} /> : null}
     </div>
   );
 }
