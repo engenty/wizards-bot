@@ -1,6 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join } from "node:path";
+import { lmStudioAddress } from "@engenty/local-models/lmstudio";
+import { mlxFolder } from "@engenty/local-models/mlx";
 
 /**
  * The home's version: the one of the root package.json, which `pnpm release` sets. The
@@ -19,6 +21,9 @@ export interface Config {
   /** The address other homes and sign-in pages reach this home at, without a trailing slash. */
   publicUrl: string | undefined;
   ollamaUrl: string;
+  lmstudioUrl: string;
+  /** Where the models of Apple's MLX are. */
+  mlxFolder: string;
   /** The installed clients the home may use with the person's subscriptions. */
   subscriptions: string[];
   /**
@@ -104,7 +109,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: Number(env.WIZARDS_BOT_PORT ?? 4747),
     publicUrl: env.WIZARDS_BOT_URL?.replace(/\/+$/, ""),
     ollamaUrl: (env.OLLAMA_HOST ?? "http://127.0.0.1:11434").replace(/\/+$/, ""),
-    subscriptions: (env.WIZARDS_BOT_SUBSCRIPTIONS ?? "claude,codex")
+    lmstudioUrl: lmStudioAddress(env),
+    mlxFolder: mlxFolder(env),
+    subscriptions: (env.WIZARDS_BOT_SUBSCRIPTIONS ?? "claude,codex,antigravity,cursor")
       .split(",")
       .map((name) => name.trim())
       .filter(Boolean),

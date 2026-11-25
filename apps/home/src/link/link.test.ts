@@ -32,6 +32,8 @@ describe("a home without models and a linked computer", () => {
       port,
       publicUrl: undefined,
       ollamaUrl: "http://127.0.0.1:9",
+      lmstudioUrl: "http://127.0.0.1:9",
+      mlxFolder: "/nonexistent",
       subscriptions: [],
     });
     home.db.setMeta("person.name", "Ada");
@@ -42,7 +44,15 @@ describe("a home without models and a linked computer", () => {
     const dataDir = mkdtempSync(join(tmpdir(), "wizards-bot-mac-"));
     computerDb = new Db(dataDir);
     models = new Models(
-      { dataDir, port: 0, publicUrl: undefined, ollamaUrl: model.url, subscriptions: [] },
+      {
+        dataDir,
+        port: 0,
+        publicUrl: undefined,
+        ollamaUrl: model.url,
+        lmstudioUrl: "http://127.0.0.1:9",
+        mlxFolder: "/nonexistent",
+        subscriptions: [],
+      },
       computerDb,
       new Secrets(computerDb, dataDir),
       "Ada's Mac",

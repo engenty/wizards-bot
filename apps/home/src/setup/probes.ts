@@ -3,8 +3,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { Client } from "@engenty/local-models/clients";
-import { fits, installedModels } from "@engenty/local-models/ollama";
-import { CLIENT_TIMEOUT, OLLAMA_TIMEOUT, PROMPT, probe } from "@engenty/local-models/probe";
+import { installedModels } from "@engenty/local-models/ollama";
+import { CLIENT_TIMEOUT, PROMPT, probe, SERVER_TIMEOUT } from "@engenty/local-models/probe";
+import { fits, SERVERS, type ServerId } from "@engenty/local-models/servers";
 import type { LanguageModel } from "ai";
 import { generateText } from "ai";
 import type { Account, Gateway } from "../models/models.ts";
@@ -12,15 +13,18 @@ import { ACCOUNT, accountModel } from "../models/models.ts";
 import { chatModels, MEMORY_SHARE, onThisComputer, suggestedModel } from "../models/ollama.ts";
 import {
   claudeSignedOut,
+  clientSignedOut,
   codexSignedOut,
   explainAccount,
   explainClaude,
+  explainClient,
   explainCodex,
   explainGateway,
   explainOllama,
   type Finding,
+  silent,
 } from "./explain.ts";
-import { w } from "./words.ts";
+import { type Words, w } from "./words.ts";
 
 // One test call per model source: a tiny prompt, a timeout, and what came of it. Each call
 // costs a few tokens, so the home makes them when the person asks and at the first start,
@@ -60,33 +64,59 @@ export function codexSetting(home = process.env.CODEX_HOME ?? join(homedir(), ".
   };
 }
 
-/** A test call to Claude Code or Codex on this computer. */
+/** How a client that is not there gets there: the setup installs it and signs it in. */
+export function clientMissing({ id, name, bin }: Client): { todo: Words; command: string } {
+  if (id === "claude") {
+    return {
+      todo: w(
+        "Install Claude Code, then run claude and /login.",
+        "Installiere Claude Code, dann starte claude und /login.",
+      ),
+      command: "claude",
+    };
+  }
+  return {
+    todo: w(`Install ${name}, then sign in.`, `Installiere ${name}, dann melde dich an.`),
+    command: id === "antigravity" ? bin : `${bin} login`,
+  };
+}
+
+/** What a client is signed in with again. */
+function signedOut(client: Client): Finding {
+  switch (client.id) {
+    case "claude":
+      return claudeSignedOut();
+    case "codex":
+      return codexSignedOut();
+    default:
+      return clientSignedOut(client);
+  }
+}
+
+/** A test call to an installed client on this computer. */
 export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Promise<Probe> {
   const { name } = client;
-  const install =
-    client.id === "claude"
-      ? {
-          todo: w(
-            "Install Claude Code, then run claude and /login.",
-            "Installiere Claude Code, dann starte claude und /login.",
-          ),
-          command: "claude",
-        }
-      : {
-          todo: w("Install Codex, then sign in.", "Installiere Codex, dann melde dich an."),
-          command: "codex login",
-        };
+  const install = clientMissing(client);
   const notInstalled = w(
     `${name} is not installed on this computer.`,
     `${name} ist auf diesem Computer nicht installiert.`,
   );
   const codex = client.id === "codex" ? codexSetting() : undefined;
   const result = await probe({ kind: "client", client, timeoutMs: timeout });
-  if (result.state === "ok")
-    return {
-      state: "ok",
-      said: w(`${name} answers on your subscription.`, `${name} antwortet über dein Abo.`),
-    };
+  if (result.state === "ok") {
+    return client.tools
+      ? {
+          state: "ok",
+          said: w(`${name} answers on your subscription.`, `${name} antwortet über dein Abo.`),
+        }
+      : {
+          state: "warning",
+          said: w(
+            `${name} answers on your subscription, but takes no tools: an agent with it can talk, not act.`,
+            `${name} antwortet über dein Abo, nimmt aber keine Werkzeuge: Ein Wizard damit kann reden, nicht handeln.`,
+          ),
+        };
+  }
   if (result.state === "absent") {
     return { state: "absent", said: notInstalled, ...install };
   }
@@ -106,13 +136,15 @@ export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Pro
   }
   // Signed out without a call: the client's own status said so.
   if (result.state === "signed_out" && !result.detail) {
-    return { state: "problem", ...(client.id === "claude" ? claudeSignedOut() : codexSignedOut()) };
+    return { state: "problem", ...signedOut(client) };
   }
   const detail = result.detail ?? "";
   const finding =
     client.id === "claude"
       ? explainClaude(detail)
-      : explainCodex(detail, codex?.ollama ? codex.model : undefined);
+      : client.id === "codex"
+        ? explainCodex(detail, codex?.ollama ? codex.model : undefined)
+        : explainClient(client, detail);
   return { state: "problem", ...finding };
 }
 
@@ -123,13 +155,17 @@ export async function probeOllama(
   baseUrl: string,
   memory: number,
   doFetch: typeof fetch = fetch,
-  timeout = OLLAMA_TIMEOUT,
+  timeout = SERVER_TIMEOUT,
+  /** The model the person named; the one the home would ask first otherwise. */
+  named?: string,
 ): Promise<Probe> {
   const local = onThisComputer(baseUrl);
   // On this computer the model has to leave it room; elsewhere the home cannot tell.
   const result = await probe({
-    kind: "ollama",
+    kind: "server",
+    server: "ollama",
     url: baseUrl,
+    ...(named ? { model: named } : {}),
     fetch: doFetch,
     timeoutMs: timeout,
     ...(local ? { memory, share: MEMORY_SHARE } : {}),
@@ -224,6 +260,101 @@ export async function probeOllama(
           ...pull,
         }),
   };
+}
+
+/** A test call to a model of this computer's LM Studio or MLX, which loads it. */
+export async function probeServer(
+  server: Exclude<ServerId, "ollama">,
+  baseUrl: string,
+  memory: number,
+  named?: string,
+  doFetch: typeof fetch = fetch,
+  timeout = SERVER_TIMEOUT,
+): Promise<Probe> {
+  const local = server === "mlx" || onThisComputer(baseUrl);
+  const { name } = SERVERS[server];
+  const result = await probe({
+    kind: "server",
+    server,
+    url: baseUrl,
+    ...(named ? { model: named } : {}),
+    fetch: doFetch,
+    timeoutMs: timeout,
+    ...(local ? { memory, share: MEMORY_SHARE } : {}),
+  });
+  const model = result.model ?? "";
+  const problem = (said: Words, todo: Words): Probe => ({
+    state: "problem",
+    ...(model ? { model } : {}),
+    said,
+    todo,
+  });
+  if (result.state === "absent") {
+    return {
+      state: "absent",
+      said: w(`${name} does not answer.`, `${name} antwortet nicht.`),
+      todo: w("Start it in the setup.", "Starte es in der Einrichtung."),
+    };
+  }
+  if (result.trouble === "locked") {
+    return problem(
+      w(`${name} asks for an API token.`, `${name} verlangt ein API-Token.`),
+      w(
+        "Switch that off in its server settings.",
+        "Schalte das in seinen Server-Einstellungen ab.",
+      ),
+    );
+  }
+  if (result.trouble === "old") {
+    return problem(
+      w(`This ${name} is too old.`, `Dieses ${name} ist zu alt.`),
+      w(`Update ${name}.`, `Aktualisiere ${name}.`),
+    );
+  }
+  if (result.state === "no_model") {
+    return problem(
+      w(`${name} has no model to talk with yet.`, `${name} hat noch kein Modell zum Sprechen.`),
+      w("Download one in the setup.", "Lade eines in der Einrichtung."),
+    );
+  }
+  if (result.state === "too_big") {
+    return problem(
+      w(
+        `${model} is too large for this computer's memory. The Bot Server takes a model of up to ${gb(memory * MEMORY_SHARE)} here.`,
+        `${model} ist zu groß für den Arbeitsspeicher dieses Computers. Der Bot Server nimmt hier ein Modell bis ${gb(memory * MEMORY_SHARE)}.`,
+      ),
+      w("Choose a smaller model.", "Wähle ein kleineres Modell."),
+    );
+  }
+  if (result.state !== "ok") {
+    return result.timedOut
+      ? problem(
+          w(
+            `${model} did not answer within ${Math.round(timeout / 1000)} seconds.`,
+            `${model} hat nicht innerhalb von ${Math.round(timeout / 1000)} Sekunden geantwortet.`,
+          ),
+          w(
+            "The computer may be short of memory. Try a smaller model.",
+            "Dem Computer fehlt vielleicht Arbeitsspeicher. Versuch ein kleineres Modell.",
+          ),
+        )
+      : { state: "problem", model, said: silent(model, result.detail ?? "") };
+  }
+  const held = await SERVERS[server].models(baseUrl, { fetch: doFetch });
+  return held.find((entry) => entry.name === model)?.tools
+    ? {
+        state: "ok",
+        model,
+        said: w(`${model} answers on this computer.`, `${model} antwortet auf diesem Computer.`),
+      }
+    : {
+        state: "warning",
+        model,
+        said: w(
+          `${model} answers, but takes no tools: an agent with it can talk, not act.`,
+          `${model} antwortet, nimmt aber keine Werkzeuge: Ein Wizard damit kann reden, nicht handeln.`,
+        ),
+      };
 }
 
 /**

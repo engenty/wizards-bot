@@ -1,7 +1,10 @@
-import { fits, type InstalledModel, installedModels } from "@engenty/local-models/ollama";
+import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
 
-// Which of Ollama's models the home offers, asks first and pulls. Talking to Ollama itself is
-// `@engenty/local-models`.
+// Which of Ollama's and LM Studio's models the home offers, asks first and pulls. Talking to the
+// two is `@engenty/local-models`.
+
+/** Whether a source's id or kind is a server on a computer that runs open models. */
+export const isServer = (id: string): id is ServerId => Object.hasOwn(SERVERS, id);
 
 /**
  * A model larger than this share of the computer's memory leaves too little for everything
@@ -35,18 +38,19 @@ export function onThisComputer(url: string): boolean {
 }
 
 /**
- * The models of the Ollama at `url` that write text, in the order a home prefers them: those
+ * The models of the server at `url` that write text, in the order a home prefers them: those
  * that take tools first, then the largest that leaves the computer room, then the smallest of
- * those that do not. Empty when Ollama does not answer. `memory` is what the computer Ollama
- * runs on has, in bytes, when that is known.
+ * those that do not. Empty when it does not answer. `memory` is what the computer it runs
+ * on has, in bytes, when that is known.
  */
 export async function chatModels(
   url: string,
   memory = Number.POSITIVE_INFINITY,
   doFetch?: typeof fetch,
+  server: ServerId = "ollama",
 ): Promise<InstalledModel[]> {
   const leavesRoom = (model: InstalledModel) => fits(model, memory, MEMORY_SHARE);
-  const models = await installedModels(url, doFetch ? { fetch: doFetch } : {});
+  const models = await SERVERS[server].models(url, doFetch ? { fetch: doFetch } : {});
   return models
     .filter((model) => model.completion)
     .sort(

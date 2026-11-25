@@ -10,6 +10,10 @@
 @import "./theme.css";
 @import "./shadcn-ember.css";
 
+/* The setup shared with engenty wizards. */
+@source "../../node_modules/@engenty/model-setup/dist/react";
+@source "../../node_modules/@engenty/chatviews/dist/react";
+
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
@@ -422,5 +426,35 @@ dialog.media-sheet::backdrop {
     :is(dialog.sheet, dialog.drawer)[open]::backdrop {
       opacity: 0;
     }
+  }
+}
+
+/* From engenty wizards: how the setup's lines and its opened choice come in. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+.animate-settle {
+  animation: settle 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) 0.3s both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-settle {
+    animation: none;
   }
 }

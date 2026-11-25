@@ -235,12 +235,17 @@ const LINK = "transition hover:text-ink";
  * it) and a line with a link to wizards.bot on one on the person's own computer, then the Bot
  * Server's version.
  */
-export function Frame({ children }: { children: ReactNode }) {
+export function Frame({ wide = false, children }: { wide?: boolean; children: ReactNode }) {
   const [privacy, setPrivacy] = useState(false);
   const home = useHome();
   return (
     <div className="flex min-h-full flex-col bg-background">
-      <header className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 pt-4 sm:px-6">
+      <header
+        className={cn(
+          "mx-auto flex w-full items-center gap-3 px-4 pt-4 sm:px-6",
+          wide ? "max-w-6xl" : "max-w-3xl",
+        )}
+      >
         <span className="flex items-center gap-2">
           <Engenty kind="round" size={28} animated={false} />
           <span className="font-display font-semibold text-[1.0625rem] tracking-tight">

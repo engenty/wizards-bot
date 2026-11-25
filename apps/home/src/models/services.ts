@@ -1,5 +1,6 @@
 import type { ModelService, ModelSource } from "@wizards-bot/protocol";
 import type { Db } from "../store/db.ts";
+import { isServer } from "./ollama.ts";
 
 /** The company behind a subscription client or a gateway preset, by its id. */
 const KNOWN: Record<string, { id: string; label: string }> = {
@@ -9,18 +10,20 @@ const KNOWN: Record<string, { id: string; label: string }> = {
   openai: { id: "openai", label: "OpenAI" },
   openrouter: { id: "openrouter", label: "OpenRouter" },
   vercel: { id: "vercel", label: "Vercel" },
+  antigravity: { id: "google", label: "Google" },
+  cursor: { id: "cursor", label: "Cursor" },
   wizards: { id: "wizards", label: "wizards account" },
 };
 
 /**
- * The service outside the person's own computers that a source sends what it reads to. Ollama
- * runs on a computer of the person and has none. A linked computer's source keeps its own id
+ * The service outside the person's own computers that a source sends what it reads to. Ollama,
+ * LM Studio and MLX run on a computer of the person and have none. A linked computer's source keeps its own id
  * after the `/`.
  */
 export function serviceOf(
   source: Pick<ModelSource, "id" | "kind" | "label">,
 ): { id: string; label: string } | undefined {
-  if (source.kind === "ollama") return undefined;
+  if (isServer(source.kind)) return undefined;
   const own = source.id.slice(source.id.lastIndexOf("/") + 1);
   return KNOWN[own] ?? { id: own, label: source.label };
 }

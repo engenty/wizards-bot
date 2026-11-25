@@ -9,7 +9,7 @@ import {
   PanelLeftClose,
   Paperclip,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { withConsent } from "../lib/consent";
 import { applyEvent } from "../lib/events";
@@ -23,6 +23,9 @@ import { IconButton } from "../ui";
 import { Composer, type ComposerHandle } from "../ui/Composer";
 import { Face } from "./Face";
 import { Messages } from "./Messages";
+
+/** How often the Bot Server hears that the person writes, so that a local model is ready. */
+const WARM_EVERY_MS = 60_000;
 
 /** A sentence shown for a few seconds above the composer: something did not work. */
 function useFlash(): [string | null, (text: string) => void] {
@@ -84,6 +87,13 @@ export function Chat({
   useEffect(() => {
     if (reference) composer.current?.insert(reference.text);
   }, [reference]);
+  // A model on the Bot Server's computer reads the conversation before the person has written.
+  const warmed = useRef(0);
+  const warm = useCallback(() => {
+    warmed.current = Date.now();
+    void api.post(`/v1/conversations/${agent.conversationId}/warm`).catch(() => undefined);
+  }, [agent.conversationId]);
+  useEffect(warm, [warm]);
   // Entering and leaving the children is counted, so the drop sign does not flicker.
   const [drag, setDrag] = useState(false);
   const depth = useRef(0);
@@ -116,6 +126,12 @@ export function Chat({
   return (
     <main
       className="relative flex h-full min-w-0 flex-col"
+      onInput={() => {
+        // It may have left the memory since the chat was opened.
+        if (Date.now() - warmed.current > WARM_EVERY_MS) {
+          warm();
+        }
+      }}
       // ⌘U (Ctrl+U) picks files, wherever the focus is in the chat.
       onKeyDown={(e) => {
         if ((e.metaKey || e.ctrlKey) && !(e.shiftKey || e.altKey) && e.key.toLowerCase() === "u") {

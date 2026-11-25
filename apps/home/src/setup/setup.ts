@@ -2,20 +2,23 @@ import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { type Client, detectClient } from "@engenty/local-models/clients";
 import { pullModel } from "@engenty/local-models/ollama";
+import { SERVERS } from "@engenty/local-models/servers";
 import type { Card, SetupCheck, SetupPulling, Setup as SetupView } from "@wizards-bot/protocol";
 import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
 import { isSubscription, SUBSCRIPTIONS } from "../models/client-model.ts";
 import { ACCOUNT, GATEWAY_PRESETS } from "../models/models.ts";
-import { onThisComputer, SUGGESTED } from "../models/ollama.ts";
+import { isServer, onThisComputer, SUGGESTED } from "../models/ollama.ts";
 import type { NewCard } from "../store/store.ts";
 import {
+  clientMissing,
   lookAtOllama,
   type Probe,
   probeAccount,
   probeClient,
   probeGateway,
   probeOllama,
+  probeServer,
 } from "./probes.ts";
 import {
   greeting,
@@ -234,7 +237,14 @@ export class Setup {
     this.home.db.setMeta(TESTS, JSON.stringify(all));
   }
 
-  private forget(id: string): void {
+  /** Keeps the outcome of a test made elsewhere: the setup's of a key. */
+  async tested(id: string, probe: Probe): Promise<void> {
+    this.keep(id, probe);
+    await this.changed();
+  }
+
+  /** A source whose last test says nothing any more: another model of it was chosen. */
+  forget(id: string): void {
     const { [id]: _, ...rest } = this.kept();
     this.home.db.setMeta(TESTS, JSON.stringify(rest));
   }
@@ -255,8 +265,22 @@ export class Setup {
     }
     if (!isHosted(config)) {
       probes.set("ollama", () =>
-        (models.ollamaPicked() ? probeOllama : lookAtOllama)(config.ollamaUrl, models.memory),
+        models.ollamaPicked()
+          ? probeOllama(
+              config.ollamaUrl,
+              models.memory,
+              undefined,
+              undefined,
+              models.serverModel("ollama"),
+            )
+          : lookAtOllama(config.ollamaUrl, models.memory),
       );
+      for (const id of ["lmstudio", "mlx"] as const) {
+        if (!models.serverPicked(id)) continue;
+        probes.set(id, () =>
+          probeServer(id, models.serverUrl(id), models.memory, models.serverModel(id)),
+        );
+      }
     }
     for (const gateway of models.gateways()) {
       probes.set(gateway.id, () =>
@@ -392,7 +416,13 @@ export class Setup {
     const found = await Promise.all(this.clients.map((client) => detectClient(client)));
     const installed = new Set(this.clients.filter((_, at) => found[at]?.version).map((c) => c.id));
     const models = this.modelChecks(installed).map(shown);
-    const working = models.some((check) => check.state === "ok" || check.state === "warning");
+    // Once the person picked, what they did not pick counts no more.
+    const picked = this.home.models.picked();
+    const working = models.some(
+      (check) =>
+        (check.state === "ok" || check.state === "warning") &&
+        (!picked || picked.includes(check.id) || check.id.includes("/")),
+    );
     return {
       done: this.done(),
       name: {
@@ -451,14 +481,7 @@ export class Setup {
             `${name} is not installed on this computer.`,
             `${name} ist auf diesem Computer nicht installiert.`,
           ),
-          todo:
-            client.id === "claude"
-              ? w(
-                  "Install Claude Code, then run claude and /login.",
-                  "Installiere Claude Code, dann starte claude und /login.",
-                )
-              : w("Install Codex, then sign in.", "Installiere Codex, dann melde dich an."),
-          command: client.id === "claude" ? "claude" : "codex login",
+          ...clientMissing(client),
         });
         continue;
       }
@@ -541,6 +564,13 @@ export class Setup {
           "Starte Ollama, oder installiere es von ollama.com.",
         ),
       });
+    }
+    for (const id of ["lmstudio", "mlx"] as const) {
+      if (hosted || !models.serverPicked(id)) continue;
+      const { name } = SERVERS[id];
+      checks.push(
+        row(id, name, w(`${name} has not been tested yet.`, `${name} ist noch nicht getestet.`)),
+      );
     }
     for (const gateway of models.gateways()) {
       checks.push(
@@ -823,9 +853,10 @@ export class Setup {
         };
     const vision = this.home.models.forPictures();
     const seeing = answering.filter((check) =>
-      check.id === "ollama"
-        ? vision.here.length > 0
-        : isSubscription(check.id) ||
+      isServer(check.id)
+        ? vision.here.some((ref) => ref.startsWith(`${check.id}:`))
+        : check.id === "claude" ||
+          check.id === "codex" ||
           check.id === ACCOUNT.id ||
           this.home.models.gateways().some((g) => g.id === check.id),
     );

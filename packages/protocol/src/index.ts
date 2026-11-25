@@ -1104,8 +1104,9 @@ export type UpdateDevice = z.infer<typeof UpdateDevice>;
 
 export const ModelSource = z.object({
   id: z.string(),
-  /** `subscription` is a signed-in app on a computer (Claude, Codex, Gemini). */
-  kind: z.enum(["ollama", "subscription", "gateway"]),
+  /** `subscription` is a signed-in app on a computer (Claude Code, Codex, Cursor, Antigravity). */
+  /** `ollama`, `lmstudio` and `mlx` run open models on a computer. */
+  kind: z.enum(["ollama", "lmstudio", "mlx", "subscription", "gateway"]),
   label: z.string(),
   /** Device name of the computer it runs on, or "the cloud" for a gateway. */
   where: z.string(),
@@ -1285,6 +1286,17 @@ export const Event = z.discriminatedUnion("type", [
     messageId: z.string(),
     part: z.number(),
     text: z.string(),
+  }),
+  /**
+   * What a message being written waits for: a model on the home's computer is loaded, reads the
+   * conversation (`share`, 0 to 1) or thinks; `none` once it goes on. Not replayed after a reconnect.
+   */
+  z.object({
+    type: z.literal("message.waiting"),
+    conversationId: z.string(),
+    messageId: z.string(),
+    state: z.enum(["loading", "reading", "thinking", "none"]),
+    share: z.number().optional(),
   }),
   z.object({ type: z.literal("message.updated"), message: Message }),
   z.object({ type: z.literal("card.updated"), card: Card }),
