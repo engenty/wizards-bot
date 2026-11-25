@@ -61,7 +61,7 @@ class FakeRelay {
       const publicKey = String(body.publicKey);
       const signed = verify(
         null,
-        Buffer.from(claimText(publicKey, Number(body.timestamp))),
+        Buffer.from(claimText(publicKey, Number(body.timestamp), url.hostname)),
         createPublicKey({ key: { kty: "OKP", crv: "Ed25519", x: publicKey }, format: "jwk" }),
         Buffer.from(String(body.signature), "base64url"),
       );
@@ -143,6 +143,21 @@ describe("the claim key and its name", () => {
         Buffer.from(body.signature, "base64url"),
       ),
     );
+  });
+
+  test("another relay's claim signs that relay's domain", () => {
+    const key = claimKey(join(mkdtempSync(join(tmpdir(), "wizards-bot-claim-")), "claim.pem"));
+    assert.equal(new Relay("https://relay.example:8443/").domain, "relay.example");
+    const body = claimBody(key, 1_700_000_000_000, "relay.example");
+    assert.ok(
+      verify(
+        null,
+        Buffer.from(`relay.example claim ${body.publicKey} 1700000000000`),
+        createPublicKey(key),
+        Buffer.from(body.signature, "base64url"),
+      ),
+    );
+    assert.match(nameOf(key, "relay.example"), /^[a-z2-7]{10}\.relay\.example$/);
   });
 
   test("the certificate request names the one name and is signed", (t) => {

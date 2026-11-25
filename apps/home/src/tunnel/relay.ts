@@ -43,6 +43,11 @@ export class Relay {
     this.fetch = fetcher;
   }
 
+  /** The relay's domain, which its names stand below. */
+  get domain(): string {
+    return new URL(this.url).hostname;
+  }
+
   private async call<T>(
     path: string,
     init: { method?: string; key?: string; body?: unknown } = {},
@@ -84,7 +89,7 @@ export class Relay {
   async claim(key: KeyObject): Promise<Claimed> {
     const data = await this.call<Partial<Claimed>>("/v1/tunnels/claim", {
       method: "POST",
-      body: claimBody(key),
+      body: claimBody(key, Date.now(), this.domain),
     });
     if (!data.key || !data.name || !data.server) {
       throw new RelayError(`${this.url} answered the claim without a name.`, "invalid", 502);
