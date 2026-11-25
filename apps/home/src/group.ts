@@ -24,6 +24,8 @@ const People = z.object({
       }),
     )
     .max(5000),
+  // The runtime the team works in. Its studio shows this home's page inside its own.
+  studio: z.object({ mcp: z.string().url() }).nullable().catch(null).default(null),
 });
 
 /** Whether someone runs the home. In a home of one person nobody is named, and they do. */
@@ -69,6 +71,14 @@ export class Group {
 
   constructor(home: Home) {
     this.home = home;
+  }
+
+  /**
+   * The origin of the studio the team works in, as the Manage-App named it. That page may show
+   * the home's own page inside itself.
+   */
+  studio(): string | undefined {
+    return this.home.db.meta("studio.origin") || undefined;
   }
 
   /** The team's name when this is a group home. */
@@ -146,6 +156,10 @@ export class Group {
     if (!response.ok) return false;
     const parsed = People.safeParse(await response.json().catch(() => undefined));
     if (!parsed.success) return false;
+    const studio = parsed.data.studio ? new URL(parsed.data.studio.mcp).origin : "";
+    if (studio !== (this.home.db.meta("studio.origin") ?? "")) {
+      this.home.db.setMeta("studio.origin", studio);
+    }
     this.take(parsed.data);
     return true;
   }

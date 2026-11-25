@@ -96,7 +96,7 @@ const WEB_TYPES: Record<string, string> = {
  * What the web app's page may do: load its own files, talk to its own home, show pictures
  * it fetched, use the camera's stream. Scripts written into the page are allowed one by one.
  */
-function webPolicy(page: string): string {
+function webPolicy(page: string, studio: string | undefined): string {
   const inline = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
     (match) =>
       `'sha256-${createHash("sha256")
@@ -114,7 +114,8 @@ function webPolicy(page: string): string {
     "connect-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'none'",
-    "frame-ancestors 'none'",
+    // No other site shows the page inside its own, but the studio the team works in.
+    `frame-ancestors ${studio ?? "'none'"}`,
   ].join("; ");
 }
 
@@ -195,7 +196,10 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     return c.body(page.bytes, 200, {
       "content-type": page.type,
       "cache-control": "no-cache",
-      "content-security-policy": webPolicy(new TextDecoder().decode(page.bytes)),
+      "content-security-policy": webPolicy(
+        new TextDecoder().decode(page.bytes),
+        home.group.studio(),
+      ),
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
     });
