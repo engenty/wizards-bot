@@ -238,12 +238,12 @@ function MessageView({
       </div>
     );
   }
-  // In a group home another admin's message stands on the other side, with their name.
-  const otherAdmin =
+  // In a group home someone else's message stands on the other side, with their name.
+  const otherPerson =
     message.role === "you" &&
-    message.from?.admin !== undefined &&
-    message.from.admin !== me.data?.admin?.id;
-  if (message.role === "you" && !otherAdmin) {
+    message.from?.person !== undefined &&
+    message.from.person !== me.data?.person?.id;
+  if (message.role === "you" && !otherPerson) {
     return (
       <div className="enter-rise ml-8 flex min-w-0 flex-col items-end gap-1.5 self-end">
         <Parts
@@ -290,7 +290,7 @@ function MessageView({
       </div>
       <div className={cn("flex min-w-0 flex-1 flex-col gap-2.5", !bubbles && "pt-0.5")}>
         {message.from ? (
-          // In a room: who wrote it, and for an agent whose it is. In a group home: which admin.
+          // In a room: who wrote it, and for an agent whose it is. In a group home: who of it.
           <p className="-mb-1.5 font-medium text-[0.8125rem] text-ink-2">
             {message.from.name}
             {message.from.of ? (
@@ -300,7 +300,7 @@ function MessageView({
         ) : null}
         <Parts
           message={message}
-          bubble={bubbles || otherAdmin ? "left" : undefined}
+          bubble={bubbles || otherPerson ? "left" : undefined}
           onDocument={onDocument}
           onArtifact={onArtifact}
           onProblem={onProblem}

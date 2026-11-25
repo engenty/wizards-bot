@@ -223,10 +223,10 @@ export function Sidebar({
   const home = useHome();
   const me = useThisDevice();
   const listed = inOrder(agents);
-  // In a group home the admin is named, and the Bot Server is the team's.
-  const admin = home.data?.group ? me.data?.admin : undefined;
-  const name = admin?.name ?? home.data?.name;
-  const where = admin ? `${home.data?.group?.name} · ${botServerName()}` : botServerName();
+  // In a group home the person is named, and the Bot Server is the team's.
+  const person = home.data?.group ? me.data?.person : undefined;
+  const name = person?.name ?? home.data?.name;
+  const where = person ? `${home.data?.group?.name} · ${botServerName()}` : botServerName();
   const you = <StackedAvatar avatar={avatar ?? DEFAULT_AVATAR} size={1} view="head" follows />;
   /** The person's own things: their avatar, and signing this browser out. */
   const userMenu = {

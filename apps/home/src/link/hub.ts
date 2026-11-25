@@ -11,6 +11,7 @@ import {
 import { levelOf } from "@engenty/tool-harness";
 import type { ModelSource } from "@wizards-bot/protocol";
 import { type WebSocket, WebSocketServer } from "ws";
+import { runsHome } from "../group.ts";
 import type { Home } from "../home.ts";
 import {
   type ClientEvent,
@@ -61,7 +62,8 @@ export class LinkHub implements RemoteSources {
       if (!request.url?.startsWith("/v1/link")) return socket.destroy();
       const header = request.headers.authorization ?? "";
       const device = this.home.store.deviceByToken(header.replace(/^bearer /i, "").trim());
-      if (device?.kind !== "computer") {
+      // A model of a group home answers for all of it: only who runs it adds one.
+      if (device?.kind !== "computer" || !runsHome(device.person)) {
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         return socket.destroy();
       }
@@ -170,6 +172,9 @@ export class LinkHub implements RemoteSources {
     const computer: Computer = { device, socket, sources: [] };
     this.computers.set(key, computer);
     const alive = setInterval(() => socket.ping(), 25_000);
+    const keeps = this.home.group.onRemoved((ids) => {
+      if (ids.includes(device.id)) socket.close();
+    });
     socket.on("message", (data) => {
       let message: ToHome;
       try {
@@ -181,6 +186,7 @@ export class LinkHub implements RemoteSources {
     });
     socket.on("close", () => {
       clearInterval(alive);
+      keeps();
       if (this.computers.get(key) !== computer) return;
       this.computers.delete(key);
       for (const [id, waiting] of this.waiting) {

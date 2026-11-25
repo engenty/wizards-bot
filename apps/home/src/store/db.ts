@@ -17,12 +17,13 @@ create table if not exists device (
   id text primary key, name text not null, kind text not null, token_hash text not null unique,
   push text, quiet text, created_at text not null, seen_at text not null);
 create table if not exists pairing (code text primary key, expires_at text not null);
-create table if not exists admin (
+create table if not exists person (
   id text primary key, name text not null, role text not null, created_at text not null);
-create table if not exists admin_pass (jti text primary key, expires_at text not null);
-create table if not exists conversation_read (
+create table if not exists used_pass (jti text primary key, expires_at text not null);
+create table if not exists paired_origin (origin text primary key, paired_at text not null);
+create table if not exists person_read (
   conversation_id text not null references conversation(id) on delete cascade,
-  admin_id text not null, read_at text not null, primary key (conversation_id, admin_id));
+  person_id text not null, read_at text not null, primary key (conversation_id, person_id));
 create table if not exists agent (
   id text primary key, name text not null, kind text not null, about text not null default '',
   instructions text not null default '', memory text not null default '',
@@ -163,8 +164,9 @@ const ADDED: [string, string, string][] = [
   ["contact", "person_key", "text"],
   ["contact", "person_seq", "integer"],
   ["folder", "allow", "text not null default 'ask'"],
-  ["device", "admin_id", "text"],
-  ["pairing", "admin_id", "text"],
+  ["device", "person_id", "text"],
+  ["device", "origin", "text"],
+  ["pairing", "person_id", "text"],
   ["artifact", "summary", "text"],
   ["card", "reply", "text"],
 ];

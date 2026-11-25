@@ -5,8 +5,9 @@ import {
   MASTRA_THREAD_ID_KEY,
   RequestContext,
 } from "@mastra/core/request-context";
-import type { Admin, Card, Channel, FileRef, Message } from "@wizards-bot/protocol";
+import type { Card, Channel, FileRef, HomePerson, Message } from "@wizards-bot/protocol";
 import type { Picture } from "../files/pictures.ts";
+import { runsHome } from "../group.ts";
 import type { Home } from "../home.ts";
 import { newToken } from "../ids.ts";
 import { LAST_MESSAGES } from "../mastra.ts";
@@ -18,6 +19,7 @@ import { cacheProcessor, markedInstructions } from "./cache.ts";
 import { Draft } from "./draft.ts";
 import { guarded, isSource, metaTools, turnHarness } from "./harness.ts";
 import { type Prompt, systemPrompt } from "./prompt.ts";
+import { toolsFor } from "./roles.ts";
 import { type Answer, type Asking, mastraTools, runTool, type Tool } from "./tool.ts";
 
 export interface Trigger {
@@ -37,8 +39,8 @@ export interface Trigger {
   replyTo?: { channel: Channel; peer: string; thread?: string };
   /** Files the person attached to the message. */
   files?: FileRef[];
-  /** In a group home: the admin who wrote the message. */
-  writer?: Admin;
+  /** In a group home: who wrote the message. */
+  writer?: HomePerson;
   /**
    * The turn answers someone else, not the person: a contact (name and handle) or a caller
    * from outside (its name). The agent has none of the person's tools. `hears`: the person
@@ -277,7 +279,7 @@ class Turn {
       : trigger.guest
         ? home.peers.guestTools(context)
         : home.tools(context);
-    const tools = all.map((tool) =>
+    const tools = toolsFor(trigger.writer, all).map((tool) =>
       guarded(
         tool,
         () => this.level,
@@ -307,6 +309,7 @@ class Turn {
               tool: tool.name,
               input,
               kept,
+              writer: trigger.writer?.id,
               ...(hidden ? { private: true } : {}),
             },
           },
@@ -460,6 +463,7 @@ class Turn {
           files: trigger.files,
           outside: this.outside || undefined,
           task: trigger.task,
+          writer: trigger.writer?.id,
         },
       },
       { agentId: agent.id, conversationId: trigger.conversationId, messageId: draft.id },
@@ -472,23 +476,26 @@ class Turn {
     const { home, agent, trigger } = this;
     // In a room the agent reads what is beside its own conversation with the person.
     const beside = trigger.room ? agent.conversationId : trigger.conversationId;
+    // Who does not run the group home reads nothing here of what its admins connected.
+    const runs = runsHome(trigger.writer);
     return systemPrompt({
-      agent,
+      // What an agent remembers is not for a team's clients.
+      agent: trigger.writer?.role === "client" ? { ...agent, memory: "" } : agent,
       person: home.person() || "the person",
       group: home.group.isGroup()
         ? { admins: home.group.admins().map((admin) => admin.name) }
         : undefined,
       agents: home.store.agents(),
-      connections: home.connections.names(),
+      connections: runs ? home.connections.names() : [],
       documents: home.store.documents(beside).slice(0, 12),
       artifacts: home.artifacts.list(beside).slice(0, 12),
       files: trigger.room ? home.store.sentFiles(beside, 20) : undefined,
       room: trigger.room,
-      folders: trigger.guest ? [] : home.folders.list(),
-      tasks: trigger.guest ? [] : home.tasks.lines(agent.id),
+      folders: trigger.guest || !runs ? [] : home.folders.list(),
+      tasks: trigger.guest || !runs ? [] : home.tasks.lines(agent.id),
       skills: trigger.guest ? undefined : home.skills.prompt(trigger.conversationId),
-      devices: trigger.guest ? undefined : home.handoffs.prompt(agent, home.person()),
-      shell: trigger.guest || trigger.room ? undefined : home.shell.prompt(home.person()),
+      devices: trigger.guest || !runs ? undefined : home.handoffs.prompt(agent, home.person()),
+      shell: trigger.guest || trigger.room || !runs ? undefined : home.shell.prompt(home.person()),
       // A card without a button only shows something: a pairing code, a task's address.
       waiting: home.store
         .openCards(trigger.conversationId)
@@ -591,6 +598,7 @@ function nextTurn(turn: Turn, message: Message): Trigger {
       .filter(Boolean)
       .join("\n"),
     channel: first.channel,
+    writer: first.writer,
     replyTo: turn.triggers.find((trigger) => trigger.replyTo)?.replyTo,
     task: first.task,
     outside: turn.outside,
@@ -605,9 +613,17 @@ function nextTurn(turn: Turn, message: Message): Trigger {
   };
 }
 
-/** What a card's answer starts: as the person's message says, where the answer is one. */
-function answeredWith(card: Card, said: Trigger | undefined): Trigger {
-  const { channel = "home", messageId, spoken, replyTo, writer } = said ?? {};
+/**
+ * What a card's answer starts: as the person's message says, where the answer is one. `asked` is
+ * who the turn that showed the card was for: whoever answers, it does not get to do more.
+ */
+function answeredWith(
+  card: Card,
+  said: Trigger | undefined,
+  asked: HomePerson | undefined,
+): Trigger {
+  const { channel = "home", messageId, spoken, replyTo } = said ?? {};
+  const writer = runsHome(asked) ? (said?.writer ?? asked) : asked;
   return {
     conversationId: card.conversationId,
     text: "",
@@ -676,6 +692,7 @@ export class Turns {
         task: payload.task as Trigger["task"],
         outside: payload.outside === true || undefined,
         engine: String(payload.engine),
+        writer: home.group.known(payload.writer),
       });
     });
     home.onCard("tool", ({ card, action, values, payload, said }) =>
@@ -687,7 +704,7 @@ export class Turns {
           values,
           card: { id: card.id, title: card.title, actions: card.actions },
           kept: payload.kept,
-          by: card.answer?.admin?.name,
+          by: card.answer?.person?.name,
           message: card.answer?.message,
           files: said?.files,
         },
@@ -708,17 +725,18 @@ export class Turns {
     answer: Answer,
     said: Trigger | undefined,
   ): Promise<void> {
+    const { home } = this;
     const parked = this.parked.get(card.conversationId);
     if (parked?.cardId === card.id) {
       this.parked.delete(card.conversationId);
       try {
-        return await this.resume(card, parked, answer, said);
+        return await this.resume(card, parked, answer, said, home.group.known(payload.writer));
       } catch (error) {
         console.error("[turn] the suspended run did not go on:", (error as Error).message);
       }
     }
     await this.enqueue({
-      ...answeredWith(card, said),
+      ...answeredWith(card, said, home.group.known(payload.writer)),
       again: { tool: String(payload.tool), input: payload.input, answer, said: Boolean(said) },
     });
   }
@@ -729,6 +747,7 @@ export class Turns {
     parked: Parked,
     answer: Answer,
     said: Trigger | undefined,
+    asked: HomePerson | undefined,
   ): Promise<void> {
     const { store } = this.home;
     const conversation = store.conversation(card.conversationId);
@@ -741,7 +760,12 @@ export class Turns {
       .map((ref) => this.home.models.engine(ref))
       .filter((engine) => engine !== undefined);
     const handed = this.goesOn(conversation.id, card.id);
-    const turn = new Turn(this.home, agent, { ...answeredWith(card, said), handed }, engines);
+    const turn = new Turn(
+      this.home,
+      agent,
+      { ...answeredWith(card, said, asked), handed },
+      engines,
+    );
     turn.resumes = parked.toolCallId;
     this.answers.set(card.id, answer);
     try {

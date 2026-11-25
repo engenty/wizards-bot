@@ -1,7 +1,7 @@
 import { ChatLook } from "@wizards-bot/protocol";
 import type { Home } from "./home.ts";
 
-/** How the chat looks to the person, for all their devices. In a group home, to each admin. */
+/** How the chat looks to the person, for all their devices. In a group home, to each person of it. */
 export class Looks {
   private readonly home: Home;
 
@@ -9,15 +9,19 @@ export class Looks {
     this.home = home;
   }
 
-  get(adminId?: string): ChatLook {
-    const saved = this.home.db.meta(key(adminId));
+  get(personId?: string): ChatLook {
+    const saved = this.home.db.meta(key(personId));
     return ChatLook.parse(saved ? JSON.parse(saved) : {});
   }
 
-  set(look: ChatLook, adminId?: string): void {
-    this.home.db.setMeta(key(adminId), JSON.stringify(look));
-    this.home.events.emit({ type: "look.updated", look, ...(adminId ? { admin: adminId } : {}) });
+  set(look: ChatLook, personId?: string): void {
+    this.home.db.setMeta(key(personId), JSON.stringify(look));
+    this.home.events.emit({
+      type: "look.updated",
+      look,
+      ...(personId ? { person: personId } : {}),
+    });
   }
 }
 
-const key = (adminId?: string) => (adminId ? `chat.look.${adminId}` : "chat.look");
+const key = (personId?: string) => (personId ? `chat.look.${personId}` : "chat.look");

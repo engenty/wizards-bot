@@ -231,7 +231,7 @@ export function useDevices() {
   });
 }
 
-/** This device as the home knows it; in a group home it names its admin. */
+/** This device as the home knows it; in a group home it names its person. */
 export function useThisDevice() {
   return useQuery({
     queryKey: keys.device(),
