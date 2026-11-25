@@ -118,6 +118,7 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
     );
     models.memory = 64 * GB;
     await models.refresh(true);
+    models.pickOllama(true);
   });
 
   after(() => {
@@ -165,6 +166,20 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
     models.setOrder([`ollama:${QWEN}`]);
     assert.deepEqual(models.candidates(), [`ollama:${QWEN}`, `ollama:${INKLING}`]);
     models.setOrder([]);
+  });
+
+  test("the home asks it only while the person has it picked; an order that names it picks it", () => {
+    models.setOrder([`ollama:${QWEN}`]);
+    models.pickOllama(false);
+    assert.deepEqual(models.order(), []);
+    assert.deepEqual(models.candidates(), []);
+    assert.deepEqual(models.forPictures().here, []);
+    assert.deepEqual(models.ollamaOffer(), { model: INKLING, size: 20_188_097_271 });
+    models.setOrder([`ollama:${QWEN}`]);
+    assert.equal(models.ollamaPicked(), true);
+    assert.equal(models.candidates()[0], `ollama:${QWEN}`);
+    models.setOrder([]);
+    models.pickOllama(true);
   });
 
   test("a step sends the tools and the picture and keeps what it thinks out of the answer", async () => {

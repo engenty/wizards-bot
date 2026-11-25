@@ -11,6 +11,7 @@ import {
 import { join, normalize } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
+import { TerminalError } from "@engenty/model-setup/server";
 import { CsvRefused, OriginRefused } from "@engenty/vault";
 import type { Admin, Agent, Event } from "@wizards-bot/protocol";
 import {
@@ -34,6 +35,7 @@ import {
   SendMessage,
   SetupGateway,
   SwitchAddress,
+  SwitchOllama,
   TestSetup,
   UndoFolderChange,
   UpdateDevice,
@@ -44,7 +46,7 @@ import { type Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { LeavesHome, NoPictureModel, NotAPicture } from "./avatar/avatars.ts";
-import { tidyCode, VERSION } from "./config.ts";
+import { isHosted, tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
 import { FileRefused, isText, sniff } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
@@ -52,7 +54,8 @@ import { PassRefused } from "./group.ts";
 import type { Home } from "./home.ts";
 import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
-import { PullRefused } from "./setup/setup.ts";
+import { OllamaRefused, PullRefused } from "./setup/setup.ts";
+import { sharedSetup } from "./setup/shared.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
 import { AddressRefused } from "./tunnel/tunnel.ts";
 import { VaultRefused } from "./vault/vault.ts";
@@ -140,6 +143,16 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   app.onError((error, c) => {
     if (error instanceof z.ZodError) {
       return fail(c, 400, "invalid", `The request is not valid: ${z.prettifyError(error)}`);
+    }
+    if (error instanceof TerminalError) {
+      const message = {
+        gone: "This terminal is closed.",
+        unavailable: "This computer has no terminal the Bot Server can open.",
+        not_started: `The command did not start: ${error.detail}`,
+      }[error.code];
+      return error.code === "gone"
+        ? fail(c, 404, "not_found", message)
+        : fail(c, 400, "refused", message);
     }
     console.error("[http]", error);
     return c.json({ error: "failed", message: "The Bot Server could not do this." }, 500);
@@ -1043,6 +1056,23 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       throw error;
     }
     return c.json(await home.setup.view());
+  });
+
+  // What the wizards think with, picked as in engenty wizards' studio. A hosted home has no
+  // clients to install and no computer to sign in on.
+  if (!isHosted(home.config)) {
+    app.route("/v1/setup/local", sharedSetup(home));
+  }
+
+  // Ollama on this computer, used only on the person's word: its model takes much memory.
+  app.post("/v1/setup/ollama", async (c) => {
+    const { on } = SwitchOllama.parse(await c.req.json());
+    try {
+      return c.json(await home.setup.ollama(on));
+    } catch (error) {
+      if (error instanceof OllamaRefused) return fail(c, 400, "refused", error.message);
+      throw error;
+    }
   });
 
   // A model for Ollama on this computer, on the person's yes; it loads while the setup shows it.

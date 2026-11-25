@@ -160,7 +160,7 @@ export function buildTools(context: TurnContext): Tool[] {
     defineTool({
       name: "home_check",
       description:
-        "Test each model with a short call and check the Bot Server (address, data folder, connected folders, notifications), as `wizards-bot doctor` does. Use it when a model fails or the person asks what works. Each call costs a few tokens.",
+        "Test each model with a short call and check the Bot Server (address, data folder, connected folders, notifications), as `wizards-bot doctor` does. Use it when a model fails or the person asks what works. Each call costs a few tokens. An Ollama the person has not picked is not asked: its model takes much memory, and the person picks it in the settings.",
       input: z.object({ source: z.string().optional().describe("One source id, e.g. claude.") }),
       label: () => "Testing the models",
       run: async (input) => {

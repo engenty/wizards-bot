@@ -1185,6 +1185,13 @@ export const SetupCheck = z.object({
    * (`POST /v1/setup/pull`): the largest of its suggestions that fits the computer's memory.
    */
   pull: z.object({ model: z.string(), size: z.number() }).optional(),
+  /**
+   * For Ollama: whether the person picked it. Until then the home finds it and loads no model
+   * (`POST /v1/setup/ollama`).
+   */
+  on: z.boolean().optional(),
+  /** For an Ollama nobody picked: the model the home would ask, and its size in bytes. */
+  start: z.object({ model: z.string(), size: z.number() }).optional(),
 });
 export type SetupCheck = z.infer<typeof SetupCheck>;
 
@@ -1241,6 +1248,9 @@ export type Setup = z.infer<typeof Setup>;
 /** Pulls one of the models a check offers (`SetupCheck.pull`). */
 export const PullSetup = z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9._:/-]{0,80}$/) });
 export type PullSetup = z.infer<typeof PullSetup>;
+
+export const SwitchOllama = z.object({ on: z.boolean() });
+export type SwitchOllama = z.infer<typeof SwitchOllama>;
 
 export const ChangeSetup = z.object({
   name: z.string().trim().min(1).max(80).optional(),

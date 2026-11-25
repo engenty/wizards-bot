@@ -2,7 +2,12 @@ import { totalmem } from "node:os";
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { detectClient } from "@engenty/local-models/clients";
-import { type ChatModel, type InstalledModel, ollamaModel } from "@engenty/local-models/ollama";
+import {
+  type ChatModel,
+  fits,
+  type InstalledModel,
+  ollamaModel,
+} from "@engenty/local-models/ollama";
 import {
   type ModelService,
   type ModelSource,
@@ -22,7 +27,7 @@ import {
   SUBSCRIPTIONS,
   type SubscriptionId,
 } from "./client-model.ts";
-import { chatModels, onThisComputer } from "./ollama.ts";
+import { chatModels, MEMORY_SHARE, onThisComputer } from "./ollama.ts";
 import { agreed, serviceOf, services } from "./services.ts";
 
 export type { ClientTurn } from "./client-model.ts";
@@ -106,6 +111,12 @@ export function accountModel(
   })(model);
 }
 
+/** The sources the person picked in the setup. */
+const PICKED = "models.picked";
+
+/** Whether the person picked Ollama: "on" or "off". */
+const OLLAMA = "models.ollama";
+
 const REFRESH_MS = 60_000;
 
 export class Models {
@@ -156,6 +167,7 @@ export class Models {
     const rest = this.gateways().filter((g) => g.id !== gateway.id);
     this.db.setMeta("models.gateways", JSON.stringify([...rest, gateway]));
     this.secrets.set(`gateway.${gateway.id}`, key);
+    this.addPicked(gateway.id);
   }
 
   removeGateway(id: string): void {
@@ -233,12 +245,86 @@ export class Models {
     );
   }
 
+  // ── What the person picked ────────────────────────────────────────────────
+
+  /**
+   * The sources the person picked in the setup, or added since; undefined on a home whose setup
+   * asked for none. Once they picked, nothing else answers: not a client that happens to be
+   * installed, not a gateway that happens to have a key.
+   */
+  picked(): string[] | undefined {
+    const saved = this.db.meta(PICKED);
+    return saved ? (JSON.parse(saved) as string[]) : undefined;
+  }
+
+  /** The person picks one source in the setup: it alone answers. */
+  pickSource(id: string): void {
+    if (id === "ollama") this.db.setMeta(OLLAMA, "on");
+    else if (this.ollamaPicked()) this.pickOllama(false);
+    this.db.setMeta("models.order", JSON.stringify([]));
+    this.db.setMeta(PICKED, JSON.stringify([id]));
+  }
+
+  /** Another source beside the picked ones: a key added later, a model named in the order. */
+  private addPicked(id: string): void {
+    const picked = this.picked();
+    if (picked && !picked.includes(id)) this.db.setMeta(PICKED, JSON.stringify([...picked, id]));
+  }
+
+  // ── Ollama ────────────────────────────────────────────────────────────────
+
+  /**
+   * Whether the home may have this computer's Ollama load a model: the person picked it, or put
+   * one of its models into their order. A model takes a large part of the computer's memory, so
+   * finding Ollama is not enough.
+   */
+  ollamaPicked(): boolean {
+    const said = this.db.meta(OLLAMA);
+    if (said) return said === "on";
+    return this.order().some((ref) => splitRef(ref).sourceId === "ollama");
+  }
+
+  /** Whether the person has said yes or no to Ollama. */
+  ollamaSaid(): boolean {
+    return Boolean(this.db.meta(OLLAMA));
+  }
+
+  pickOllama(on: boolean): void {
+    this.db.setMeta(OLLAMA, on ? "on" : "off");
+    if (on) {
+      this.addPicked("ollama");
+    } else {
+      const picked = this.picked()?.filter((id) => id !== "ollama");
+      if (picked) this.db.setMeta(PICKED, JSON.stringify(picked));
+      const rest = this.order().filter((ref) => splitRef(ref).sourceId !== "ollama");
+      this.db.setMeta("models.order", JSON.stringify(rest));
+    }
+  }
+
+  /** The model of Ollama the person put first; the home's own choice when they named none. */
+  ollamaModel(): string | undefined {
+    const ref = this.order().find((entry) => splitRef(entry).sourceId === "ollama");
+    return ref && splitRef(ref).model;
+  }
+
+  /** The model Ollama would load once the person picks it; none when none leaves the computer room. */
+  ollamaOffer(): { model: string; size: number } | undefined {
+    const first = this.ollama[0];
+    if (!first) return undefined;
+    const here = onThisComputer(this.config.ollamaUrl);
+    if (here && !fits(first, this.memory, MEMORY_SHARE)) return undefined;
+    return { model: first.name, size: first.size };
+  }
+
   order(): string[] {
     return JSON.parse(this.db.meta("models.order") ?? "[]") as string[];
   }
 
   setOrder(refs: string[]): void {
     this.db.setMeta("models.order", JSON.stringify(refs));
+    // Naming one of its models in the order picks Ollama.
+    if (refs.some((ref) => splitRef(ref).sourceId === "ollama")) this.db.setMeta(OLLAMA, "on");
+    for (const ref of refs) this.addPicked(splitRef(ref).sourceId);
   }
 
   view(): ModelsView {
@@ -260,11 +346,20 @@ export class Models {
 
   /**
    * Model refs in the order the home tries them: the person's order first, then a
-   * subscription, then Ollama, then a gateway; this computer before another one.
+   * subscription, then Ollama, then a gateway; this computer before another one. This
+   * computer's Ollama is among them only once the person picked it; once they picked in the
+   * setup, only what they picked is.
    */
   candidates(): string[] {
     const available = new Map<string, ModelSource>();
-    for (const source of this.sources()) if (source.online) available.set(source.id, source);
+    const ollama = this.ollamaPicked();
+    const picked = this.picked();
+    for (const source of this.sources()) {
+      // A linked computer and the account are picked by linking and by the sign-up.
+      const asked = source.id.includes("/") || source.id === ACCOUNT.id;
+      if (picked && !asked && !picked.includes(source.id)) continue;
+      if (source.online && (ollama || source.id !== "ollama")) available.set(source.id, source);
+    }
     const refs: string[] = [];
     const add = (ref: string) => {
       const { sourceId, model } = splitRef(ref);
@@ -276,6 +371,8 @@ export class Models {
     for (const kind of ["subscription", "ollama", "gateway"] as const) {
       for (const source of available.values()) {
         const first = source.models[0];
+        // Of a source the person picked, the model they named is the one: no other is loaded.
+        if (picked && refs.some((ref) => splitRef(ref).sourceId === source.id)) continue;
         if (source.kind === kind && first) add(`${source.id}:${first.id}`);
       }
     }
@@ -287,7 +384,9 @@ export class Models {
    * else, which a picture of the person reaches only when the person said so.
    */
   forPictures(): { here: string[]; elsewhere: { ref: string; label: string }[] } {
-    const here = this.ollama.filter((model) => model.vision).map((model) => `ollama:${model.name}`);
+    const here = this.ollamaPicked()
+      ? this.ollama.filter((model) => model.vision).map((model) => `ollama:${model.name}`)
+      : [];
     const elsewhere: { ref: string; label: string }[] = [];
     for (const ref of this.candidates()) {
       const { sourceId } = splitRef(ref);

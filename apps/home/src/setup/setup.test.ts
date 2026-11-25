@@ -297,6 +297,61 @@ test("test calls: kept with their time, told as events, a failing client beside 
   assert.equal(t.model.requests.length, asked);
 });
 
+test("an Ollama nobody picked: found, never asked, until the person picks it", async () => {
+  const fresh = await testHome("Ada", undefined, { unpicked: true });
+  try {
+    const row = (setup: Setup) => setup.models.find((check) => check.id === "ollama");
+    const post = async (path: string, body: unknown) =>
+      (await (await fresh.request(path, { body })).json()) as Setup;
+
+    const all = await post("/v1/setup/test", {});
+    assert.equal(row(all)?.state, "untested");
+    assert.equal(row(all)?.on, false);
+    assert.equal(row(all)?.start?.model, "fake:1");
+    assert.equal(all.hasModel, false);
+    assert.equal(all.working, false);
+    await post("/v1/setup/test", { source: "ollama" });
+    assert.equal(fresh.model.requests.length, 0);
+
+    const on = await post("/v1/setup/ollama", { on: true });
+    assert.equal(row(on)?.state, "ok");
+    assert.equal(row(on)?.on, true);
+    assert.equal(row(on)?.start, undefined);
+    assert.equal(on.hasModel, true);
+    const asked = fresh.model.requests.length;
+    assert.ok(asked > 0);
+
+    const off = await post("/v1/setup/ollama", { on: false });
+    assert.equal(row(off)?.state, "untested");
+    assert.equal(row(off)?.start?.model, "fake:1");
+    assert.deepEqual(fresh.home.models.candidates(), []);
+    assert.equal(fresh.model.requests.length, asked);
+  } finally {
+    fresh.stop();
+  }
+});
+
+test("a home that answers with Ollama alone keeps it; one with another model does not", async () => {
+  const kept = (ids: string[]) =>
+    JSON.stringify(
+      Object.fromEntries(
+        ids.map((id) => [id, { state: "ok", said: "", at: "2026-11-20T10:00:00.000Z" }]),
+      ),
+    );
+  for (const [ids, picked] of [
+    [["ollama"], true],
+    [["ollama", "claude"], false],
+  ] as const) {
+    const before = await testHome("Ada", undefined, { unpicked: true });
+    before.home.db.setMeta("setup.tests", kept([...ids]));
+    const { dataDir } = before.home.config;
+    before.stop();
+    const now = await testHome("Ada", undefined, { unpicked: true, dataDir });
+    assert.equal(now.home.models.ollamaPicked(), picked);
+    now.stop();
+  }
+});
+
 test("the name, and the end of the first start", async () => {
   const named = (await (
     await t.request("/v1/setup", { method: "PATCH", body: { name: "Ada Lovelace" } })

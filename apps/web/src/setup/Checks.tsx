@@ -112,7 +112,7 @@ function CheckRow({
               !["ok", "problem", "warning"].includes(check.state) && "text-ink-3",
             )}
           >
-            {t(`status.state.${check.state}`)}
+            {t(check.start ? "status.state.off" : `status.state.${check.state}`)}
           </span>
         </div>
         <p className="mt-0.5 break-words text-[0.875rem] text-ink-2 leading-snug">{said}</p>
@@ -121,6 +121,7 @@ function CheckRow({
         ) : null}
         {check.command && !fine ? <Command text={check.command} /> : null}
         {check.pull && !fine ? <Pull offer={check.pull} /> : null}
+        {check.id === "ollama" ? <UseOllama check={check} /> : null}
         {onTest && check.source && testable(check) && check.state !== "ok" ? (
           <Button
             variant="ghost"
@@ -141,10 +142,66 @@ const gb = (bytes: number) =>
   `${new Intl.NumberFormat(lang, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`;
 
 /**
+ * Ollama is used only once the person says so here: its model takes much of the computer's
+ * memory while it is loaded. The same place takes it back.
+ */
+function UseOllama({ check }: { check: SetupCheck }) {
+  const client = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const set = (on: boolean) => {
+    setProblem(null);
+    setBusy(true);
+    api
+      .post<Setup>("/v1/setup/ollama", { on })
+      .then(
+        (next) => client.setQueryData(keys.setup(), next),
+        (err: Error) => setProblem(err.message),
+      )
+      .finally(() => setBusy(false));
+  };
+  return (
+    <>
+      {check.start ? (
+        <>
+          <p className="mt-1 text-[0.8125rem] text-ink-3 leading-snug">
+            {t("setup.ollama.memory", { model: check.start.model, size: gb(check.start.size) })}
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-1.5"
+            busy={busy}
+            onClick={() => set(true)}
+          >
+            {t("setup.ollama.use")}
+          </Button>
+        </>
+      ) : check.on && check.state !== "testing" ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3 mt-1"
+          busy={busy}
+          onClick={() => set(false)}
+        >
+          {t("setup.ollama.stop")}
+        </Button>
+      ) : null}
+      {problem ? (
+        <p role="alert" className="mt-1 text-[0.8125rem] text-rose">
+          {problem}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/**
  * A model the Bot Server pulls into Ollama on its own computer, on a click, with how far it is.
  * When it is done the Bot Server tests Ollama again.
  */
-function Pull({ offer }: { offer: NonNullable<SetupCheck["pull"]> }) {
+export function Pull({ offer }: { offer: NonNullable<SetupCheck["pull"]> }) {
   const client = useQueryClient();
   const { data: setup } = useSetup();
   const [problem, setProblem] = useState<string | null>(null);
