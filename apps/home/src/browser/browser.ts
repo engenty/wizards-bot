@@ -1,4 +1,6 @@
 import { AgentPages } from "@engenty/browser";
+import type { StepObject } from "@wizards-bot/protocol";
+import { pageUrl } from "../agent/steps.ts";
 import { defineTool, type Tool } from "../agent/tool.ts";
 import type { TurnContext } from "../agent/turns.ts";
 import type { Home } from "../home.ts";
@@ -8,6 +10,14 @@ import type { Home } from "../home.ts";
 // every answer through the Vault's redactor, so a value the Vault entered on a page never
 // reaches the model. `WIZARDS_BOT_CHROME` names a Chrome to start; `WIZARDS_BOT_BROWSER_HEADED=1`
 // shows its window.
+
+/** The page a tool's answer is from, where it says so. */
+function pageOf(answer: string | undefined): StepObject | undefined {
+  if (!answer) return;
+  const { url, title } = JSON.parse(answer) as { url?: unknown; title?: unknown };
+  const page = pageUrl(url);
+  return page ? { url: page, ...(typeof title === "string" ? { name: title } : {}) } : undefined;
+}
 
 export class Browser {
   readonly pages: AgentPages;
@@ -30,8 +40,18 @@ export class Browser {
         description: tool.description,
         input: tool.input,
         label: () => tool.name.replace("browser_", "Browser: "),
-        run: async (input) =>
-          this.home.vault.redact(threadId, JSON.stringify(await tool.run(threadId, input))),
+        object: (input, answer) => {
+          const url = pageUrl(input.url);
+          return pageOf(answer) ?? (url ? { url } : undefined);
+        },
+        run: async (input) => {
+          const result = await tool.run(threadId, input);
+          const answer = this.home.vault.redact(threadId, JSON.stringify(result));
+          // A page that did not open is a failed step; the model reads why.
+          if (tool.name === "browser_open" && (result as { success?: boolean })?.success === false)
+            throw new Error(answer);
+          return answer;
+        },
       }),
     );
   }

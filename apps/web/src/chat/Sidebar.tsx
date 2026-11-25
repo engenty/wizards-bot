@@ -3,6 +3,7 @@ import type { Agent, Avatar } from "@wizards-bot/protocol";
 import { LogOut, Plus, Search, Settings, Smile } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { lang, t } from "../lib/i18n";
+import { useKeyboard } from "../lib/keyboard";
 import { type Waited, waitedFor } from "../lib/needs";
 import { useHome, useThisDevice } from "../lib/queries";
 import { when } from "../lib/time";
@@ -217,6 +218,8 @@ export function Sidebar({
   onAvatar: () => void;
   onSignOut: () => void;
 }) {
+  const keyboard = useKeyboard();
+  const search = keyboard ? `${t("search.label")} (⌘K)` : t("search.label");
   const home = useHome();
   const me = useThisDevice();
   const listed = inOrder(agents);
@@ -270,7 +273,7 @@ export function Sidebar({
         >
           {you}
         </Menu>
-        <IconButton label={`${t("search.label")} (⌘K)`} onClick={onSearch}>
+        <IconButton label={search} onClick={onSearch}>
           <Search className="size-[1.125rem]" />
         </IconButton>
         <IconButton label={t("agents.new")} onClick={onNew}>
@@ -310,7 +313,7 @@ export function Sidebar({
         <IconButton label={t("agents.new")} onClick={onNew}>
           <Plus className="size-[1.125rem]" />
         </IconButton>
-        <IconButton label={`${t("search.label")} (⌘K)`} onClick={onSearch}>
+        <IconButton label={search} onClick={onSearch}>
           <Search className="size-[1.125rem]" />
         </IconButton>
       </div>

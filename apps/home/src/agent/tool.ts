@@ -1,10 +1,11 @@
 import { TOOL_CALL } from "@engenty/tool-harness";
 import { createTool } from "@mastra/core/tools";
-import type { FileRef } from "@wizards-bot/protocol";
+import type { FileRef, StepObject } from "@wizards-bot/protocol";
 import { z } from "zod";
 import type { Picture } from "../files/pictures.ts";
 import type { NewCard } from "../store/store.ts";
 import type { Draft } from "./draft.ts";
+import { stepOf } from "./steps.ts";
 
 /**
  * Something an agent can do. The same definition serves a model the home steps through
@@ -19,6 +20,11 @@ export interface Tool<I = any> {
   label?(input: Record<string, unknown>): string;
   /** What is wrong with an input, for the model, before the person is asked about it. */
   wrong?(input: Record<string, unknown>): string | undefined;
+  /**
+   * What a call is about, for its line in the chat, where the tool's entry in `steps.ts` does not
+   * say it: the file with its folder, the page once it answered.
+   */
+  object?(input: Record<string, unknown>, answer?: string): StepObject | undefined;
   /** What a call does, in the person's words, for a card that asks before it runs. Markdown. */
   says?(input: Record<string, unknown>): string;
   /** Set on a tool that asks the person with `call.ask`: it runs again with the answer. */
@@ -120,6 +126,10 @@ interface MastraCall {
 
 let calls = 0;
 
+/** The person's no, on the cards a tool asks with. */
+const declined = (answer: Answer | undefined): boolean =>
+  answer?.action === "deny" || answer?.action === "leave";
+
 /**
  * Runs a tool for a model and shows it as one line of the message. A failure is not
  * thrown: the model reads what went wrong and can try again.
@@ -136,8 +146,12 @@ export async function runTool(
   try {
     label = tool.label?.(input) ?? tool.name;
   } catch {}
-  const line = (state: "running" | "done" | "failed") => {
-    if (!tool.silent) draft.activity(id, label, state);
+  // A call that asked, or was told no, did not do what it is for.
+  let held = declined(asking?.answer);
+  const line = (state: "running" | "done" | "failed", answer?: string) => {
+    if (tool.silent) return;
+    const step = stepOf(tool, input, answer);
+    draft.activity(id, label, state, held && state === "done" ? { ...step, kind: "ask" } : step);
   };
   line("running");
   try {
@@ -146,12 +160,13 @@ export async function runTool(
       ask: async (card, kept) => {
         if (!asking) throw new Error("This tool cannot ask the person here.");
         const made = asking.card(tool, input, card, kept);
+        held = true;
         await asking.suspend?.({ cardId: made.id });
         return ENDS_TURN;
       },
     };
     const answer = await tool.run(tool.input.parse(input), call);
-    line("done");
+    line("done", typeof answer === "string" ? answer : answer.text);
     // In a group home the agent hears which admin decided.
     const by = call.answer?.by ? `${call.answer.by} answered.\n` : "";
     return typeof answer === "string"

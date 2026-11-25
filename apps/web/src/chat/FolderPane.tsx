@@ -49,6 +49,7 @@ const join = (path: string, name: string) => (path ? `${path}/${name}` : name);
 export function FolderPane({
   id,
   start,
+  show,
   over,
   leaving,
   onAsk,
@@ -57,6 +58,8 @@ export function FolderPane({
   id: string;
   /** The place inside the folder it opens at. */
   start: string;
+  /** A file there that is shown at once, each time it is asked for. */
+  show?: { path: string; at: number };
   over: boolean;
   leaving: boolean;
   /** Names a file in the message being written, for the agent of this chat. */
@@ -69,9 +72,11 @@ export function FolderPane({
   const [path, setPath] = useState(start);
   const [tab, setTab] = useState<Tab>("files");
   const [problem, setProblem] = useState<string | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a file that is shown again starts there again
   useEffect(() => {
     setPath(start);
-  }, [start]);
+    setTab("files");
+  }, [start, show?.at]);
 
   const run = async (work: () => Promise<unknown>) => {
     setProblem(null);
@@ -126,7 +131,14 @@ export function FolderPane({
           ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto">
             {tab === "files" ? (
-              <Files folder={folder} path={path} onPath={setPath} run={run} onAsk={onAsk} />
+              <Files
+                folder={folder}
+                path={path}
+                show={show}
+                onPath={setPath}
+                run={run}
+                onAsk={onAsk}
+              />
             ) : (
               <Activity folder={folder} run={run} />
             )}
@@ -144,12 +156,14 @@ export function FolderPane({
 function Files({
   folder,
   path,
+  show,
   onPath,
   run,
   onAsk,
 }: {
   folder: Folder;
   path: string;
+  show?: { path: string; at: number };
   onPath: (path: string) => void;
   run: (work: () => Promise<unknown>) => Promise<void>;
   onAsk: (reference: string) => void;
@@ -184,6 +198,16 @@ function Files({
         url: URL.createObjectURL(blob),
       });
     });
+  // The file that was asked for, once its place is listed. One that is gone leaves the place.
+  const showed = useRef<number>(undefined);
+  const wanted = show && listing.data?.entries.find((entry) => entry.path === show.path);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the request and its entry say when
+  useEffect(() => {
+    if (show && wanted?.kind === "file" && showed.current !== show.at) {
+      showed.current = show.at;
+      void open(wanted);
+    }
+  }, [show?.at, wanted?.path]);
   const save = (entry: FolderEntry) =>
     run(async () => {
       const res = await api.open(

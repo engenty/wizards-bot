@@ -27,7 +27,9 @@ import Testing
     { "id": "msg_…", "conversationId": "cnv_…", "role": "agent", "agentId": "agt_…", "channel": "app",
       "state": "done", "model": "ollama:qwen3.8:27b-mlx", "createdAt": "2026-11-21T09:12:00.000Z",
       "parts": [
-        { "type": "activity", "label": "Reading your calendar", "state": "done" },
+        { "type": "activity", "label": "Writing Trips/Week.md", "state": "done", "kind": "file_write",
+          "object": { "name": "Trips/Week.md", "folderId": "fld_…" },
+          "startedAt": "2026-11-21T09:12:04.000Z", "endedAt": "2026-11-21T09:12:05.000Z" },
         { "type": "text", "text": "You are free after 14:00." },
         { "type": "document", "documentId": "doc_…", "title": "Week plan" },
         { "type": "card", "card": { "id": "crd_…", "kind": "approval", "level": "needs_you", "state": "open",
@@ -78,7 +80,7 @@ import Testing
         #expect(message.model == "ollama:qwen3.8:27b-mlx")
         #expect(Timestamp.date(from: message.createdAt) != nil)
         #expect(message.parts.count == 4)
-        #expect(message.parts[0] == .activity(label: "Reading your calendar", state: .done))
+        #expect(message.parts[0] == .activity(label: "Writing Trips/Week.md", state: .done))
         #expect(message.parts[1] == .text("You are free after 14:00."))
         #expect(message.parts[2] == .document(id: "doc_…", title: "Week plan"))
         guard case .card(let card) = message.parts[3] else {

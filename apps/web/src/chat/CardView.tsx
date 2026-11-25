@@ -138,7 +138,7 @@ function PlainCard({ card }: { card: Card }) {
     const admin = card.answer?.admin;
     const other = admin && admin.id !== me.data?.admin?.id ? admin.name : undefined;
     return (
-      <section className="rounded-xl bg-paper-2 px-4 py-3">
+      <section className="rounded-xl bg-paper-2 px-4 py-3 max-sm:px-3 max-sm:py-2">
         <h3 className="font-medium text-[0.9375rem]">{card.title}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-ink-2">
           <Check className="size-3.5 shrink-0 text-moss" />
@@ -172,7 +172,7 @@ function PlainCard({ card }: { card: Card }) {
   };
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-soft ring-1 ring-border-soft">
+    <section className="flex flex-col gap-3 rounded-xl bg-card p-4 max-sm:gap-2 max-sm:p-3 shadow-soft ring-1 ring-border-soft">
       <h3 className="font-display font-semibold text-[1.0625rem] leading-snug">{card.title}</h3>
       {card.body ? <Markdown text={card.body} className="text-[0.875rem]" /> : null}
       {card.qr ? <QrCode text={card.qr} label={t("card.qr", { title: card.title })} /> : null}
@@ -198,7 +198,7 @@ function PlainCard({ card }: { card: Card }) {
               href={card.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm hover:brightness-[1.06] coarse:h-11"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm hover:brightness-[1.06] coarse:h-9 coarse:px-3.5"
             >
               {card.kind === "connect" ? t("card.signIn") : t("card.open")}
             </a>
