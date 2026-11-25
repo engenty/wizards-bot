@@ -285,7 +285,8 @@ const OPTIONS = ["own-key", "link"];
 
 /** A model on the home's own computer, or on a linked computer (`<computer>/<source>`). */
 const onComputer = (check: SetupCheck) =>
-  ["claude", "codex", "ollama"].includes(check.id) || check.id.includes("/");
+  ["claude", "codex", "antigravity", "cursor", "ollama", "lmstudio"].includes(check.id) ||
+  check.id.includes("/");
 
 /**
  * The first start of a home, as a short conversation: the person's name, which model answers

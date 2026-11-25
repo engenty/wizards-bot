@@ -229,16 +229,13 @@ export const en = {
   "setup.copied": "Copied",
   "setup.client.hint":
     "Your wizards think with {name} on this computer, on your subscription. No key needed.",
+  "setup.client.talks":
+    "Your wizards talk with {name} on this computer, on your subscription. It takes no tools: they cannot act with it.",
   "setup.own.title": "Your own keys",
   "setup.own.desc": "OpenRouter, Vercel AI Gateway, OpenAI or Anthropic.",
   "setup.own.heading": "Enter a key",
   "setup.own.hint": "One key is enough. Testing checks it. It stays on your Bot Server.",
   "setup.own.later": "Your wizards change the model later: ask them in the chat.",
-  "setup.ollama.desc": "A model on this computer, without an account.",
-  "setup.ollama.here": "on this computer",
-  "setup.ollama.heading": "Choose a model",
-  "setup.ollama.hint":
-    "The models run on this computer, without an account. One is loaded only once you use it.",
   "setup.ollama.use": "Use Ollama",
   "setup.ollama.stop": "Stop using Ollama",
   "setup.ollama.memory": "{model} takes about {size} of memory while it is loaded.",
@@ -922,16 +919,13 @@ export const de: Record<Key, Line> = {
   "setup.copied": "Kopiert",
   "setup.client.hint":
     "Deine Wizards denken mit {name} auf diesem Computer, über dein Abo. Kein API-Key nötig.",
+  "setup.client.talks":
+    "Deine Wizards reden mit {name} auf diesem Computer, über dein Abo. Es nimmt keine Werkzeuge: Handeln können sie damit nicht.",
   "setup.own.title": "Eigene API-Keys",
   "setup.own.desc": "OpenRouter, Vercel AI Gateway, OpenAI oder Anthropic.",
   "setup.own.heading": "API-Key eintragen",
   "setup.own.hint": "Ein API-Key reicht. Testen prüft ihn. Er bleibt auf deinem Bot Server.",
   "setup.own.later": "Das Modell ändern deine Wizards später: Sag es ihnen im Chat.",
-  "setup.ollama.desc": "Ein Modell auf diesem Computer, ohne Konto.",
-  "setup.ollama.here": "auf diesem Computer",
-  "setup.ollama.heading": "Modell wählen",
-  "setup.ollama.hint":
-    "Die Modelle laufen auf diesem Computer, ohne Konto. Geladen wird eines erst, wenn du es nutzt.",
   "setup.ollama.use": "Ollama nutzen",
   "setup.ollama.stop": "Ollama nicht mehr nutzen",
   "setup.ollama.memory": "{model} belegt etwa {size} Arbeitsspeicher, solange es geladen ist.",

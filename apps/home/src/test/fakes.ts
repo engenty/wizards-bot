@@ -184,6 +184,7 @@ export async function testHome(
       // `unreachable`: a home on a laptop, which no other home can call.
       publicUrl: at.unreachable ? undefined : url,
       ollamaUrl: model.url,
+      lmstudioUrl: "http://127.0.0.1:9",
       subscriptions: [],
       ...at.config,
     },

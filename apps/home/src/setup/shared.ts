@@ -1,10 +1,11 @@
 import { mkdirSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { setClientFolders } from "@engenty/local-models/clients";
-import { OFFERED_TEXT_MODELS } from "@engenty/model-setup";
+import { SERVER_IDS, SERVERS } from "@engenty/local-models/servers";
+import { OFFERED_MODELS } from "@engenty/model-setup";
 import {
   ClientSetup,
-  OllamaModels,
+  LocalModels,
   setupRoutes,
   Terminals,
   Tested,
@@ -13,7 +14,7 @@ import type { Hono } from "hono";
 import { z } from "zod";
 import type { Home } from "../home.ts";
 import { GATEWAY_PRESETS, type Gateway } from "../models/models.ts";
-import { MEMORY_SHARE } from "../models/ollama.ts";
+import { isServer, MEMORY_SHARE } from "../models/ollama.ts";
 import { probeGateway } from "./probes.ts";
 import { GATEWAY_MODELS } from "./setup.ts";
 import { langOf, say } from "./words.ts";
@@ -27,7 +28,7 @@ const PROVIDERS = Object.keys(GATEWAY_MODELS) as [string, ...string[]];
 const Change = z.object({
   /** A source's id; `own`: own keys, which are picked with the first key that works. */
   source: z.string().max(80).optional(),
-  /** With `ollama`: the model the person chose of those it holds. */
+  /** With a server: the model the person chose of those it holds. */
   model: z.string().max(120).optional(),
   /** An empty key takes the stored one away. */
   keys: z.partialRecord(z.enum(PROVIDERS), z.literal("")).optional(),
@@ -58,6 +59,12 @@ export function sharedSetup(home: Home): Hono {
   };
   const stored = (id: string) => models.gateways().some((gateway) => gateway.id === id);
 
+  /** The model of the server the person picked. */
+  const pickedModel = () => {
+    const source = models.picked()?.[0] ?? "";
+    return isServer(source) ? (models.serverModel(source) ?? null) : null;
+  };
+
   return setupRoutes({
     clients: new ClientSetup({
       // The home's own list, read at each use.
@@ -76,19 +83,23 @@ export function sharedSetup(home: Home): Hono {
     // The home keeps every test's outcome itself (setup.ts).
     tested: new Tested({ read: async () => [], write: async () => {} }),
     // The models to download are the package's own list: the home asks no one for it.
-    ollama: new OllamaModels({
-      url: () => config.ollamaUrl,
-      offered: () => OFFERED_TEXT_MODELS,
-      share: MEMORY_SHARE,
-      logs: () => join(config.dataDir, "setup"),
-      memory: () => models.memory,
-      changed: () => void models.refresh(true).then(told, () => {}),
-    }),
+    servers: SERVER_IDS.map(
+      (id) =>
+        new LocalModels({
+          server: SERVERS[id],
+          url: () => models.serverUrl(id),
+          offered: () => OFFERED_MODELS[id],
+          share: MEMORY_SHARE,
+          logs: () => join(config.dataDir, "setup"),
+          memory: () => models.memory,
+          changed: () => void models.refresh(true).then(told, () => {}),
+        }),
+    ),
     models: {
       source: () => models.picked()?.[0] ?? "",
       settings: () => ({
         source: models.picked()?.[0] ?? null,
-        model: models.ollamaModel() ?? null,
+        model: pickedModel(),
         keys: Object.fromEntries(PROVIDERS.map((id) => [id, stored(id)])),
       }),
       async save(_c, body) {
@@ -97,12 +108,12 @@ export function sharedSetup(home: Home): Hono {
         if (source && setup.clients.some((client) => client.id === source)) {
           models.pickSource(source);
         }
-        // A model that is there: choosing it picks Ollama, the test call then loads it.
-        if (source === "ollama" && model) {
+        // A model that is there: choosing it picks its server, the test call then loads it.
+        if (source && isServer(source) && model) {
           await models.refresh(true);
-          models.pickSource("ollama");
-          models.setOrder([`ollama:${model}`]);
-          setup.forget("ollama");
+          models.pickSource(source);
+          models.setOrder([`${source}:${model}`]);
+          setup.forget(source);
         }
         await told();
       },
@@ -137,15 +148,15 @@ export function sharedSetup(home: Home): Hono {
         await told();
         return { ok: true, message: null, text: `${provider}:${model}` };
       },
-      async ollama() {
-        models.pickSource("ollama");
-        const view = await setup.ollama(true);
-        const check = view.models.find((row) => row.id === "ollama");
+      async server(_c, id) {
+        models.pickSource(id);
+        const view = id === "ollama" ? await setup.ollama(true) : await setup.test(id);
+        const check = view.models.find((row) => row.id === id);
         const ok = check?.state === "ok" || check?.state === "warning";
         return {
           ok,
           message: ok ? null : (check?.said ?? null),
-          text: ok && check?.model ? `ollama:${check.model}` : null,
+          text: ok && check?.model ? `${id}:${check.model}` : null,
         };
       },
     },
