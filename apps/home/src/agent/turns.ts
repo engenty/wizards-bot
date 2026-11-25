@@ -288,7 +288,7 @@ class Turn {
       this.level,
       home.toolSearch.for(source),
       (name) => first?.steps === true || home.skills.owned(name),
-      this.stronger("high") !== undefined || this.stronger("standard") !== undefined,
+      this.level === "basic" && this.stronger("standard") !== undefined,
     );
     // The card of a tool that asks: it names the tool and its input, to run it again.
     const asking: Asking = {
