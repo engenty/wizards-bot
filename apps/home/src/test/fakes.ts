@@ -163,8 +163,15 @@ export async function testHome(
    * `port`: where to answer, for a home that takes the place of another at its address.
    * `dataDir`: what an earlier home kept, for the same home at another address.
    * `config`: settings of its start, e.g. those of a hosted home.
+   * `unpicked`: nobody has picked Ollama, the scripted model, so the home does not ask it.
    */
-  at: { port?: number; dataDir?: string; unreachable?: boolean; config?: Partial<Config> } = {},
+  at: {
+    port?: number;
+    dataDir?: string;
+    unreachable?: boolean;
+    unpicked?: boolean;
+    config?: Partial<Config>;
+  } = {},
 ): Promise<TestHome> {
   const model = new FakeOllama();
   await model.start();
@@ -185,6 +192,7 @@ export async function testHome(
   home.db.setMeta("person.name", person);
   // A new home offers the morning look after the first answers. Only its own test wants that.
   home.db.setMeta("morning.offer", "not_new");
+  if (!at.unpicked) home.models.pickOllama(true);
   await home.models.refresh(true);
   const app = createServer(home);
   const server = serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });

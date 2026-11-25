@@ -9,7 +9,14 @@ import { isSubscription, SUBSCRIPTIONS } from "../models/client-model.ts";
 import { ACCOUNT, GATEWAY_PRESETS } from "../models/models.ts";
 import { onThisComputer, SUGGESTED } from "../models/ollama.ts";
 import type { NewCard } from "../store/store.ts";
-import { type Probe, probeAccount, probeClient, probeGateway, probeOllama } from "./probes.ts";
+import {
+  lookAtOllama,
+  type Probe,
+  probeAccount,
+  probeClient,
+  probeGateway,
+  probeOllama,
+} from "./probes.ts";
 import {
   greeting,
   type Lang,
@@ -37,6 +44,9 @@ const TESTS = "setup.tests";
 
 /** A pull the home does not make: Ollama is not on its computer, or the model is not offered. */
 export class PullRefused extends Error {}
+
+/** Ollama picked on a home that has none of its own. */
+export class OllamaRefused extends Error {}
 
 /** A gateway's first model when the person adds it from the setup; they may name another. */
 export const GATEWAY_MODELS: Record<string, string> = {
@@ -91,6 +101,13 @@ export class Setup {
     this.clients = isHosted(home.config)
       ? []
       : home.config.subscriptions.filter(isSubscription).map((id) => SUBSCRIPTIONS[id].client);
+    // A home whose only model that answered is Ollama has it picked: its person talks with it.
+    if (!home.models.ollamaSaid()) {
+      const answered = Object.entries(this.kept()).filter(
+        ([, test]) => test.state === "ok" || test.state === "warning",
+      );
+      if (answered.length === 1 && answered[0]?.[0] === "ollama") home.models.pickOllama(true);
+    }
   }
 
   // ── What the person said ──────────────────────────────────────────────────
@@ -217,10 +234,18 @@ export class Setup {
     this.home.db.setMeta(TESTS, JSON.stringify(all));
   }
 
-  /** The test call of each source the home can test here. */
-  private probes(): Map<string, () => Promise<Probe>> {
+  private forget(id: string): void {
+    const { [id]: _, ...rest } = this.kept();
+    this.home.db.setMeta(TESTS, JSON.stringify(rest));
+  }
+
+  /**
+   * The test call of each source the home can test here. An Ollama nobody picked is only looked
+   * at: a call would load its model into the computer's memory.
+   */
+  private probes(): Map<string, () => Promise<Probe | undefined>> {
     const { models, config, secrets } = this.home;
-    const probes = new Map<string, () => Promise<Probe>>();
+    const probes = new Map<string, () => Promise<Probe | undefined>>();
     for (const client of this.clients) probes.set(client.id, () => probeClient(client));
     const account = models.account();
     if (account) {
@@ -228,7 +253,11 @@ export class Setup {
         probeAccount(account, models.accountKey(), undefined, this.gatewayFetch),
       );
     }
-    if (!isHosted(config)) probes.set("ollama", () => probeOllama(config.ollamaUrl, models.memory));
+    if (!isHosted(config)) {
+      probes.set("ollama", () =>
+        (models.ollamaPicked() ? probeOllama : lookAtOllama)(config.ollamaUrl, models.memory),
+      );
+    }
     for (const gateway of models.gateways()) {
       probes.set(gateway.id, () =>
         probeGateway(gateway, secrets.get(`gateway.${gateway.id}`), undefined, this.gatewayFetch),
@@ -254,7 +283,9 @@ export class Setup {
       if (already) return already;
       const run = (async () => {
         try {
-          this.keep(id, await probe());
+          const found = await probe();
+          if (found) this.keep(id, found);
+          else this.forget(id);
         } catch (error) {
           this.keep(id, { state: "problem", said: same((error as Error).message) });
         }
@@ -270,6 +301,19 @@ export class Setup {
     if (runs.length) void this.changed().catch(() => {});
     await Promise.all(runs);
     return this.view();
+  }
+
+  /**
+   * The person picks Ollama, which tests it and so loads its model, or stops using it. Nothing
+   * else starts it.
+   */
+  async ollama(on: boolean): Promise<SetupView> {
+    const { models, config } = this.home;
+    if (isHosted(config)) throw new OllamaRefused("This Bot Server has no Ollama of its own.");
+    models.pickOllama(on);
+    if (!on) this.forget("ollama");
+    this.home.events.emit({ type: "models.updated", models: models.view() });
+    return on ? this.test("ollama") : this.changed();
   }
 
   // ── A model for Ollama ────────────────────────────────────────────────────
@@ -306,6 +350,8 @@ export class Setup {
         async () => {
           const total = this.pulling?.total ?? 0;
           this.pulling = { model, state: "done", done: total, total };
+          // Who has a model loaded for Ollama picked it.
+          this.home.models.pickOllama(true);
           await this.test("ollama");
         },
         (error: Error) => {
@@ -441,6 +487,8 @@ export class Setup {
     }
     const ollama = models.localSources().find((source) => source.id === "ollama");
     const lastOllama = kept.ollama;
+    const picked = models.ollamaPicked();
+    const offer = picked ? undefined : models.ollamaOffer();
     // A server has no Ollama of its own; the person's computer brings it over the link.
     const hosted = isHosted(this.home.config);
     if (!hosted && (ollama || lastOllama || this.running.has("ollama"))) {
@@ -462,7 +510,19 @@ export class Setup {
                 ),
                 todo: w("Start Ollama.", "Starte Ollama."),
               }
-            : {},
+            : offer
+              ? {
+                  state: "untested",
+                  said: w(
+                    "Ollama is on this computer. It loads a model only once you use it.",
+                    "Ollama ist auf diesem Computer. Es lädt erst ein Modell, wenn du es nutzt.",
+                  ),
+                  todo: undefined,
+                  command: undefined,
+                  on: false,
+                  start: offer,
+                }
+              : { on: picked },
         ),
       );
     } else if (!hosted) {

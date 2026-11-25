@@ -1528,6 +1528,15 @@ answers 202 with the `Setup` at once; its `pulling` says how far it is (`state` 
 `done`, `failed` with Ollama's `error`; `done` and `total` in bytes). When the model is
 complete the home tests Ollama. A home on a server pulls nothing (400).
 
+A model of Ollama takes a large part of the computer's memory, so the home has Ollama load one
+only once the person picked it: `POST /v1/setup/ollama` with `SwitchOllama` (`{ "on": true }`)
+picks it and tests it, `{ "on": false }` stops using it; both answer the `Setup`. Naming one of
+its models in `PUT /v1/models/order` picks it as well, and so does a pull. Until then Ollama is
+found and not asked, by a test call, a turn or a picture: its check is `untested` with `on: false`
+and, in `start`, the model it would load and its size (`{ "model": "qwen3:8b", "size":
+5200000000 }`). A home that answered with Ollama alone before it could be picked has it picked. A
+hosted home has no Ollama (400 `refused`).
+
 Test calls cost tokens. The home makes them only when asked: `POST /v1/setup/test` with
 `TestSetup` (`{}` for all sources, `{ "source": "claude" }` for one) answers once the calls are
 done, with the new `Setup`. A call that runs already is not made twice. The web app asks once

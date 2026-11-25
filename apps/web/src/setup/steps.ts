@@ -56,6 +56,7 @@ export function testable(check: SetupCheck): boolean {
     check.kind === "model" &&
     !check.id.includes("/") &&
     check.state !== "testing" &&
+    !check.start &&
     !absentHere(check)
   );
 }

@@ -3,13 +3,13 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { Client } from "@engenty/local-models/clients";
-import { installedModels } from "@engenty/local-models/ollama";
+import { fits, installedModels } from "@engenty/local-models/ollama";
 import { CLIENT_TIMEOUT, OLLAMA_TIMEOUT, PROMPT, probe } from "@engenty/local-models/probe";
 import type { LanguageModel } from "ai";
 import { generateText } from "ai";
 import type { Account, Gateway } from "../models/models.ts";
 import { ACCOUNT, accountModel } from "../models/models.ts";
-import { MEMORY_SHARE, onThisComputer, suggestedModel } from "../models/ollama.ts";
+import { chatModels, MEMORY_SHARE, onThisComputer, suggestedModel } from "../models/ollama.ts";
 import {
   claudeSignedOut,
   codexSignedOut,
@@ -224,6 +224,22 @@ export async function probeOllama(
           ...pull,
         }),
   };
+}
+
+/**
+ * An Ollama nobody picked, looked at without a call, so that no model is loaded: what is wrong
+ * with it, or nothing when it has a model the person can use.
+ */
+export async function lookAtOllama(
+  baseUrl: string,
+  memory: number,
+  doFetch: typeof fetch = fetch,
+): Promise<Probe | undefined> {
+  const local = onThisComputer(baseUrl);
+  const first = (await chatModels(baseUrl, local ? memory : undefined, doFetch))[0];
+  if (first && (!local || fits(first, memory, MEMORY_SHARE))) return undefined;
+  // Without a model that fits, the test call ends before it asks one.
+  return probeOllama(baseUrl, memory, doFetch);
 }
 
 /** A test call through a gateway with its key. */
