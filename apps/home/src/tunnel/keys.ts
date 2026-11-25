@@ -63,17 +63,20 @@ export const publicKeyOf = (key: KeyObject): string =>
 export const nameOf = (key: KeyObject, domain = "wizards.host"): string =>
   `${labelOf(Buffer.from(publicKeyOf(key), "base64url"))}.${domain}`;
 
-/** What a claim signs. */
-export const claimText = (publicKey: string, timestamp: number): string =>
-  `wizards.host claim ${publicKey} ${timestamp}`;
+/** What a claim signs: the relay's domain, so a claim for one relay is none for another. */
+export const claimText = (publicKey: string, timestamp: number, domain = "wizards.host"): string =>
+  `${domain} claim ${publicKey} ${timestamp}`;
 
 /** The body of `POST /v1/tunnels/claim`: the public key, the time, and the signature over both. */
 export function claimBody(
   key: KeyObject,
   now = Date.now(),
+  domain = "wizards.host",
 ): { publicKey: string; timestamp: number; signature: string } {
   const publicKey = publicKeyOf(key);
-  const signature = sign(null, Buffer.from(claimText(publicKey, now)), key).toString("base64url");
+  const signature = sign(null, Buffer.from(claimText(publicKey, now, domain)), key).toString(
+    "base64url",
+  );
   return { publicKey, timestamp: now, signature };
 }
 
