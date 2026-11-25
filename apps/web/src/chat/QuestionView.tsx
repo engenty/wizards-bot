@@ -5,10 +5,12 @@ import { Check, CornerDownLeft } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useDraft } from "../lib/drafts";
 import { lang, t } from "../lib/i18n";
+import { useChatView } from "../lib/look";
 import { useThisDevice } from "../lib/queries";
 import { answerText, formOf, isFree, missingIn } from "../lib/questions";
-import { Button } from "../ui";
+import { Button, cn } from "../ui";
 import { Markdown } from "../ui/Markdown";
+import { BUBBLE } from "./bubble";
 import { FormFields } from "./FormFields";
 import { useAnswer } from "./useAnswer";
 
@@ -26,11 +28,13 @@ export const AnsweringContext = createContext<Answering | null>(null);
 
 /** What was asked, as the agent's own words. */
 function Asked({ card }: { card: Card }) {
+  const inChat = useContext(AnsweringContext) !== null;
+  const bubbles = useChatView() === "bubbles" && inChat;
   return (
-    <>
+    <div className={cn("flex flex-col gap-2.5", bubbles && BUBBLE.left)}>
       <Markdown text={card.title} className="font-medium text-[0.9375rem]" />
       {card.body ? <Markdown text={card.body} className="text-[0.9375rem]" /> : null}
-    </>
+    </div>
   );
 }
 
