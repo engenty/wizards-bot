@@ -4,7 +4,7 @@ import { after, before, describe, test } from "node:test";
 import type { Artifact, ArtifactMeta, Event } from "@wizards-bot/protocol";
 import { type TestHome, testHome, textOf } from "../test/fakes.ts";
 import { ARTIFACT_LIMIT, ArtifactRefused } from "./artifacts.ts";
-import { checkPage, PAGE_HEADER_POLICY, PAGE_POLICY, wrapPage } from "./page.ts";
+import { checkPage, PAGE_POLICY, pageHeaderPolicy, wrapPage } from "./page.ts";
 
 const CHART = `<h1>Rain in March</h1>
 <svg id="chart" viewBox="0 0 400 200"></svg>
@@ -22,7 +22,7 @@ const directives = (policy: string): Map<string, string[]> =>
 
 describe("the policy of an artifact's page", () => {
   const policy = directives(PAGE_POLICY);
-  const header = directives(PAGE_HEADER_POLICY);
+  const header = directives(pageHeaderPolicy());
 
   test("names no address on the network", () => {
     // Everything a page may load is written in it.
@@ -317,7 +317,14 @@ describe("artifacts of a home", () => {
     const answer = await bare(page);
     assert.equal(answer.status, 200);
     assert.match(answer.headers.get("content-type") ?? "", /^text\/html/);
-    assert.equal(answer.headers.get("content-security-policy"), PAGE_HEADER_POLICY);
+    assert.equal(answer.headers.get("content-security-policy"), pageHeaderPolicy());
+    // The studio the team works in shows the home's page, and with it this one.
+    t.home.db.setMeta("studio.mcp", "https://studio.example/api/mcp");
+    assert.match(
+      (await bare(page)).headers.get("content-security-policy") ?? "",
+      /frame-ancestors 'self' https:\/\/studio\.example$/,
+    );
+    t.home.db.setMeta("studio.mcp", "");
     assert.equal(answer.headers.get("cache-control"), "private, no-store");
     assert.equal(answer.headers.get("referrer-policy"), "no-referrer");
     assert.equal(answer.headers.get("x-content-type-options"), "nosniff");

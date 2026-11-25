@@ -5,7 +5,14 @@ import {
   MASTRA_THREAD_ID_KEY,
   RequestContext,
 } from "@mastra/core/request-context";
-import type { Card, Channel, FileRef, HomePerson, Message } from "@wizards-bot/protocol";
+import {
+  type Card,
+  type Channel,
+  type FileRef,
+  type HomePerson,
+  type Message,
+  Space,
+} from "@wizards-bot/protocol";
 import type { Picture } from "../files/pictures.ts";
 import { runsHome } from "../group.ts";
 import type { Home } from "../home.ts";
@@ -41,6 +48,11 @@ export interface Trigger {
   files?: FileRef[];
   /** In a group home: who wrote the message. */
   writer?: HomePerson;
+  /**
+   * The space that is open in the studio the message was written in. The studio's connection
+   * works in it.
+   */
+  space?: Space;
   /**
    * The turn answers someone else, not the person: a contact (name and handle) or a caller
    * from outside (its name). The agent has none of the person's tools. `hears`: the person
@@ -310,6 +322,7 @@ class Turn {
               input,
               kept,
               writer: trigger.writer?.id,
+              space: trigger.space,
               ...(hidden ? { private: true } : {}),
             },
           },
@@ -464,6 +477,7 @@ class Turn {
           outside: this.outside || undefined,
           task: trigger.task,
           writer: trigger.writer?.id,
+          space: trigger.space,
         },
       },
       { agentId: agent.id, conversationId: trigger.conversationId, messageId: draft.id },
@@ -487,6 +501,7 @@ class Turn {
         : undefined,
       agents: home.store.agents(),
       connections: runs ? home.connections.names() : [],
+      studio: runs && home.connections.hasStudio() ? { space: trigger.space } : undefined,
       documents: home.store.documents(beside).slice(0, 12),
       artifacts: home.artifacts.list(beside).slice(0, 12),
       files: trigger.room ? home.store.sentFiles(beside, 20) : undefined,
@@ -599,6 +614,7 @@ function nextTurn(turn: Turn, message: Message): Trigger {
       .join("\n"),
     channel: first.channel,
     writer: first.writer,
+    space: first.space,
     replyTo: turn.triggers.find((trigger) => trigger.replyTo)?.replyTo,
     task: first.task,
     outside: turn.outside,
@@ -613,14 +629,21 @@ function nextTurn(turn: Turn, message: Message): Trigger {
   };
 }
 
+/** The studio's space a card kept from the turn that showed it. */
+const keptSpace = (payload: Record<string, unknown>): Space | undefined =>
+  Space.safeParse(payload.space).data;
+
 /**
  * What a card's answer starts: as the person's message says, where the answer is one. `asked` is
  * who the turn that showed the card was for: whoever answers, it does not get to do more.
+ * `space` is the studio's space that turn had open: the answer goes on in it, unless it is a
+ * message that names another.
  */
 function answeredWith(
   card: Card,
   said: Trigger | undefined,
   asked: HomePerson | undefined,
+  space: Space | undefined,
 ): Trigger {
   const { channel = "home", messageId, spoken, replyTo } = said ?? {};
   const writer = runsHome(asked) ? (said?.writer ?? asked) : asked;
@@ -632,6 +655,7 @@ function answeredWith(
     spoken,
     replyTo,
     writer,
+    space: said?.space ?? space,
   };
 }
 
@@ -693,6 +717,7 @@ export class Turns {
         outside: payload.outside === true || undefined,
         engine: String(payload.engine),
         writer: home.group.known(payload.writer),
+        space: keptSpace(payload),
       });
     });
     home.onCard("tool", ({ card, action, values, payload, said }) =>
@@ -730,13 +755,20 @@ export class Turns {
     if (parked?.cardId === card.id) {
       this.parked.delete(card.conversationId);
       try {
-        return await this.resume(card, parked, answer, said, home.group.known(payload.writer));
+        return await this.resume(
+          card,
+          parked,
+          answer,
+          said,
+          home.group.known(payload.writer),
+          keptSpace(payload),
+        );
       } catch (error) {
         console.error("[turn] the suspended run did not go on:", (error as Error).message);
       }
     }
     await this.enqueue({
-      ...answeredWith(card, said, home.group.known(payload.writer)),
+      ...answeredWith(card, said, home.group.known(payload.writer), keptSpace(payload)),
       again: { tool: String(payload.tool), input: payload.input, answer, said: Boolean(said) },
     });
   }
@@ -748,6 +780,7 @@ export class Turns {
     answer: Answer,
     said: Trigger | undefined,
     asked: HomePerson | undefined,
+    space: Space | undefined,
   ): Promise<void> {
     const { store } = this.home;
     const conversation = store.conversation(card.conversationId);
@@ -763,7 +796,7 @@ export class Turns {
     const turn = new Turn(
       this.home,
       agent,
-      { ...answeredWith(card, said, asked), handed },
+      { ...answeredWith(card, said, asked, space), handed },
       engines,
     );
     turn.resumes = parked.toolCallId;

@@ -47,6 +47,7 @@ import { useAgents, useAvatar, useHomeLook, useItems, useSetup } from "./lib/que
 import { setDeviceToken } from "./lib/session";
 import { useStored } from "./lib/stored";
 import { useEvents, useLink } from "./lib/stream";
+import { inOpenSpace, useStudioSpace } from "./lib/studio";
 import { uuid } from "./lib/uuid";
 import { SetupView } from "./setup/SetupView";
 import { needsSetup } from "./setup/steps";
@@ -202,6 +203,7 @@ export function Home() {
   const items = useItems();
   const avatar = useAvatar();
   useHomeLook();
+  useStudioSpace();
   const setup = useSetup();
   const [agentId, setAgentId] = useState(lastAgent);
   const [documentId, setDocumentId] = useState<string | null>(null);
@@ -413,6 +415,7 @@ export function Home() {
           api.post<{ message: Message }>(`/v1/conversations/${mainAgent.conversationId}/messages`, {
             text,
             clientId: uuid(),
+            ...inOpenSpace(),
           }),
         (models) => client.setQueryData(keys.models(), models),
       );

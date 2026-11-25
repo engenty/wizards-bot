@@ -21,6 +21,7 @@ import { onlyCard, waitedFor } from "../lib/needs";
 import { loadEarlier, useThread } from "../lib/queries";
 import { answersOf, formOf, type Picked, questionsIn, targetOf } from "../lib/questions";
 import type { Link } from "../lib/stream";
+import { inOpenSpace } from "../lib/studio";
 import { uuid } from "../lib/uuid";
 import { IconButton } from "../ui";
 import { Composer, type ComposerHandle } from "../ui/Composer";
@@ -146,6 +147,7 @@ export function Chat({
             ...(files.length ? { files: files.map((file) => file.id) } : {}),
             ...(later ? { later: true } : {}),
             ...answersOf(questions, target),
+            ...inOpenSpace(),
             clientId,
           }),
         (models) => client.setQueryData(keys.models(), models),

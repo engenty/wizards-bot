@@ -7,7 +7,7 @@ import { defineTool, type Tool } from "../agent/tool.ts";
 import type { TurnContext } from "../agent/turns.ts";
 import type { Home } from "../home.ts";
 import { newId, now } from "../ids.ts";
-import { checkPage, PAGE_HEADER_POLICY, plainPage, wrapPage } from "./page.ts";
+import { checkPage, pageHeaderPolicy, plainPage, wrapPage } from "./page.ts";
 
 // Artifacts: pages an agent writes for a conversation. A page has versions like a
 // document. The home keeps it as the agent wrote it and serves it wrapped, closed off and in
@@ -254,7 +254,7 @@ export class Artifacts {
       }
       const headers: Record<string, string> = {
         "content-type": "text/html; charset=utf-8",
-        "content-security-policy": PAGE_HEADER_POLICY,
+        "content-security-policy": pageHeaderPolicy(this.home.group.studio()),
         "cache-control": "private, no-store",
         "x-content-type-options": "nosniff",
         "referrer-policy": "no-referrer",

@@ -9,6 +9,7 @@ import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { useAgents, useDocument, useMarks } from "../lib/queries";
+import { inOpenSpace } from "../lib/studio";
 import { uuid } from "../lib/uuid";
 import { Button, cn, IconButton, Spinner } from "../ui";
 import { ShareButton } from "./ShareDialog";
@@ -161,6 +162,7 @@ function Editing({
             text,
             about: { documentId: id, quote },
             clientId,
+            ...inOpenSpace(),
           }),
         (models) => client.setQueryData(keys.models(), models),
       );

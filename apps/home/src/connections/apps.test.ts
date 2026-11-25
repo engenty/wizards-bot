@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import type { Artifact } from "@wizards-bot/protocol";
+import { pageHeaderPolicy } from "../artifacts/page.ts";
 import { FakeMcp } from "../test/fake-mcp.ts";
 import { type TestHome, testHome } from "../test/fakes.ts";
-import { viewPolicy } from "./apps.ts";
+import { hostPolicy, viewPolicy } from "./apps.ts";
 
 /** A JSON answer of the host's routes, as the test reads it. */
 type Json = {
@@ -150,5 +151,15 @@ describe("a connection's MCP Apps view", () => {
     const policy = viewPolicy({ connectDomains: ["javascript:alert(1)", "https://ok.example"] });
     assert.match(policy, /connect-src https:\/\/ok\.example;/);
     assert.doesNotMatch(policy, /javascript/);
+  });
+
+  test("the host page and an agent's page show inside the studio's frame, and nowhere else", () => {
+    const frames = (policy: string) => /frame-ancestors ([^;]+)/.exec(policy)?.[1];
+    const studio = "https://studio.example";
+    assert.equal(frames(hostPolicy("https://home.example", studio)), `'self' ${studio}`);
+    assert.equal(frames(pageHeaderPolicy(studio)), `'self' ${studio}`);
+    // A home no studio shows keeps both to its own page.
+    assert.equal(frames(hostPolicy("https://home.example")), "'self'");
+    assert.equal(frames(pageHeaderPolicy()), "'self'");
   });
 });

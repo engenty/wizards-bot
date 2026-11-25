@@ -191,8 +191,11 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
     longer listed are removed, and so are those of someone who became an admin, a member or a
     client since: they pair again as who they are now. A group home takes no setup code (3):
     every device of it is someone's. `studio` (`{ "mcp" }` or null) is the MCP endpoint of the
-    runtime the team works in. The studio at that origin shows the home's page inside its own
-    (Work's chats): it is the one other site the page allows as `frame-ancestors`.
+    runtime the team works in. The home keeps it as a connection named `studio`, which nobody
+    adds and no agent removes: made when the address arrives, moved with it, gone with it, and
+    used as the person a turn is for (12). The studio at that origin shows the home's page inside
+    its own (Work's chats): it is the one other site the page allows as `frame-ancestors`, also
+    for a connection's view and an agent's page, which the home's page frames.
 11. **The pass.** Someone's first device pairs with a pass. From its own pages the Manage-App
     sends an admin to `https://<address>.wizards.bot/#admin=<pass>`; a page of another site, the
     studio's, gets a pass for the person who uses it. Either page sends it to
@@ -203,3 +206,14 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
     taken from that page only; one without it is taken from no other site's page. The home checks
     all of these and that `sub` is in the team when it asks (10) right then. Further devices pair
     with a code an admin asks their agent for; the code pairs the device as theirs.
+12. **The studio's token.** `POST <MANAGE_URL>/v1/homes/studio-token` with
+    `Authorization: Bearer <gatewayKey>` and `{ "person": "<user id>" }` answers
+    `{ "token", "expiresAt" }`: an access token of that person for the studio's MCP endpoint (10),
+    good for ten minutes, `expiresAt` an ISO time. The home sends it as `Authorization: Bearer`
+    with every request of a call it makes for that person, keeps it in memory until a minute
+    before it ends and asks again then; it is never stored and reaches no agent. `person` is
+    someone of the home's team; a group home always names one, the person the turn is for. A
+    home of a personal team sends `{}` and gets its one person's token. Without a token (the
+    person left the team, the Manage-App does not answer) the home calls nothing and the agent
+    reads that the studio does not answer for that person. A turn nobody wrote in a group home
+    (a task, an event) calls nothing either: the studio needs a person.
