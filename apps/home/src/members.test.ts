@@ -604,6 +604,88 @@ describe("a member of a group home", () => {
     await settle();
   });
 
+  test("has no view to show, and reads nothing about views", async () => {
+    t.model.script.push({ text: "In words, then." });
+    await say(cleo, cleos, "Show me the numbers");
+    const members = t.model.requests.at(-1);
+    assert.ok(!toolsOf(members).includes("show_view"));
+    assert.doesNotMatch(members?.messages[0]?.content ?? "", /Views:|show_view|openui-lang/);
+    // Who runs the home has both.
+    t.model.script.push({ text: "Here they are." });
+    await say(ada, team, "Show me the numbers");
+    const admins = t.model.requests.at(-1);
+    assert.ok(toolsOf(admins).includes("show_view"));
+    assert.match(admins?.messages[0]?.content ?? "", /Views:/);
+  });
+
+  test("a view's answer is given by who reads its conversation, like any card's", async () => {
+    const view = [
+      "root = Column([form])",
+      'form = Form([people], "Send", "Hall")',
+      'people = Field("people", "number", "How many people", true)',
+    ].join("\n");
+    t.model.script.push(
+      { calls: [{ name: "show_view", arguments: { title: "Hall", text: "A form.", view } }] },
+      { text: "Fill it in." },
+    );
+    await say(ada, team, "Ask how many come");
+    const teams = t.home.store.openCards(team).find((card) => card.view) as Card;
+    assert.equal(teams.view?.program, view);
+    const answer = (token: string, card: Card, people: number) =>
+      t.request(`/v1/cards/${card.id}/answer`, {
+        token,
+        body: { action: "view", message: "Send", state: { people } },
+      });
+    // The team's view is not a member's to answer.
+    assert.equal((await answer(cleo, teams, 7)).status, 404);
+    assert.equal(t.home.store.card(teams.id)?.state, "open");
+
+    // A view that stands in a member's own conversation is that member's alone.
+    const agent = t.home.store.mainAgent();
+    const message = t.home.store.addMessage({
+      conversationId: cleos,
+      role: "agent",
+      agentId: agent.id,
+      channel: "home",
+      parts: [],
+    });
+    const mine = t.home.store.createCard(
+      {
+        kind: "question",
+        level: "needs_you",
+        title: "Seats",
+        body: "A form.",
+        view: teams.view,
+        actions: [],
+        payload: { type: "view", writer: "usr_cleo" },
+      },
+      { agentId: agent.id, conversationId: cleos, messageId: message.id },
+    );
+    assert.ok((await items(cleo)).some((card) => card.id === mine.id));
+    assert.ok(!(await items(ada)).some((card) => card.id === mine.id));
+    for (const token of [ada, eve]) assert.equal((await answer(token, mine, 12)).status, 404);
+    assert.equal(t.home.store.card(mine.id)?.state, "open");
+    t.model.script.push({ text: "Forty seats." });
+    const answered = await answer(cleo, mine, 40);
+    assert.equal(answered.status, 200);
+    const { card: after } = (await answered.json()) as { card: Card };
+    assert.deepEqual(after.answer?.person, { id: "usr_cleo", name: "Cleo" });
+    assert.deepEqual(after.answer?.state, { people: 40 });
+    await settle();
+    // The turn the answer starts is the member's: it reads what they filled in, with their tools.
+    const asked = t.model.requests.at(-1);
+    const told = (asked?.messages ?? []).findLast((each) => each.role === "user")?.content ?? "";
+    assert.match(told, /Sent from the view "Seats"[\s\S]*- people: 40/);
+    assert.match(asked?.messages[0]?.content ?? "", /You talk with Cleo, a member/);
+    assert.ok(!toolsOf(asked).includes("show_view"));
+    assert.ok(!toolsOf(asked).includes("remember"));
+    assert.equal(textOf((await messages(cleo, cleos)).at(-1) as Message), "Forty seats.");
+
+    t.model.script.push({ text: "Twelve it is." });
+    assert.equal((await answer(ada, teams, 12)).status, 200);
+    await settle();
+  });
+
   test("someone who becomes an admin reads the team's conversation, and their own stays put away", async () => {
     manage.people = manage.people.map((one) =>
       one.id === "usr_cleo" ? { ...one, role: "admin" } : one,
