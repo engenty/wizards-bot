@@ -203,6 +203,7 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
         "What a file or folder in a connected folder is: its kind, size and when it changed.",
       input: z.object({ folder: z.string(), path: z.string() }),
       label: (input) => `Looking at ${String(input.path ?? "a file")}`,
+      object: (input) => folders.object(input.folder, input.path),
       run: async (input) => {
         const folder = folders.named(input.folder);
         const full = folders.locate(folder, input.path);
@@ -222,6 +223,7 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
         why: z.string().describe("One sentence for the person: what it is for."),
       }),
       label: (input) => `Making the folder ${String(input.path ?? "")}`,
+      object: (input) => folders.object(input.folder, input.path),
       asks: true,
       run: async (input, call) => {
         const folder = folders.named(input.folder);
@@ -253,6 +255,7 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
         why: z.string().describe("One sentence for the person: what this is for."),
       }),
       label: (input) => `Copying ${String(input.from ?? "a file")}`,
+      object: (input) => folders.object(input.toFolder ?? input.folder, input.to),
       asks: true,
       run: async (input, call) => {
         const source = folders.named(input.folder);
@@ -296,6 +299,7 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
         why: z.string().describe("One sentence for the person: what this changes."),
       }),
       label: (input) => `Writing ${String(input.path ?? "a file")}`,
+      object: (input) => folders.object(input.folder, input.path),
       asks: true,
       run: async (input, call) => {
         if ((input.content === undefined) === (input.file === undefined))
@@ -350,6 +354,7 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
         why: z.string().describe("One sentence for the person: what this changes."),
       }),
       label: (input) => `Changing ${String(input.path ?? "a file")}`,
+      object: (input) => folders.object(input.folder, input.path),
       asks: true,
       run: async (input, call) => {
         const folder = folders.named(input.folder);
@@ -412,6 +417,10 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
         const moves = Array.isArray(input.moves) ? input.moves : [];
         return moves.length === 1 ? "Moving a file" : `Moving ${moves.length} files`;
       },
+      object: ({ folder, toFolder, moves }) =>
+        Array.isArray(moves) && moves.length === 1
+          ? folders.object(toFolder ?? folder, moves[0].to)
+          : undefined,
       asks: true,
       run: async (input, call) => {
         const source = folders.named(input.folder);
@@ -484,6 +493,8 @@ export function changeTools(folders: Folders, context: TurnContext): Tool[] {
           ? `Deleting ${String(paths[0])}`
           : `Deleting ${paths.length} files`;
       },
+      object: ({ paths }) =>
+        Array.isArray(paths) && paths.length === 1 ? { name: String(paths[0]) } : undefined,
       asks: true,
       run: async (input, call) => {
         const folder = folders.named(input.folder);

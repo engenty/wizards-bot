@@ -21,6 +21,7 @@ import {
   type FolderListing,
   type FolderPreview,
   type MakeFolder,
+  type StepObject,
 } from "@wizards-bot/protocol";
 import { z } from "zod";
 import { defineTool, type Tool } from "../agent/tool.ts";
@@ -449,6 +450,13 @@ export class Folders {
     return path.split(/[\\/]+/).filter((part) => part && part !== ".");
   }
 
+  /** A path inside a folder as a step of a turn names it, so the chat opens it. */
+  object(folder: unknown, path: unknown): StepObject | undefined {
+    if (typeof path !== "string") return;
+    const { id } = this.named(typeof folder === "string" ? folder : undefined);
+    return { name: this.parts(path).join("/"), folderId: id };
+  }
+
   /** A path inside a folder as Mastra's filesystem takes it: relative, with `/`. */
   relative(path: string): string {
     return this.parts(path).join("/") || ".";
@@ -844,6 +852,10 @@ export class Folders {
           path: z.string().optional().describe("A subfolder, e.g. 2026/invoices."),
         }),
         label: (input) => `Looking into ${String(input.folder ?? "a folder")}`,
+        object: (input) => ({
+          ...this.object(input.folder, input.path ?? ""),
+          name: [input.folder, input.path].filter(Boolean).join("/"),
+        }),
         run: async (input) => {
           const folder = named(input.folder);
           const dir = this.locate(folder, input.path ?? "");
@@ -877,6 +889,7 @@ export class Folders {
             .describe("In a long document: the character to read on from."),
         }),
         label: (input) => `Reading ${String(input.path ?? "a file")}`,
+        object: (input) => this.object(input.folder, input.path),
         run: async (input) => {
           const folder = named(input.folder);
           const file = this.locate(folder, input.path);
@@ -921,6 +934,8 @@ export class Folders {
             ? `Looking at ${String(paths[0])}`
             : `Looking at ${paths.length} pictures`;
         },
+        object: ({ folder, paths }) =>
+          Array.isArray(paths) && paths.length === 1 ? this.object(folder, paths[0]) : undefined,
         run: async (input) => {
           const folder = named(input.folder);
           const pictures: Picture[] = [];

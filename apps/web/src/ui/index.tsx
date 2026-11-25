@@ -41,9 +41,10 @@ export const Button = forwardRef<
       type="button"
       disabled={disabled || busy}
       className={cn(
-        "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-[background,filter,color,transform] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
-        size === "sm" && "h-8 px-3 text-[0.8125rem] coarse:h-11 coarse:px-4",
-        size === "md" && "h-10 px-4 text-sm coarse:h-11",
+        // On a phone a button is lower than a finger is wide: what takes the tap is a little taller.
+        "relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full coarse:after:absolute coarse:after:inset-x-0 coarse:after:-inset-y-1 font-medium transition-[background,filter,color,transform] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
+        size === "sm" && "h-8 px-3 text-[0.8125rem] coarse:h-9",
+        size === "md" && "h-10 px-4 text-sm coarse:h-9 coarse:px-3.5",
         VARIANTS[variant],
         className,
       )}

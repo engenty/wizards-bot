@@ -195,7 +195,15 @@ message is `apple:on-device`.
   "model": "ollama:qwen3.8:27b-mlx",
   "createdAt": "2026-11-21T09:12:00.000Z",
   "parts": [
-    { "type": "activity", "label": "Reading your calendar", "state": "done" },
+    {
+      "type": "activity",
+      "label": "Writing Trips/Week.md",
+      "state": "done",
+      "kind": "file_write",
+      "object": { "name": "Trips/Week.md", "folderId": "fld_…" },
+      "startedAt": "2026-11-21T09:12:04.000Z",
+      "endedAt": "2026-11-21T09:12:05.000Z"
+    },
     { "type": "text", "text": "You are free after 14:00." },
     { "type": "document", "documentId": "doc_…", "title": "Week plan" },
     { "type": "artifact", "artifactId": "art_…", "title": "Spending by month" },
@@ -233,6 +241,19 @@ Rules for a device that draws messages:
   text arrives.
 - A message with `unsourced: true` was written by a small model out of itself: no tool, file or page
   was read for it. Say so beside it.
+- An `activity` part is one step of the agent. `label` is an English line, drawn by a device that
+  does not know more. `kind` (`StepKind`) says what the step does and `object` (`StepObject`) what
+  it is about, so a device says it in the person's language: a file's path (`name`) in a connected
+  folder (`folderId`), a page's title and address (`url`, http or https), a document, an artifact,
+  an agent, the words searched for, a command, what of the home it looked at or set (`topic`), and
+  `count` for a step that does it to several at once. `startedAt` and `endedAt` are its times. All
+  of them may be missing: in messages of an older home, and for a tool of a plugin or a connection,
+  which is its label. A kind the device does not know is its label too.
+- A step of the kind `ask` did not do what it is about: it asked the person, or the person said no.
+- Steps that follow each other are drawn as one line: while they run the newest and how many, then
+  what was done, counted ("15 files written · 7 pages read in the browser · 2 min"), and how many
+  failed. It opens to the things they were done to, each once. Reasoning between them goes with
+  them. A text, a card, a file, a document and an artifact stand where they are, never inside.
 - A `reasoning` part (`{ "type": "reasoning", "text" }`) is what the model thought before it
   answered, as far as it shows it, in Markdown. Draw it quiet, open while the message streams and
   folded away once it is done. It is not the answer: a voice, a notification and a channel read

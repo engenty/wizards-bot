@@ -248,6 +248,86 @@ export type FileRef = z.infer<typeof FileRef>;
 
 // ── Messages ────────────────────────────────────────────────────────────────
 
+/**
+ * What a step of an agent does. A device says it in the person's language and counts the steps
+ * that do the same. `ask`: the step stopped to ask the person, whatever it is about. `look` and
+ * `set` are what the home keeps: a `topic` says what of it.
+ */
+export const StepKind = z.enum([
+  "file_write",
+  "file_edit",
+  "file_copy",
+  "file_move",
+  "file_delete",
+  "folder_make",
+  "document_write",
+  "artifact_write",
+  "agent_make",
+  "agent_ask",
+  "device_ask",
+  "task_set",
+  "set",
+  "draft",
+  "command",
+  "page_use",
+  "sign_in",
+  "memory",
+  "ask",
+  "page_read",
+  "file_read",
+  "picture_look",
+  "document_read",
+  "artifact_read",
+  "search",
+  "folder_look",
+  "look",
+  "skill",
+  "tool_search",
+  "go_on",
+]);
+export type StepKind = z.infer<typeof StepKind>;
+
+/** What of the home a step of the kind `look` or `set` is about. */
+export const StepTopic = z.enum([
+  "address",
+  "agents",
+  "avatar",
+  "channels",
+  "connections",
+  "contacts",
+  "devices",
+  "folders",
+  "handle",
+  "invites",
+  "key",
+  "links",
+  "models",
+  "name",
+  "outside",
+  "plugins",
+  "rooms",
+  "tasks",
+  "vault",
+]);
+export type StepTopic = z.infer<typeof StepTopic>;
+
+/** What a step of an agent is about, and where a device opens it. */
+export const StepObject = z.object({
+  /** A file's path in its folder, a page's title, the words searched for, a command. */
+  name: z.string().optional(),
+  topic: StepTopic.optional(),
+  /** How many, for a step that does it to several at once. */
+  count: z.number().optional(),
+  /** The connected folder `name` is a path in. */
+  folderId: z.string().optional(),
+  /** The page's address: http or https. */
+  url: z.string().optional(),
+  documentId: z.string().optional(),
+  artifactId: z.string().optional(),
+  agentId: z.string().optional(),
+});
+export type StepObject = z.infer<typeof StepObject>;
+
 export const Part = z.discriminatedUnion("type", [
   /** Markdown. Grows by `message.delta` while the message is streaming. */
   z.object({ type: z.literal("text"), text: z.string() }),
@@ -258,11 +338,18 @@ export const Part = z.discriminatedUnion("type", [
   z.object({ type: z.literal("document"), documentId: z.string(), title: z.string() }),
   /** An artifact the chat opens beside itself. */
   z.object({ type: z.literal("artifact"), artifactId: z.string(), title: z.string() }),
-  /** One line about what the agent is doing. */
+  /**
+   * One step of the agent. `label` is the line a device shows that does not know `kind`, or for
+   * a step without one: a tool of a plugin or a connection.
+   */
   z.object({
     type: z.literal("activity"),
     label: z.string(),
     state: z.enum(["running", "done", "failed"]),
+    kind: StepKind.optional(),
+    object: StepObject.optional(),
+    startedAt: z.string().optional(),
+    endedAt: z.string().optional(),
   }),
   /**
    * What the model thought before it answered, as far as it shows it. Grows by `message.delta`
