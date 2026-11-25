@@ -7,7 +7,7 @@ import type { Card, SetupCheck, SetupPulling, Setup as SetupView } from "@wizard
 import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
 import { isSubscription, SUBSCRIPTIONS } from "../models/client-model.ts";
-import { ACCOUNT, GATEWAY_PRESETS } from "../models/models.ts";
+import { ACCOUNT, GATEWAY_PRESETS, ModelRefused } from "../models/models.ts";
 import { isServer, onThisComputer, SUGGESTED } from "../models/ollama.ts";
 import type { NewCard } from "../store/store.ts";
 import {
@@ -256,11 +256,19 @@ export class Setup {
   private probes(): Map<string, () => Promise<Probe | undefined>> {
     const { models, config, secrets } = this.home;
     const probes = new Map<string, () => Promise<Probe | undefined>>();
-    for (const client of this.clients) probes.set(client.id, () => probeClient(client));
+    for (const client of this.clients) {
+      probes.set(client.id, () => probeClient(client, undefined, models.namedModel(client.id)));
+    }
     const account = models.account();
     if (account) {
       probes.set(ACCOUNT.id, () =>
-        probeAccount(account, models.accountKey(), undefined, this.gatewayFetch),
+        probeAccount(
+          account,
+          models.accountKey(),
+          undefined,
+          this.gatewayFetch,
+          models.namedModel(ACCOUNT.id),
+        ),
       );
     }
     if (!isHosted(config)) {
@@ -271,23 +279,60 @@ export class Setup {
               models.memory,
               undefined,
               undefined,
-              models.serverModel("ollama"),
+              models.namedModel("ollama"),
             )
           : lookAtOllama(config.ollamaUrl, models.memory),
       );
       for (const id of ["lmstudio", "mlx"] as const) {
         if (!models.serverPicked(id)) continue;
         probes.set(id, () =>
-          probeServer(id, models.serverUrl(id), models.memory, models.serverModel(id)),
+          probeServer(id, models.serverUrl(id), models.memory, models.namedModel(id)),
         );
       }
     }
     for (const gateway of models.gateways()) {
       probes.set(gateway.id, () =>
-        probeGateway(gateway, secrets.get(`gateway.${gateway.id}`), undefined, this.gatewayFetch),
+        probeGateway(
+          gateway,
+          secrets.get(`gateway.${gateway.id}`),
+          undefined,
+          this.gatewayFetch,
+          models.namedModel(gateway.id),
+        ),
       );
     }
     return probes;
+  }
+
+  /**
+   * The person chooses the model of a source. One a gateway has not used yet is asked once, and
+   * kept when it answers; any other is not loaded or asked by choosing it.
+   */
+  async choose(source: string, model: string): Promise<void> {
+    const { models, secrets, db, events } = this.home;
+    const gateway = models.gateways().find((candidate) => candidate.id === source);
+    const offered = () =>
+      models
+        .sources()
+        .some((entry) => entry.id === source && entry.models.some(({ id }) => id === model));
+    let found: Probe | undefined;
+    if (gateway && !offered()) {
+      const key = secrets.get(`gateway.${source}`);
+      found = await probeGateway(gateway, key, undefined, this.gatewayFetch, model);
+      if (found.state !== "ok" && found.state !== "warning") {
+        throw new ModelRefused(say(found.said, langOf(db)));
+      }
+      models.addGatewayModel(source, model);
+    }
+    // A model that came, or a client that was installed, since the last look.
+    if (!offered()) await models.refresh(true);
+    const before = models.candidates().find((ref) => ref.startsWith(`${source}:`));
+    models.chooseModel(source, model);
+    // The last test asked another model.
+    if (found) this.keep(source, found);
+    else if (before !== `${source}:${model}`) this.forget(source);
+    events.emit({ type: "models.updated", models: models.view() });
+    await this.changed();
   }
 
   /** Whether a test call runs now. */
