@@ -185,6 +185,7 @@ export async function testHome(
       publicUrl: at.unreachable ? undefined : url,
       ollamaUrl: model.url,
       lmstudioUrl: "http://127.0.0.1:9",
+      mlxFolder: "/nonexistent",
       subscriptions: [],
       ...at.config,
     },

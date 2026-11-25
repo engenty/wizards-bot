@@ -45,11 +45,10 @@ describe("the setup shared with engenty wizards", () => {
     const { body } = await call("GET", "/clients");
     const [client] = body.clients as { id: string; auth: string }[];
     assert.equal(client?.id, "codex");
+    // Apple MLX comes after these, on a Mac that has its helper.
+    const servers = body.servers as { id: string; running: boolean }[];
     assert.deepEqual(
-      (body.servers as { id: string; running: boolean }[]).map((server) => [
-        server.id,
-        server.running,
-      ]),
+      servers.slice(0, 2).map((server) => [server.id, server.running]),
       [
         ["ollama", true],
         ["lmstudio", false],

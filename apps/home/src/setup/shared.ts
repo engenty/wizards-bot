@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { setClientFolders } from "@engenty/local-models/clients";
-import { SERVER_IDS, SERVERS } from "@engenty/local-models/servers";
+import { SERVERS, serversHere } from "@engenty/local-models/servers";
 import { OFFERED_MODELS } from "@engenty/model-setup";
 import {
   ClientSetup,
@@ -83,7 +83,7 @@ export function sharedSetup(home: Home): Hono {
     // The home keeps every test's outcome itself (setup.ts).
     tested: new Tested({ read: async () => [], write: async () => {} }),
     // The models to download are the package's own list: the home asks no one for it.
-    servers: SERVER_IDS.map(
+    servers: serversHere().map(
       (id) =>
         new LocalModels({
           server: SERVERS[id],

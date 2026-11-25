@@ -94,8 +94,10 @@ export class LinkedComputer {
 
   private async announce(force = false): Promise<void> {
     await this.models.refresh(force);
-    // LM Studio answers on its own computer only.
-    const sources = this.models.localSources().filter((source) => source.kind !== "lmstudio");
+    // LM Studio and MLX answer on their own computer only.
+    const sources = this.models
+      .localSources()
+      .filter((source) => source.kind !== "lmstudio" && source.kind !== "mlx");
     const text = JSON.stringify(sources);
     if (text === this.announced) return;
     this.announced = text;

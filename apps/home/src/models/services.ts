@@ -16,8 +16,8 @@ const KNOWN: Record<string, { id: string; label: string }> = {
 };
 
 /**
- * The service outside the person's own computers that a source sends what it reads to. Ollama
- * and LM Studio run on a computer of the person and have none. A linked computer's source keeps its own id
+ * The service outside the person's own computers that a source sends what it reads to. Ollama,
+ * LM Studio and MLX run on a computer of the person and have none. A linked computer's source keeps its own id
  * after the `/`.
  */
 export function serviceOf(

@@ -3,6 +3,7 @@ import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { detectClient } from "@engenty/local-models/clients";
 import { lmStudioFetch } from "@engenty/local-models/lmstudio";
+import { mlxModel } from "@engenty/local-models/mlx";
 import { type ChatModel, ollamaModel } from "@engenty/local-models/ollama";
 import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
 import {
@@ -31,7 +32,7 @@ import { agreed, serviceOf, services } from "./services.ts";
 export type { ClientTurn } from "./client-model.ts";
 
 /** The servers on this computer, the one the home asks first in front. */
-const SERVERS_HERE: readonly ServerId[] = ["ollama", "lmstudio"];
+const SERVERS_HERE: readonly ServerId[] = ["ollama", "lmstudio", "mlx"];
 
 /** What answers a turn: a model Mastra asks. A subscription's model needs the turn's MCP token. */
 export interface Engine {
@@ -127,10 +128,10 @@ const CONTEXT = Number(process.env.WIZARDS_BOT_OLLAMA_CONTEXT ?? 16_384);
  * Sources that answer only once the person picked them or put one of their models into the
  * order, on every home: found alone they answer nowhere.
  */
-const ON_PICK = new Set<string>(["antigravity", "cursor", "lmstudio"]);
+const ON_PICK = new Set<string>(["antigravity", "cursor", "lmstudio", "mlx"]);
 
 export class Models {
-  private held: Record<ServerId, InstalledModel[]> = { ollama: [], lmstudio: [] };
+  private held: Record<ServerId, InstalledModel[]> = { ollama: [], lmstudio: [], mlx: [] };
   private clients: SubscriptionId[] = [];
   private refreshedAt = 0;
   private readonly config: Config;
@@ -159,7 +160,7 @@ export class Models {
     const held = await Promise.all(
       SERVERS_HERE.map((id) => {
         const url = this.serverUrl(id);
-        const memory = onThisComputer(url) ? this.memory : undefined;
+        const memory = id === "mlx" || onThisComputer(url) ? this.memory : undefined;
         return chatModels(url, memory, undefined, id);
       }),
     );
@@ -173,7 +174,14 @@ export class Models {
 
   /** Where a server of this computer answers. */
   serverUrl(id: ServerId): string {
-    return id === "ollama" ? this.config.ollamaUrl : this.config.lmstudioUrl;
+    switch (id) {
+      case "ollama":
+        return this.config.ollamaUrl;
+      case "lmstudio":
+        return this.config.lmstudioUrl;
+      case "mlx":
+        return this.config.mlxFolder;
+    }
   }
 
   // ── Gateways ──────────────────────────────────────────────────────────────
@@ -380,7 +388,7 @@ export class Models {
 
   /**
    * Model refs in the order the home tries them: the person's order first, then a
-   * subscription, then Ollama, then LM Studio, then a gateway; this computer before another one. This
+   * subscription, then Ollama, then LM Studio, then MLX, then a gateway; this computer before another one. This
    * computer's Ollama is among them only once the person picked it; once they picked in the
    * setup, only what they picked is.
    */
@@ -404,7 +412,7 @@ export class Models {
       if (!refs.includes(ref)) refs.push(ref);
     };
     for (const ref of this.order()) add(ref);
-    for (const kind of ["subscription", "ollama", "lmstudio", "gateway"] as const) {
+    for (const kind of ["subscription", "ollama", "lmstudio", "mlx", "gateway"] as const) {
       for (const source of available.values()) {
         const first = source.models[0];
         // Of a source the person picked, the model they named is the one: no other is loaded.
@@ -453,6 +461,17 @@ export class Models {
         baseURL: `${url}/v1`,
         fetch: lmStudioFetch(url, { context: CONTEXT }),
       })(model);
+      return { ref, model: () => chat };
+    }
+    if (sourceId === "mlx") {
+      const found = this.held.mlx.find((held) => held.name === model);
+      if (!found) return undefined;
+      const chat = mlxModel({
+        folder: this.config.mlxFolder,
+        model,
+        tools: found.tools,
+        ...(found.thinking ? { thinking: true } : {}),
+      });
       return { ref, model: () => chat };
     }
     const run = this.localClient(sourceId);
