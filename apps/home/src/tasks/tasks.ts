@@ -512,6 +512,12 @@ export class Tasks {
           quiet,
         }),
         label: () => "Scheduling a task",
+        wrong: (input) => {
+          const when = When.safeParse(input);
+          const rule = when.success ? ruleOf(when.data) : "That is no time.";
+          if (typeof rule === "string") return rule;
+          return nextAfter(rule, new Date()) ? undefined : "That time is in the past.";
+        },
         // The times themselves: whoever reads them sees whether they are meant.
         says: (input) => {
           const when = When.safeParse(input);

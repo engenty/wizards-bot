@@ -18,6 +18,8 @@ export interface Tool<I = any> {
   input: z.ZodType<I>;
   /** What the person sees while it runs, e.g. "Writing “Packing list”". */
   label?(input: Record<string, unknown>): string;
+  /** What is wrong with an input, for the model, before the person is asked about it. */
+  wrong?(input: Record<string, unknown>): string | undefined;
   /**
    * What a call is about, for its line in the chat, where the tool's entry in `steps.ts` does not
    * say it: the file with its folder, the page once it answered.

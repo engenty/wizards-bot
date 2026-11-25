@@ -67,7 +67,8 @@ export const en = {
   "chat.onDevice": "Written on your phone while your Bot Server was out of reach",
   "chat.queued": "After the answer",
   "chat.waits": "Waiting for {name}",
-  "chat.unsourced": "{model} answered from memory, without a source. Check what matters.",
+  "chat.unsourced":
+    "{model} answered from memory: it looked nothing up and did nothing. Check what matters.",
   "chat.loading": "Loading the model…",
   "chat.reading": "Reading…",
   "chat.readingShare": "Reading… {share} %",
@@ -880,7 +881,7 @@ export const de: Record<Key, Line> = {
   "chat.queued": "Nach der Antwort",
   "chat.waits": "Wartet auf {name}",
   "chat.unsourced":
-    "{model} hat aus dem Gedächtnis geantwortet, ohne Quelle. Prüfe, was wichtig ist.",
+    "{model} hat aus dem Gedächtnis geantwortet: nichts nachgesehen und nichts getan. Prüfe, was wichtig ist.",
   "chat.loading": "Modell wird geladen …",
   "chat.reading": "Liest …",
   "chat.readingShare": "Liest … {share} %",
