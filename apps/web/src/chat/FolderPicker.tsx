@@ -205,7 +205,7 @@ function Chip({
       <div
         className={cn(
           "flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5",
-          refused ? "border-rose" : "border-ember bg-ember-tint",
+          refused ? "border-rose" : "border-input",
         )}
       >
         <Folder className="size-5 shrink-0 text-ember" aria-hidden="true" />
