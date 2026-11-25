@@ -5,6 +5,7 @@ import type {
   Artifact,
   Avatar,
   Card,
+  ChatLook,
   Contact,
   Device,
   Document,
@@ -26,6 +27,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import type { Thread } from "./events";
 import { keys } from "./keys";
+import { chatLook, lookFrom, showLook } from "./look";
 
 /** How many messages one page of a conversation holds. */
 const PAGE = 50;
@@ -245,6 +247,34 @@ export function useAvatar() {
     queryFn: ({ signal }) =>
       api.get<{ avatar: Avatar | null }>("/v1/avatar", signal).then((r) => r.avatar),
   });
+}
+
+/** Draws the chat as the person picked it on any of their devices, once the home says how. */
+export function useHomeLook() {
+  return useQuery({
+    queryKey: keys.look(),
+    queryFn: async ({ signal }) => {
+      const look = lookFrom(await api.get<ChatLook>("/v1/look", signal));
+      showLook(look);
+      return look;
+    },
+  });
+}
+
+/** Draws the chat with a look at once and has the home keep it for the person's other devices. */
+export async function pickLook(change: Partial<ChatLook>) {
+  const before = chatLook();
+  const next = { ...before, ...change };
+  showLook(next);
+  try {
+    await api.put<ChatLook>("/v1/look", next);
+  } catch (err) {
+    // Not kept: what was shown before is back, unless the person picked again meanwhile.
+    if (chatLook() === next) {
+      showLook(before);
+    }
+    throw err;
+  }
 }
 
 /** The checks of the first start: each model's last test call and what the home has around it. */

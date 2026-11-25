@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import type { Thread, Waiting } from "../lib/events";
 import { t } from "../lib/i18n";
-import { useToolDetail } from "../lib/look";
+import { useChatView, useToolDetail } from "../lib/look";
 import type { Waited } from "../lib/needs";
 import { askToNotify, canAskToNotify, notifyLater } from "../lib/notify";
 import { useThisDevice } from "../lib/queries";
@@ -66,16 +66,28 @@ function Elapsed({ since }: { since: string }) {
 }
 
 /**
+ * The bubbles: the corner towards who speaks is the sharper one. As wide as the words, at most as
+ * the column; a wide table or a long line of code scrolls inside it.
+ */
+const BUBBLE = {
+  right: "bubble max-w-full rounded-xl rounded-br-md bg-bubble px-4 py-2.5 max-sm:px-3 max-sm:py-2",
+  left: "bubble w-fit max-w-full rounded-xl rounded-tl-md bg-bubble-agent px-4 py-2.5 max-sm:px-3 max-sm:py-2",
+};
+
+/**
  * A message's parts, in order, the steps between two of them as one. Files are drawn together; a part of a type this page does not
  * know shows its title, or one line, and never breaks the message.
  */
 function Parts({
   message,
+  bubble,
   onDocument,
   onArtifact,
   onProblem,
 }: {
   message: Message;
+  /** The text stands in a bubble, at the right or the left. Everything else stands on the page. */
+  bubble?: keyof typeof BUBBLE;
   onDocument: (id: string) => void;
   onArtifact: (id: string) => void;
   onProblem: (text: string) => void;
@@ -104,11 +116,8 @@ function Parts({
         if (!part.text) {
           return null;
         }
-        return mine ? (
-          <div
-            key={key}
-            className="rounded-xl rounded-br-md bg-paper-2 px-4 py-2.5 max-sm:px-3 max-sm:py-2"
-          >
+        return bubble ? (
+          <div key={key} className={BUBBLE[bubble]}>
             <Markdown text={part.text} className="text-[0.9375rem]" />
           </div>
         ) : (
@@ -223,6 +232,7 @@ function MessageView({
   onProblem: (text: string) => void;
 }) {
   const me = useThisDevice();
+  const view = useChatView();
   const tools = useToolDetail();
   if (message.role === "note") {
     return (
@@ -246,6 +256,7 @@ function MessageView({
       <div className="enter-rise ml-8 flex min-w-0 flex-col items-end gap-1.5 self-end">
         <Parts
           message={message}
+          bubble="right"
           onDocument={onDocument}
           onArtifact={onArtifact}
           onProblem={onProblem}
@@ -257,7 +268,11 @@ function MessageView({
       </div>
     );
   }
-  const drawn = message.parts.some((part) => part.type !== "text" || part.text);
+  const drawn = message.parts.some((part) =>
+    part.type === "text"
+      ? part.text
+      : part.type !== "activity" || tools !== "none" || part.state !== "done",
+  );
   // While the answer is open and no tool line turns, the dots say the agent is still at it:
   // between two tools, and while it thinks after a line of text.
   const thinking =
@@ -271,6 +286,7 @@ function MessageView({
   if (!drawn && message.state === "done") {
     return null;
   }
+  const bubbles = view === "bubbles";
   return (
     <div className="enter-rise flex items-start gap-3">
       <div className="shrink-0">
@@ -280,7 +296,7 @@ function MessageView({
           <Engenty kind={agent.kind} color={agent.color} size={28} animated={false} />
         )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-0.5">
+      <div className={cn("flex min-w-0 flex-1 flex-col gap-2.5", !bubbles && "pt-0.5")}>
         {message.from ? (
           // In a room: who wrote it, and for an agent whose it is. In a group home: which admin.
           <p className="-mb-1.5 font-medium text-[0.8125rem] text-ink-2">
@@ -292,13 +308,19 @@ function MessageView({
         ) : null}
         <Parts
           message={message}
+          bubble={bubbles || otherAdmin ? "left" : undefined}
           onDocument={onDocument}
           onArtifact={onArtifact}
           onProblem={onProblem}
         />
         {message.state === "streaming" ? (
           <div className="flex items-center gap-2.5">
-            {thinking && !turning ? <Typing /> : null}
+            {thinking && !turning ? (
+              // Before the first word the dots are the bubble the words come into.
+              <div className={bubbles && !drawn ? BUBBLE.left : undefined}>
+                <Typing />
+              </div>
+            ) : null}
             {thinking && waiting ? <WaitingFor waiting={waiting} /> : null}
             <Elapsed since={message.createdAt} />
           </div>

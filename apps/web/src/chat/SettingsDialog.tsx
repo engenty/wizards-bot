@@ -28,9 +28,9 @@ import { keys } from "../lib/keys";
 import { useFolders, useModels, usePlugins, useSecrets, useSetup } from "../lib/queries";
 import type { SourceRow } from "../lib/sources";
 import { SetupStatus } from "../setup/Checks";
-import { LangSwitch, ThemeSwitch } from "../setup/Frame";
 import { Button, Chip, cn, Dialog, IconButton, Select } from "../ui";
 import { PrivacyDialog, serviceLine } from "./ConsentDialog";
+import { LookSettings } from "./LookSettings";
 import { ModelSettings } from "./ModelSettings";
 import { VaultSettings } from "./Vault";
 
@@ -457,16 +457,7 @@ export function SettingsDialog({
               ) : null}
             </Section>
           ) : page === "look" ? (
-            <Section>
-              <div className="flex items-center justify-between gap-3 py-2">
-                <span className="text-[0.875rem]">{t("theme.label")}</span>
-                <ThemeSwitch />
-              </div>
-              <div className="flex items-center justify-between gap-3 py-2">
-                <span className="text-[0.875rem]">{t("lang.label")}</span>
-                <LangSwitch />
-              </div>
-            </Section>
+            <LookSettings onProblem={setProblem} />
           ) : (
             <Section>
               {models.data?.services?.length ? (

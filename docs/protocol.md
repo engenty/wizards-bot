@@ -1483,6 +1483,20 @@ a square. 404 when there is no avatar.
 
 The event `avatar.updated` carries the avatar after each change, or `null`.
 
+## How the chat looks
+
+The person picks how an agent's messages stand in the chat (`view`: `canvas`, the words on the
+page, or `bubbles`, in a bubble beside the agent's figure) and how much of its tool calls is shown
+(`tools`: `none`, only what runs now and what failed; `summary`, one line that opens; `all`, every
+step). The home keeps it for all their devices; in a group home, for each admin.
+
+`GET /v1/look` → `ChatLook`, `{ "view": "canvas", "tools": "summary" }` until it is changed.
+`PUT /v1/look` with `ChatLook` → `ChatLook`. A value the home does not know is kept as the plain
+one.
+
+The event `look.updated` carries the look after each change; in a group home it goes to the
+devices of that admin only. The theme, its colour and the language are each device's own.
+
 ## Models
 
 `GET /v1/models` → `Models`. `answers` are the model refs the next message would try, in order;
