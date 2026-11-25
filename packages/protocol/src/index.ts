@@ -362,6 +362,11 @@ export const Agent = z.object({
   state: z.enum(["idle", "working", "needs_you"]),
   /** Open cards that wait for the person. */
   open: z.number(),
+  /**
+   * The agents it handed a task to and whose answer has not come yet. `cardId`: that agent
+   * waits for the person with this card.
+   */
+  waitsFor: z.array(z.object({ agentId: z.string(), cardId: z.string().optional() })).optional(),
   /** The agent's one conversation with the person. */
   conversationId: z.string(),
   /** One line of the newest message in that conversation, "" when there is none. */

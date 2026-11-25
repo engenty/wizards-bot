@@ -215,8 +215,11 @@ export function Dialog({
   onClose: () => void;
   title?: ReactNode;
   children: ReactNode;
-  /** `"full"`: nearly the whole window, for a file to look at. `"settings"`: room for two columns. */
-  wide?: "full" | "settings" | "palette";
+  /**
+   * `"full"`: nearly the whole window, for a file to look at. `"settings"`: room for two columns.
+   * `"chat"`: the chat's column.
+   */
+  wide?: "full" | "settings" | "palette" | "chat";
   /**
    * The children are the panel: the dialog itself draws no card, clips nothing and fills the
    * screen of a phone.
@@ -292,7 +295,9 @@ export function Dialog({
             ? "sm:h-[min(44rem,calc(100dvh-32px))] sm:max-w-4xl sm:overflow-hidden"
             : wide === "palette"
               ? "sm:max-w-2xl"
-              : "sm:max-w-md",
+              : wide === "chat"
+                ? "sm:max-w-[46rem]"
+                : "sm:max-w-md",
       )}
     >
       {shown && bare ? (

@@ -103,6 +103,12 @@ that conversation for a list of agents: one line of its newest message, how many
 agent the person has not read, and when it last changed. The home sends `agent.updated` when a
 message arrives, when a reply is finished and when the conversation is read.
 
+`waitsFor` lists the agents this one handed a task to and whose answer has not come yet:
+`{ agentId, cardId? }`, each agent once. With `cardId` that agent waits for the person with this
+card: its answer comes after the card's. An agent that waits is not `working`. Show whom it waits
+for, with the way to that agent's chat. The field is missing when it waits for none; the home
+sends `agent.updated` when it changes.
+
 An agent's `color` (one of the cast's fills: cobalt, amber, moss, rose, ember, teal, violet,
 magenta, citron, slate) is the colour its figure wears instead of its own; without it the figure
 keeps its own. The main agent sets it with `agent_create` and `agent_update`.

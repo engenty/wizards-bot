@@ -104,6 +104,13 @@ create table if not exists handoff (
   text text not null, state text not null, answer text, files text, created_at text not null,
   answered_at text);
 create index if not exists handoff_device on handoff(device_id, state);
+create table if not exists handed (
+  id text primary key, from_agent text not null references agent(id) on delete cascade,
+  from_conversation text not null,
+  to_agent text not null references agent(id) on delete cascade, to_conversation text not null,
+  cards text, created_at text not null);
+create index if not exists handed_from on handed(from_agent);
+create index if not exists handed_to on handed(to_conversation);
 create table if not exists room (
   id text primary key, name text not null, keeper text not null,
   agent_id text not null references agent(id) on delete cascade,

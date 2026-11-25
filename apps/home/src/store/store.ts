@@ -371,9 +371,11 @@ export class Store {
   removeAgent(id: string): boolean {
     const agent = this.agent(id);
     if (!agent || agent.main) return false;
+    const waiting = this.waitingFor(id);
     this.db.run("delete from card where agent_id = ?", id);
     this.db.run("delete from agent where id = ?", id);
     this.events.emit({ type: "agent.removed", agentId: id });
+    for (const other of waiting) this.touchAgent(other);
     return true;
   }
 
@@ -397,9 +399,32 @@ export class Store {
     if (row) this.touchAgent(row.agent_id);
   }
 
-  private touchAgent(id: string): void {
+  /** Tells the devices that an agent's line in the list changed. */
+  touchAgent(id: string): void {
     const agent = this.agent(id);
     if (agent) this.events.emit({ type: "agent.updated", agent: publicAgent(agent) });
+  }
+
+  /** The agents that handed this one a task and wait for its answer. */
+  private waitingFor(id: string): string[] {
+    return this.db
+      .all<{ id: string }>("select distinct from_agent as id from handed where to_agent = ?", id)
+      .map((row) => row.id);
+  }
+
+  /** The agents this one waits for, each once, with the card that one waits on. */
+  private waitsFor(id: string): NonNullable<Agent["waitsFor"]> {
+    const found = new Map<string, string | undefined>();
+    for (const row of this.db.all<{ to_agent: string; cards: string | null }>(
+      "select to_agent, cards from handed where from_agent = ? order by created_at",
+      id,
+    )) {
+      const open = (JSON.parse(row.cards ?? "[]") as string[]).find(
+        (card) => this.card(card)?.state === "open",
+      );
+      found.set(row.to_agent, found.get(row.to_agent) ?? open);
+    }
+    return [...found].map(([agentId, cardId]) => ({ agentId, ...(cardId ? { cardId } : {}) }));
   }
 
   private toAgent(row: AgentRow): AgentRecord {
@@ -414,6 +439,7 @@ export class Store {
         row.id,
       )?.n ?? 0;
     const conversation = this.conversation(conversationId);
+    const waitsFor = this.waitsFor(row.id);
     return {
       id: row.id,
       name: row.name,
@@ -424,6 +450,7 @@ export class Store {
       from: row.from_handle ?? undefined,
       state: this.working.has(conversationId) ? "working" : open > 0 ? "needs_you" : "idle",
       open,
+      ...(waitsFor.length ? { waitsFor } : {}),
       conversationId,
       preview: conversation?.preview ?? "",
       unread: conversation?.unread ?? 0,
@@ -813,6 +840,7 @@ export class Store {
     if (after.answer?.at !== stored.at) throw new AlreadyAnswered(after);
     this.events.emit({ type: "card.updated", card: after });
     this.touchAgent(after.agentId);
+    for (const other of this.waitingFor(after.agentId)) this.touchAgent(other);
     return after;
   }
 
@@ -822,6 +850,7 @@ export class Store {
     if (!card) return;
     this.events.emit({ type: "card.updated", card });
     this.touchAgent(card.agentId);
+    for (const other of this.waitingFor(card.agentId)) this.touchAgent(other);
   }
 
   updateCard(id: string, patch: { url?: string; body?: string; title?: string }): Card | undefined {
