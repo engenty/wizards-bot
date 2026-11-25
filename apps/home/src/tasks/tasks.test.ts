@@ -143,7 +143,7 @@ describe("a task that waits for an event", () => {
   test("starts at most so many turns in an hour and keeps what happens meanwhile", async () => {
     const t = await fastHome();
     try {
-      Object.assign(t.home.tasks.timing, { perHour: 2, hour: 700 });
+      Object.assign(t.home.tasks.timing, { perHour: 2, hour: 2000 });
       const id = await setTask(t, "when_set", { prompt: "Note it", on: "webhook" });
       const before = t.model.requests.length;
       for (const word of ["one", "two", "three"]) {
@@ -154,7 +154,7 @@ describe("a task that waits for an event", () => {
       // The third waits: two turns started in this hour.
       assert.equal(t.model.requests.length, before + 2);
       t.home.tasks.happened(id, "four");
-      await settled(t, 800);
+      await settled(t, 2100);
       assert.equal(t.model.requests.length, before + 3);
       assert.match(heard(t), /1\. \d\d:\d\d three\n2\. \d\d:\d\d four/);
     } finally {
