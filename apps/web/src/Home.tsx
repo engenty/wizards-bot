@@ -211,6 +211,8 @@ export function Home() {
   const [folderView, setFolderView] = useState<{ id: string; path: string } | null>(null);
   const [reference, setReference] = useState<{ text: string; at: number }>();
   const [dialog, setDialog] = useState<Open | null>(null);
+  /** The card a chat is opened at. */
+  const [focus, setFocus] = useState<{ agentId: string; cardId: string; at: number }>();
   /** The chat the folder dialog was opened from; none from the settings. */
   const [folderFrom, setFolderFrom] = useState<string>();
   // A dialog that gives way to another one also reports that it closed: only the one that is
@@ -338,6 +340,13 @@ export function Home() {
     setFolderView(null);
     setDialog(null);
     setDrawer(false);
+    setFocus(undefined);
+  };
+  const showChat = (picked: Agent, cardId?: string) => {
+    pick(picked);
+    if (cardId) {
+      setFocus({ agentId: picked.id, cardId, at: Date.now() });
+    }
   };
   const signOut = async () => {
     await api.del("/v1/device").catch(() => undefined);
@@ -439,6 +448,7 @@ export function Home() {
           <OpenArtifact.Provider value={artifactId}>
             <Chat
               agent={agent}
+              agents={agents.data ?? []}
               items={items.data ?? []}
               link={link}
               onAgents={side === "none" ? () => setDrawer(true) : undefined}
@@ -452,6 +462,8 @@ export function Home() {
               }}
               unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
               onItems={() => setDialog("items")}
+              onChat={showChat}
+              focus={focus?.agentId === agent.id ? focus : undefined}
               onDocument={(id) => {
                 setArtifactId(null);
                 setAbout(false);
@@ -557,7 +569,13 @@ export function Home() {
         asker={asker}
         onClose={close.settings}
       />
-      <ItemsDialog open={dialog === "items"} items={items.data ?? []} onClose={close.items} />
+      <ItemsDialog
+        open={dialog === "items"}
+        items={items.data ?? []}
+        agents={agents.data ?? []}
+        onChat={showChat}
+        onClose={close.items}
+      />
       <FolderDialog open={dialog === "folder"} conversationId={folderFrom} onClose={close.folder} />
       <AvatarDialog open={dialog === "avatar"} saved={avatar.data ?? null} onClose={close.avatar} />
       <ConsentDialog />

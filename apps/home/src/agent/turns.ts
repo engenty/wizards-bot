@@ -65,6 +65,8 @@ export interface Trigger {
    */
   again?: { tool: string; input: unknown; answer: Answer };
   done?: (message: Message) => void;
+  /** Tasks other agents handed over that this is about (`agent/handed.ts`). */
+  handed?: string[];
 }
 
 /** A run Mastra suspended: a tool in it asked the person with a card. */
@@ -402,6 +404,7 @@ class Turn {
 function nextTurn(turn: Turn, message: Message): Trigger {
   const first = turn.trigger;
   const waiting = turn.triggers.filter((trigger) => trigger.done);
+  const handed = turn.triggers.flatMap((trigger) => trigger.handed ?? []);
   const { done, next } = turn.next ?? { done: "", next: "" };
   const number = turn.number + 1;
   return {
@@ -428,6 +431,7 @@ function nextTurn(turn: Turn, message: Message): Trigger {
           for (const trigger of waiting) trigger.done?.(last);
         }
       : undefined,
+    handed: handed.length ? handed : undefined,
   };
 }
 
@@ -529,10 +533,11 @@ export class Turns {
       .candidates()
       .map((ref) => this.home.models.engine(ref))
       .filter((engine) => engine !== undefined);
+    const handed = this.goesOn(conversation.id, card.id);
     const turn = new Turn(
       this.home,
       agent,
-      { conversationId: conversation.id, text: "", channel: "home" },
+      { conversationId: conversation.id, text: "", channel: "home", handed },
       engines,
     );
     this.answers.set(card.id, answer);
@@ -553,10 +558,17 @@ export class Turns {
       this.byRun.delete(parked.runId);
       if (this.runs.get(conversation.id) === turn) this.runs.delete(conversation.id);
       store.setWorking(conversation.id, false);
+      for (const id of handed) this.home.handed.waits(id, [card.id]);
       throw error;
     } finally {
       this.answers.delete(card.id);
     }
+  }
+
+  /** The tasks from other agents that go on in this conversation with the answer to the card. */
+  private goesOn(conversationId: string, cardId: string): string[] {
+    this.home.handed.handled(cardId);
+    return this.home.handed.take(conversationId);
   }
 
   private streamOptions(turn: Turn): Record<string, unknown> {
@@ -633,8 +645,18 @@ export class Turns {
 
   /** Says something to an agent. Resolves when the turn that read it is done. */
   enqueue(trigger: Trigger): Promise<void> {
+    // What comes after a card was answered goes on with the tasks that waited for it. A message
+    // of the person that overtakes the turn the answer brings does not.
+    const { handed } = this.home;
+    if (trigger.channel === "home" || !handed.comes(trigger.conversationId)) {
+      const taken = handed.take(trigger.conversationId);
+      if (taken.length) trigger.handed = [...(trigger.handed ?? []), ...taken];
+    }
     const work: Promise<void> = this.send(trigger)
-      .catch((error) => console.error("[turn]", error))
+      .catch((error) => {
+        console.error("[turn]", error);
+        this.home.handed.drop(trigger.handed);
+      })
       .finally(() => this.pending.delete(work));
     this.pending.add(work);
     return work;
@@ -733,7 +755,7 @@ export class Turns {
     const { store } = this.home;
     const conversation = store.conversation(trigger.conversationId);
     const agent = conversation && store.agent(conversation.agentId);
-    if (!conversation || !agent) return;
+    if (!conversation || !agent) return this.home.handed.drop(trigger.handed);
 
     if (agent.origin === "shared") return this.askShared(agent, trigger);
     // A room is no agent: what the person writes there goes to everyone in it.
@@ -753,6 +775,7 @@ export class Turns {
     ) {
       store.setWorking(conversation.id, false);
       trigger.done?.(trigger.work.after);
+      if (trigger.handed) this.home.handed.ended(trigger.handed, trigger.work.after);
       return;
     }
     if (!engines.length && !this.runs.has(conversation.id)) {
@@ -772,6 +795,10 @@ export class Turns {
     }
     if (trigger.again) {
       while (this.runs.has(conversation.id)) await this.runs.get(conversation.id)?.finished;
+      trigger.handed = [
+        ...(trigger.handed ?? []),
+        ...this.goesOn(conversation.id, trigger.again.answer.card.id),
+      ];
       const { tools, draft, asking } = turn.parts;
       const { tool: name, input, answer } = trigger.again;
       const tool = tools.find((candidate) => candidate.name === name);
@@ -845,7 +872,7 @@ export class Turns {
     }
     // The running turn reads it. This call is done when that turn is.
     const running = await this.running(conversation.id);
-    if (!running) return;
+    if (!running) return this.home.handed.drop(trigger.handed);
     running.triggers.push(trigger);
     await running.finished;
   }
@@ -991,7 +1018,10 @@ export class Turns {
     if (messageId) this.home.store.updateMessage(messageId, { queued: false });
     if (work) {
       this.between.delete(conversationId);
-      for (const trigger of turn.triggers) trigger.done?.(work.after);
+      for (const trigger of turn.triggers) {
+        trigger.done?.(work.after);
+        if (trigger.handed) this.home.handed.ended(trigger.handed, work.after);
+      }
     }
     turn.end(undefined);
   }
@@ -1057,6 +1087,8 @@ export class Turns {
       told.add(key);
       trigger.done?.(message);
     }
+    const handed = turn.triggers.flatMap((trigger) => trigger.handed ?? []);
+    if (handed.length) this.home.handed.ended(handed, message);
     for (const listener of this.listeners) {
       try {
         listener({ message, triggers: turn.triggers, state, note, asked, stopped });
