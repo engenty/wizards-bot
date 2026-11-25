@@ -293,7 +293,7 @@ export function Dialog({
         wide === "full"
           ? "sm:max-w-7xl"
           : wide === "settings"
-            ? "sm:h-[min(36rem,calc(100dvh-32px))] sm:max-w-3xl sm:overflow-hidden"
+            ? "sm:h-[min(44rem,calc(100dvh-32px))] sm:max-w-4xl sm:overflow-hidden"
             : wide === "palette"
               ? "sm:max-w-2xl"
               : wide === "chat"

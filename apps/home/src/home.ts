@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { hostname, networkInterfaces, userInfo } from "node:os";
 import type { Admin, Card, HomeInfo, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
+import { REPLY_ACTION } from "@wizards-bot/protocol/limits";
 import { Handed } from "./agent/handed.ts";
 import { ToolSearch } from "./agent/harness.ts";
 import { McpTurns } from "./agent/mcp.ts";
@@ -34,7 +35,7 @@ import { Sharing } from "./sharing/sharing.ts";
 import { Shell } from "./shell/shell.ts";
 import { Skills } from "./skills/skills.ts";
 import { Db } from "./store/db.ts";
-import { Store } from "./store/store.ts";
+import { AlreadyAnswered, Store } from "./store/store.ts";
 import { Tasks } from "./tasks/tasks.ts";
 import { Tunnel } from "./tunnel/tunnel.ts";
 import { Vault } from "./vault/vault.ts";
@@ -48,6 +49,8 @@ export type CardHandler = (input: {
   action: string;
   values: CardValues;
   payload: Record<string, unknown>;
+  /** The person answered with a message: what it would have started. */
+  said?: Trigger;
 }) => void | Promise<void>;
 
 /** Everything one home is made of. */
@@ -251,7 +254,15 @@ export class Home {
    */
   async answer(
     cardId: string,
-    input: { action: string; values?: CardValues; by: string; admin?: Admin },
+    input: {
+      action: string;
+      values?: CardValues;
+      /** The message that answered a question, and what it would have started. */
+      message?: string;
+      said?: Trigger;
+      by: string;
+      admin?: Admin;
+    },
   ): Promise<Card | undefined> {
     const before = this.store.card(cardId);
     if (!before) return undefined;
@@ -265,6 +276,7 @@ export class Home {
     const card = this.store.answerCard(cardId, {
       action: input.action,
       values: Object.keys(shown).length ? shown : undefined,
+      message: input.message,
       by: input.by,
       ...(input.admin ? { admin: input.admin } : {}),
     });
@@ -275,7 +287,7 @@ export class Home {
     const handler = this.cardHandlers.get(String(payload.type));
     // The device gets its answer at once; what the card sets off runs after it.
     const work = Promise.resolve()
-      .then(() => handler?.({ card, action: input.action, values, payload }))
+      .then(() => handler?.({ card, action: input.action, values, payload, said: input.said }))
       .then(() => this.handed.afterCard(card))
       .catch((error) => {
         this.tell(
@@ -289,6 +301,46 @@ export class Home {
       });
     this.handling.add(work);
     return card;
+  }
+
+  /**
+   * The person wrote something: it answers the question it is for, and starts or joins a turn
+   * otherwise. `answers` is the question's card; null says it is for none. Left out, it is the
+   * newest question that waits in the conversation, unless the agent works on something else
+   * right now: the agent reads whether it is an answer.
+   */
+  said(
+    trigger: Trigger,
+    {
+      answers,
+      words,
+      by,
+      admin,
+    }: { answers?: string | null; words: string; by: string; admin?: Admin },
+  ): void {
+    const open = this.store.openCards(trigger.conversationId).filter((card) => card.reply);
+    const writing = this.turns.writing(trigger.conversationId);
+    const question =
+      answers === null
+        ? undefined
+        : answers === undefined
+          ? open.findLast((card) => (writing ?? card.messageId) === card.messageId)
+          : open.find((card) => card.id === answers);
+    if (!question) {
+      void this.turns.enqueue(trigger);
+      return;
+    }
+    void this.answer(question.id, {
+      action: REPLY_ACTION,
+      message: words.trim(),
+      by,
+      admin,
+      said: trigger,
+    }).catch((error) => {
+      if (!(error instanceof AlreadyAnswered)) console.error("[answer]", error);
+      // Another device was first: it is a message like any other.
+      void this.turns.enqueue(trigger);
+    });
   }
 
   /** Resolves when no card handler and no turn runs or waits. */

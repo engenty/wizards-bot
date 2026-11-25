@@ -2,6 +2,7 @@ import { EngentyColor, EngentyKind } from "@wizards-bot/protocol";
 import { z } from "zod";
 import { GATEWAY_PRESETS } from "../models/models.ts";
 import { langOf, pairingCard } from "../setup/words.ts";
+import { askTool } from "./ask.ts";
 import { defineTool, type Tool } from "./tool.ts";
 import type { TurnContext } from "./turns.ts";
 
@@ -16,45 +17,7 @@ export function buildTools(context: TurnContext): Tool[] {
   const where = { agentId: agent.id, conversationId, messageId: draft.id };
 
   const own: Tool[] = [
-    defineTool({
-      name: "ask",
-      description:
-        "Ask the person for a decision, an approval or a short answer with a card in the chat. Give choices for a decision (the first is the one you would pick) or a field for free text. Never ask for the path of a folder: the person picks a folder on the card of `folder_connect`. Ends your turn.",
-      input: z.object({
-        title: z.string().describe("The question, one sentence."),
-        body: z.string().optional().describe("What the person needs to know to answer. Markdown."),
-        choices: z.array(z.string()).max(4).optional().describe("Button labels: verb + object."),
-        field: z
-          .string()
-          .optional()
-          .describe("Label of a free-text field, when the answer is text."),
-      }),
-      label: (input) => `Asking: ${String(input.title ?? "")}`,
-      asks: true,
-      run: async (input, call) => {
-        if (call.answer) {
-          const { action, values, card } = call.answer;
-          const label = card.actions.find((candidate) => candidate.id === action)?.label ?? action;
-          const typed = typeof values.answer === "string" ? `: ${values.answer}` : "";
-          return `The person answered "${card.title}" with "${label}"${typed}`;
-        }
-        const choices = input.choices?.length ? input.choices : [input.field ? "Send" : "OK"];
-        return call.ask({
-          kind: !input.field && choices.length === 2 ? "approval" : "question",
-          level: "needs_you",
-          title: input.title,
-          body: input.body,
-          fields: input.field
-            ? [{ id: "answer", label: input.field, type: "text", required: true }]
-            : undefined,
-          actions: choices.map((label, index) => ({
-            id: `choice_${index}`,
-            label,
-            style: index === 0 ? "primary" : "plain",
-          })),
-        });
-      },
-    }),
+    askTool(context),
     defineTool({
       name: "remember",
       description:

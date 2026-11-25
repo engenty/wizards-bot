@@ -73,10 +73,16 @@ nonisolated enum FieldType: OpenEnum {
     case text, secret, choice, multi
     /// A folder of the home's computer the person picks; its value is the folder's path.
     case folder
+    case longText, number
+    /// A day, as "2026-12-31".
+    case date
+    /// Files of the person; its value is the ids of the files uploaded before.
+    case file
     case unknown(String)
 
     static let known: [String: FieldType] = [
         "text": .text, "secret": .secret, "choice": .choice, "multi": .multi, "folder": .folder,
+        "long_text": .longText, "number": .number, "date": .date, "file": .file,
     ]
     var unknownValue: String? { if case .unknown(let raw) = self { raw } else { nil } }
 }
@@ -100,6 +106,10 @@ nonisolated struct CardField: Codable, Hashable, Sendable, Identifiable {
     var type: FieldType
     var options: [FieldOption]?
     var placeholder: String?
+    /// The unit of a number, shown beside the field.
+    var unit: String? = nil
+    /// The person may say they don't know, in these words. The field's value is then "unsure".
+    var unsure: String? = nil
     var required: Bool?
     /// What the field starts with. The person may change it; it is sent like a typed value.
     var value: FieldValue?
@@ -175,7 +185,7 @@ nonisolated enum JSONValue: Codable, Hashable, Sendable {
 
 nonisolated struct CardAnswer: Codable, Hashable, Sendable {
     var action: String
-    /// A view's answer: what the person says with it ("Plan Wednesday", "Send").
+    /// What the person says with it: the message that answered a question, or a view's button.
     var message: String? = nil
     /// A view's answer: the form's values by field name.
     var state: [String: JSONValue]? = nil
@@ -194,6 +204,11 @@ nonisolated struct Admin: Codable, Hashable, Sendable {
     var name: String
 }
 
+/// What the empty input says while a question waits.
+nonisolated struct CardReply: Codable, Hashable, Sendable {
+    var placeholder: String
+}
+
 nonisolated struct Card: Codable, Hashable, Sendable, Identifiable {
     var id: String
     var kind: CardKind
@@ -206,6 +221,8 @@ nonisolated struct Card: Codable, Hashable, Sendable, Identifiable {
     /// A view drawn in the card, in place of fields; its own buttons answer it.
     var view: ViewProgram? = nil
     var actions: [CardAction]
+    /// A question of the agent: its own message, answered by what the person writes in the chat.
+    var reply: CardReply? = nil
     var url: String?
     /// Text to draw as a QR code.
     var qr: String?
@@ -412,6 +429,16 @@ nonisolated struct Message: Codable, Hashable, Sendable, Identifiable {
         parts.compactMap { if case .text(let text) = $0 { text } else { nil } }.joined(separator: "\n\n")
     }
 
+    /// The question the message ends with, "" for none.
+    var asked: String {
+        cards.filter { $0.reply != nil }.flatMap { [$0.title, $0.body].compactMap(\.self) }.joined(separator: "\n\n")
+    }
+
+    /// All a voice reads: the text and the question.
+    var spoken: String {
+        [text, asked].filter { !$0.isEmpty }.joined(separator: "\n\n")
+    }
+
     var cards: [Card] {
         parts.compactMap { if case .card(let card) = $0 { card } else { nil } }
     }
@@ -473,6 +500,27 @@ nonisolated struct SendMessage: Codable, Hashable, Sendable {
     var files: [String]?
     /// For after the answer: the agent reads it when the reply being written is done.
     var later: Bool? = nil
+    /// The question it answers. Nil: the newest that waits, which the home finds.
+    var answers: Answers? = nil
+}
+
+/// The question a message answers, or that it is about something else (null).
+nonisolated enum Answers: Codable, Hashable, Sendable {
+    case card(String)
+    case none
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self = container.decodeNil() ? .none : .card(try container.decode(String.self))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .card(let id): try container.encode(id)
+        case .none: try container.encodeNil()
+        }
+    }
 }
 
 /// An exchange a phone had with its own model while the home was out of reach.

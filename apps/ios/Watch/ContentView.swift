@@ -66,7 +66,8 @@ struct ContentView: View {
     }
 }
 
-/// A card on the wrist: its actions as buttons. A card with fields is answered on the phone.
+/// A card on the wrist: its actions as buttons, a question with what is dictated. Any other card
+/// with fields is answered on the phone.
 private struct WatchCard: View {
     @Environment(WatchModel.self) private var model
     let card: Card
@@ -82,7 +83,11 @@ private struct WatchCard: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            if needsPhone {
+            if card.form != nil {
+                Label("Fill in the form on your phone, or answer here", systemImage: "iphone")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else if needsPhone {
                 Label("Answer on your phone", systemImage: "iphone")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -90,6 +95,17 @@ private struct WatchCard: View {
                 ForEach(card.actions) { action in
                     button(for: action)
                 }
+            }
+            if let reply = card.reply {
+                // What is dictated answers the question, also one with choices or a form.
+                TextFieldLink(prompt: Text(verbatim: reply.placeholder)) {
+                    Label("Answer", systemImage: "mic.fill")
+                        .frame(maxWidth: .infinity)
+                } onSubmit: { text in
+                    send(text)
+                }
+                .buttonStyle(.bordered)
+                .disabled(working)
             }
             if let problem {
                 Text(problem)
@@ -104,7 +120,8 @@ private struct WatchCard: View {
 
     /// Fields, a sign-in and a QR need a larger screen.
     private var needsPhone: Bool {
-        !(card.fields ?? []).isEmpty || card.url != nil || card.qr != nil || card.actions.isEmpty
+        guard card.reply == nil else { return false }
+        return !(card.fields ?? []).isEmpty || card.url != nil || card.qr != nil || card.actions.isEmpty
     }
 
     @ViewBuilder
@@ -120,6 +137,17 @@ private struct WatchCard: View {
             Button(role: action.style == .danger ? .destructive : nil) { answer(action) } label: { label }
                 .buttonStyle(.bordered)
                 .disabled(working)
+        }
+    }
+
+    private func send(_ text: String) {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        working = true
+        problem = nil
+        Task {
+            problem = await model.reply(card, text: text)
+            working = false
         }
     }
 

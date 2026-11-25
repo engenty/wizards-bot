@@ -33,12 +33,23 @@ describe("a task one agent handed to another", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     assert.ok(ready());
   };
+  /** The person answers the question in the other agent's chat. */
+  const reply = async (answers: string) => {
+    await t.request(`/v1/conversations/${law.conversationId}/messages`, {
+      body: { text: "W", answers },
+    });
+    do {
+      await t.home.idle();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } while (t.home.store.agents().some((agent) => agent.state === "working"));
+    await t.home.idle();
+  };
   const handOver = () =>
     t.model.script.push(
       { calls: [{ name: "agent_message", arguments: { id: law.id, text: "May I build?" } }] },
       { text: "I handed it over." },
     );
-  const ask = { calls: [{ name: "ask", arguments: { title: "Which zone?", field: "Zone" } }] };
+  const ask = { calls: [{ name: "ask", arguments: { title: "Which zone?", hint: "Zone" } }] };
 
   /** Goose handed the task over and is done; the other agent asks the person. */
   const handOverAndAsk = async () => {
@@ -66,7 +77,7 @@ describe("a task one agent handed to another", () => {
     assert.deepEqual(await waitsFor(), [{ agentId: law.id, cardId: card.id }]);
 
     t.model.script.push({ text: "In zone W you may." }, { text: "The law says you may." });
-    await t.answer(card.id, "choice_0", { answer: "W" });
+    await reply(card.id);
     assert.deepEqual(reports(), ["[home] Building law answered: In zone W you may."]);
     assert.equal(await waitsFor(), undefined);
     assert.deepEqual(t.last().parts, [{ type: "text", text: "The law says you may." }]);
@@ -75,25 +86,37 @@ describe("a task one agent handed to another", () => {
   it("waits on when the agent asks once more", async () => {
     await handOverAndAsk();
     t.model.script.push(ask);
-    await t.answer(t.item().id, "choice_0", { answer: "W" });
+    await reply(t.item().id);
     assert.deepEqual(reports(), []);
     assert.deepEqual(await waitsFor(), [{ agentId: law.id, cardId: t.item().id }]);
 
     t.model.script.push({ text: "You may." }, { text: "Good news." });
-    await t.answer(t.item().id, "choice_0", { answer: "W" });
+    await reply(t.item().id);
     assert.deepEqual(reports(), ["[home] Building law answered: You may."]);
   });
 
-  it("waits for the card, not for what the person writes there meanwhile", async () => {
+  it("waits for the answer, not for what the person writes about something else", async () => {
     await handOverAndAsk();
     t.model.script.push({ text: "Because it depends on it." });
-    await t.request(`/v1/conversations/${law.conversationId}/messages`, { body: { text: "Why?" } });
+    await t.request(`/v1/conversations/${law.conversationId}/messages`, {
+      body: { text: "Why?", answers: null },
+    });
     await t.home.idle();
     assert.deepEqual(reports(), []);
 
     t.model.script.push({ text: "You may." }, { text: "Good news." });
-    await t.answer(t.item().id, "choice_0", { answer: "W" });
+    await reply(t.item().id);
     assert.deepEqual(reports(), ["[home] Building law answered: You may."]);
+  });
+
+  it("is answered with what the person writes in that agent's chat", async () => {
+    await handOverAndAsk();
+    t.model.script.push({ text: "In zone W you may." }, { text: "The law says you may." });
+    await t.request(`/v1/conversations/${law.conversationId}/messages`, { body: { text: "W" } });
+    await t.home.idle();
+    await until(() => reports().length);
+    assert.deepEqual(reports(), ["[home] Building law answered: In zone W you may."]);
+    assert.equal(t.home.store.items().length, 0);
   });
 
   it("waits for the card over a start of the home", async () => {
@@ -103,7 +126,7 @@ describe("a task one agent handed to another", () => {
     t = await testHome("Ada", undefined, { dataDir });
     assert.deepEqual(await waitsFor(), [{ agentId: law.id, cardId: card.id }]);
     t.model.script.push({ text: "You may." }, { text: "Good news." });
-    await t.answer(card.id, "choice_0", { answer: "W" });
+    await reply(card.id);
     assert.deepEqual(reports(), ["[home] Building law answered: You may."]);
     assert.equal(await waitsFor(), undefined);
   });

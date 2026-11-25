@@ -8,6 +8,11 @@ export const FILE_LIMIT = 15 * 1024 * 1024;
 /** Where counting a folder stops before it is connected. */
 export const FOLDER_PREVIEW_LIMIT = 5000;
 
+/** The `action` of an answer to a question that is a message of the person. */
+export const REPLY_ACTION = "reply";
+/** The value of a form's field where the person says they don't know. */
+export const UNSURE = "unsure";
+
 /** How long a published link can work. `always`: until it is taken back. */
 export const LINK_LASTS = ["hour", "day", "week", "month", "always"] as const;
 /** Fewest characters of a published link's password. */

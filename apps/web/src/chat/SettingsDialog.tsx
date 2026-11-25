@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import type {
   Folder,
   ModelService,
-  ModelSource,
   Models,
   Plugin,
   PluginsView,
@@ -27,10 +26,12 @@ import { api } from "../lib/api";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { useFolders, useModels, usePlugins, useSecrets, useSetup } from "../lib/queries";
+import type { SourceRow } from "../lib/sources";
 import { SetupStatus } from "../setup/Checks";
 import { LangSwitch, ThemeSwitch } from "../setup/Frame";
 import { Button, Chip, cn, Dialog, IconButton, Select } from "../ui";
 import { PrivacyDialog, serviceLine } from "./ConsentDialog";
+import { ModelSettings } from "./ModelSettings";
 import { VaultSettings } from "./Vault";
 
 /** A page of the settings. Its name is in the list of pages (on a phone, in the bar above). */
@@ -273,26 +274,17 @@ export function SettingsDialog({
   const [page, setPage] = useState<Page>("models");
   /** On a phone: whether a page is open, one level below the list of pages. */
   const [inside, setInside] = useState(false);
+  /** The model source whose details are open, one level below the list of models. */
+  const [detail, setDetail] = useState<SourceRow | null>(null);
   // Opened again, a phone starts at the list of pages.
   useEffect(() => {
-    if (open) setInside(false);
+    if (open) {
+      setInside(false);
+      setDetail(null);
+    }
   }, [open]);
   const secrets = useSecrets(open && page === "secrets");
-  const current = models.data?.current;
   const setModels = (view: Models) => client.setQueryData(keys.models(), view);
-  /** Puts a source first: the next message goes to its first model, the rest stay behind it. */
-  const choose = (source: ModelSource) => {
-    const first = source.models[0];
-    if (!(first && models.data)) {
-      return;
-    }
-    const ref = `${source.id}:${first.id}`;
-    const rest = models.data.order.filter((r) => !r.startsWith(`${source.id}:`));
-    api.put<Models>("/v1/models/order", { order: [ref, ...rest] }).then(
-      (view) => client.setQueryData(keys.models(), view),
-      (err: Error) => setProblem(err.message),
-    );
-  };
   const pages: { id: Page; icon: typeof Sparkles; label: string }[] = [
     { id: "models", icon: Sparkles, label: t("models.title") },
     { id: "status", icon: Activity, label: t("status.title") },
@@ -311,14 +303,14 @@ export function SettingsDialog({
       {inside ? (
         <IconButton
           label={t("common.back")}
-          onClick={() => setInside(false)}
+          onClick={() => (detail ? setDetail(null) : setInside(false))}
           className="size-8 sm:hidden coarse:size-9"
         >
           <ChevronLeft className="size-4" />
         </IconButton>
       ) : null}
       <span className={cn("truncate", inside && "max-sm:hidden")}>{t("settings.title")}</span>
-      {inside ? <span className="truncate sm:hidden">{here?.label}</span> : null}
+      {inside ? <span className="truncate sm:hidden">{detail?.name ?? here?.label}</span> : null}
     </span>
   );
   return (
@@ -338,6 +330,7 @@ export function SettingsDialog({
               aria-current={page === id ? "page" : undefined}
               onClick={() => {
                 setPage(id);
+                setDetail(null);
                 setInside(true);
               }}
               className={cn(
@@ -354,50 +347,22 @@ export function SettingsDialog({
           ))}
         </nav>
         <div
-          key={page}
+          key={detail ? `${page}/${detail.id}` : page}
           className={cn(
             "min-h-0 min-w-0 flex-1 overflow-y-auto px-5 py-3",
             inside ? "enter-deeper" : "max-sm:hidden",
           )}
         >
           {page === "models" ? (
-            models.data?.sources.length ? (
+            models.data && setup.data ? (
               <Section>
-                <fieldset className="flex flex-col gap-1">
-                  <legend className="sr-only">{t("models.choose")}</legend>
-                  {models.data.sources.map((source) => {
-                    const on = Boolean(current?.startsWith(`${source.id}:`));
-                    return (
-                      <label
-                        key={source.id}
-                        className={cn(
-                          "-mx-2 flex items-center gap-3 rounded-xl px-2 py-2 text-[0.875rem] transition",
-                          source.online ? "cursor-pointer hover:bg-accent/60" : "opacity-60",
-                          on && "bg-accent",
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name="model-source"
-                          checked={on}
-                          disabled={!source.online}
-                          onChange={() => choose(source)}
-                          className="size-4 shrink-0 accent-ember"
-                        />
-                        <span className="min-w-0 flex-1 truncate">
-                          <span className="font-medium">{source.label}</span>
-                          <span className="text-ink-3"> · {source.where}</span>
-                        </span>
-                        <Chip tone={source.online ? "live" : "neutral"}>
-                          {t(source.online ? "models.ready" : "models.away")}
-                        </Chip>
-                      </label>
-                    );
-                  })}
-                </fieldset>
-                <p className="mt-2 text-[0.8125rem] text-ink-3 leading-relaxed">
-                  {t("models.chooseHint")}
-                </p>
+                <ModelSettings
+                  models={models.data}
+                  setup={setup.data}
+                  detail={detail}
+                  onDetail={setDetail}
+                  onProblem={setProblem}
+                />
               </Section>
             ) : null
           ) : page === "status" ? (

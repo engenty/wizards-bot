@@ -1,6 +1,6 @@
 import { TOOL_CALL } from "@engenty/tool-harness";
 import { createTool } from "@mastra/core/tools";
-import type { StepObject } from "@wizards-bot/protocol";
+import type { FileRef, StepObject } from "@wizards-bot/protocol";
 import { z } from "zod";
 import type { Picture } from "../files/pictures.ts";
 import type { NewCard } from "../store/store.ts";
@@ -29,6 +29,8 @@ export interface Tool<I = any> {
   says?(input: Record<string, unknown>): string;
   /** Set on a tool that asks the person with `call.ask`: it runs again with the answer. */
   asks?: true;
+  /** Set on a tool that leaves no line in the message: what it shows says it all. */
+  silent?: true;
   /** Returns what the model reads, and with `pictures` what it looks at. */
   run(input: I, call: Call): Promise<string | Looked>;
 }
@@ -44,6 +46,10 @@ export interface Answer {
   values: Record<string, string | string[]>;
   /** The card as it was answered. */
   card: { id: string; title: string; actions: { id: string; label: string }[] };
+  /** What the person wrote, where a message answered. */
+  message?: string;
+  /** Files the person gave with the answer. */
+  files?: FileRef[];
   /** What the tool kept with `ask`, to know where it was. */
   kept: unknown;
   /** In a group home: the admin who answered. */
@@ -143,6 +149,7 @@ export async function runTool(
   // A call that asked, or was told no, did not do what it is for.
   let held = declined(asking?.answer);
   const line = (state: "running" | "done" | "failed", answer?: string) => {
+    if (tool.silent) return;
     const step = stepOf(tool, input, answer);
     draft.activity(id, label, state, held && state === "done" ? { ...step, kind: "ask" } : step);
   };
@@ -161,7 +168,7 @@ export async function runTool(
     const answer = await tool.run(tool.input.parse(input), call);
     line("done", typeof answer === "string" ? answer : answer.text);
     // In a group home the agent hears which admin decided.
-    const by = call.answer?.by ? `${call.answer.by} answered the card.\n` : "";
+    const by = call.answer?.by ? `${call.answer.by} answered.\n` : "";
     return typeof answer === "string"
       ? { text: `${by}${answer}`, pictures: [], failed: false }
       : { ...answer, text: `${by}${answer.text}`, failed: false };

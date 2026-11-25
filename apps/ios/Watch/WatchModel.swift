@@ -197,7 +197,11 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
             if message.state == .streaming, !message.text.isEmpty { voice?.add(message.text) }
         }
         if message.state != .streaming {
-            if voice?.messageId == message.id { voice?.finish(whole: message.text) }
+            if voice?.messageId == message.id {
+                // A reply that was read while it was written goes on with its question.
+                if !isNew, !message.asked.isEmpty { voice?.add("\n\n" + message.asked) }
+                voice?.finish(whole: message.spoken)
+            }
             isWaiting = false
             pollTask?.cancel()
         }
@@ -281,6 +285,22 @@ final class WatchModel: NSObject, WCSessionDelegate, UNUserNotificationCenterDel
             // Someone was first: the card is done.
             if let current { apply(current) } else { items.removeAll { $0.id == card.id } }
             return nil
+        } catch {
+            return (error as? HomeError)?.message ?? String(localized: "Your Bot Server is out of reach. Try again in a moment.")
+        }
+    }
+
+    /// Answers a question with what the person dictated. Returns a sentence when that did not work.
+    func reply(_ card: Card, text: String) async -> String? {
+        guard let client else { return nil }
+        do {
+            _ = try await client.post(
+                SendMessage(text: text, clientId: UUID().uuidString, answers: .card(card.id)), to: card.conversationId
+            )
+            WKInterfaceDevice.current().play(.success)
+            return nil
+        } catch HomeError.needsConsent {
+            return String(localized: "Open wizards.bot on your iPhone and allow where your messages go.")
         } catch {
             return (error as? HomeError)?.message ?? String(localized: "Your Bot Server is out of reach. Try again in a moment.")
         }

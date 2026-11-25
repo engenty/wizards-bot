@@ -146,7 +146,9 @@ export function slackMastraAdapter(options: SlackMastraOptions = {}): ChannelAda
     const thread = running.sdk.thread(peer);
     const withButtons = out.cards.filter((card) => card.actions.length && !card.fields?.length);
     const asText = out.cards.filter((card) => !withButtons.includes(card));
-    const text = [out.text, asText.length ? cardsAsText(asText) : ""].filter(Boolean).join("\n\n");
+    const text = [out.text, asText.length ? cardsAsText(asText, out.lang) : ""]
+      .filter(Boolean)
+      .join("\n\n");
     if (text) await thread.post({ markdown: text });
     for (const card of withButtons) {
       await thread.post(
