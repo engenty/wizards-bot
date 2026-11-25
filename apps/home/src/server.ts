@@ -42,9 +42,11 @@ import {
   UpdateFolder,
   VaultInput,
 } from "@wizards-bot/protocol";
+import { REPLY_ACTION, REPLY_FIELD } from "@wizards-bot/protocol/limits";
 import { type Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
+import { formOf, readForm } from "./agent/ask.ts";
 import { LeavesHome, NoPictureModel, NotAPicture } from "./avatar/avatars.ts";
 import { isHosted, tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
@@ -56,6 +58,7 @@ import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
 import { OllamaRefused, PullRefused } from "./setup/setup.ts";
 import { sharedSetup } from "./setup/shared.ts";
+import { langOf } from "./setup/words.ts";
 import { AlreadyAnswered, type DeviceRecord, publicAgent, VersionConflict } from "./store/store.ts";
 import { AddressRefused } from "./tunnel/tunnel.ts";
 import { VaultRefused } from "./vault/vault.ts";
@@ -483,24 +486,29 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       from: writer ? { name: writer.name, admin: writer.id } : undefined,
     });
     store.markRead(conversation.id, writer?.id);
+    // Asking about a passage is no answer to what the agent asked.
+    const answers = about && body.answers === undefined ? null : body.answers;
     const asked = about
       ? `About this passage of the document "${about.title}" (${about.id}):\n${passage}\n\n${body.text}`
       : body.text;
-    void home.turns.enqueue({
-      conversationId: conversation.id,
-      messageId: message.id,
-      later: body.later,
-      // In a room the group home is one member: the others read who of it wrote.
-      text: !writer
-        ? asked
-        : store.agent(conversation.agentId)?.origin === "room"
-          ? `${writer.name}: ${asked}`
-          : `${writer.name} writes:\n${asked}`,
-      writer,
-      channel,
-      spoken: body.spoken,
-      files: attached,
-    });
+    home.said(
+      {
+        conversationId: conversation.id,
+        messageId: message.id,
+        later: body.later,
+        // In a room the group home is one member: the others read who of it wrote.
+        text: !writer
+          ? asked
+          : store.agent(conversation.agentId)?.origin === "room"
+            ? `${writer.name}: ${asked}`
+            : `${writer.name} writes:\n${asked}`,
+        writer,
+        channel,
+        spoken: body.spoken,
+        files: attached,
+      },
+      { answers, words: body.text, by: c.get("device").name, admin: writer },
+    );
     return c.json({ message }, 202);
   });
 
@@ -662,12 +670,36 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         }
       }
     }
+    const form = before.state === "open" ? formOf(before) : undefined;
+    if (form) {
+      const lang = langOf(home.db);
+      const read = readForm(form, body.values ?? {}, (id) => home.files.get(id), lang);
+      if ("problem" in read) return fail(c, 400, "invalid", read.problem);
+    }
+    // A device that answers a question on its card: what is typed there is the person's message.
+    const words = String(body.values?.[REPLY_FIELD] ?? "").trim();
+    const { admin, name: by, kind } = c.get("device");
+    const replied = before.state === "open" && before.reply && body.action === REPLY_ACTION;
+    if (replied && !words) return fail(c, 400, "invalid", "The answer is empty.");
+    const channel = kind === "watch" ? ("watch" as const) : ("app" as const);
+    const message = replied
+      ? store.addMessage({
+          conversationId: before.conversationId,
+          role: "you",
+          channel,
+          parts: [{ type: "text", text: words }],
+          from: admin ? { name: admin.name, admin: admin.id } : undefined,
+        })
+      : undefined;
+    const said = message && {
+      conversationId: before.conversationId,
+      messageId: message.id,
+      text: words,
+      writer: admin,
+      channel,
+    };
     try {
-      const card = await home.answer(before.id, {
-        ...body,
-        by: c.get("device").name,
-        admin: c.get("device").admin,
-      });
+      const card = await home.answer(before.id, { ...body, by, admin, said });
       return c.json({ card });
     } catch (error) {
       if (error instanceof AlreadyAnswered) {

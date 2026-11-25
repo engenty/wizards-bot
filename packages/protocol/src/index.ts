@@ -141,6 +141,15 @@ export const CardField = z.object({
    * that says the home makes it; it is shown while that folder is the one chosen.
    */
   placeholder: z.string().optional(),
+  /**
+   * What a `text` field takes, as a form asks for it: several lines, a number (with its `unit`
+   * beside it), a date, files. The home reads a number and a date from what is typed as well, so
+   * a device that does not know the format shows a text field.
+   */
+  format: z.enum(["long", "number", "date", "file"]).optional(),
+  unit: z.string().optional(),
+  /** The person may say they don't know, in these words. Its value is "unsure". */
+  unsure: z.string().optional(),
   required: z.boolean().optional(),
   /** What the field starts with. The person may change it; it is sent like a typed value. */
   value: z.union([z.string(), z.array(z.string())]).optional(),
@@ -201,6 +210,12 @@ export const Card = z.object({
   /** A view drawn in the card, in place of fields; its own buttons answer it. */
   view: ViewProgram.optional(),
   actions: z.array(CardAction),
+  /**
+   * A question of the agent: it is the agent's own message, and what the person writes in the
+   * chat answers it. `placeholder`: what the empty input says meanwhile. A device that does not
+   * know this shows a card with the same fields and actions.
+   */
+  reply: z.object({ placeholder: z.string() }).optional(),
   url: z.string().optional(),
   /** Text to draw as a QR code. */
   qr: z.string().optional(),
@@ -322,6 +337,11 @@ export const SendMessage = z.object({
    * in the middle of it. Without a reply being written it is read at once.
    */
   later: z.boolean().optional(),
+  /**
+   * The question (a card with `reply`) this message answers. Null: none, it is about something
+   * else. Left out: the newest question that waits in the conversation, if there is one.
+   */
+  answers: z.string().nullable().optional(),
 });
 export type SendMessage = z.infer<typeof SendMessage>;
 

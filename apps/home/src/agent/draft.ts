@@ -34,6 +34,11 @@ export class Draft {
     );
   }
 
+  /** The message ends in a question that the chat answers. */
+  get questions(): boolean {
+    return this.parts.some((part) => part.type === "card" && part.card.reply !== undefined);
+  }
+
   get text(): string {
     return this.parts
       .filter((part) => part.type === "text")

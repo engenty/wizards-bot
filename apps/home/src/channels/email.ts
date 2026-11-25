@@ -278,7 +278,7 @@ export function incomingMail(mail: ParsedMail, own: string): Incoming | undefine
 
 /** The mail the home sends: plain text, in the thread of the mail it answers. */
 export function outgoingMail(address: string, peer: string, out: Outgoing) {
-  const text = [out.text, cardsAsText(out.cards)].filter(Boolean).join("\n\n");
+  const text = [out.text, cardsAsText(out.cards, out.lang)].filter(Boolean).join("\n\n");
   const thread = threadOf(out.thread);
   if (!thread?.messageId)
     return { from: address, to: peer, subject: thread?.subject || subjectOf(text), text };

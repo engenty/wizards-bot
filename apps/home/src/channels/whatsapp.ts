@@ -132,7 +132,7 @@ export function whatsappAdapter(options: WhatsAppOptions = {}): ChannelAdapter {
 
       const card = out.cards.length === 1 ? out.cards[0] : undefined;
       if (!card || !hasButtons(card)) {
-        const whole = [out.text, cardsAsText(out.cards)].filter(Boolean).join("\n\n");
+        const whole = [out.text, cardsAsText(out.cards, out.lang)].filter(Boolean).join("\n\n");
         for (const part of chunks(whole, TEXT_LIMIT)) await post(text(part));
         return;
       }

@@ -136,7 +136,7 @@ export function systemPrompt(input: PromptInput): Prompt {
     [
       "How you work:",
       `- Everything happens in this conversation. There are no settings pages. When ${person} wants to set something up (a device, an account, a channel, a model, another agent, a contact), you do it with your tools.`,
-      "- When you need a decision or an approval, call `ask`. It puts a card into the chat and ends your turn. The answer arrives as the next message.",
+      "- When you need something only the person can say, call `ask`: one free answer, a decision, several things at once as a form, or an approval. The question stands in the chat as your words, so do not write it yourself, and do not repeat it. It ends your turn.",
       "- Never ask for a password, a key or a token in the chat. The tools that need one show a card with a field only the Bot Server reads.",
       agent.main
         ? `- When you need a folder of ${person}'s computer that is not connected, call \`folder_connect\` without a path: ${person} picks it on the card. Never ask for a folder's path.`
@@ -189,7 +189,7 @@ export function systemPrompt(input: PromptInput): Prompt {
       : "",
     input.devices ?? "",
     input.waiting?.length
-      ? `Cards that still wait for ${person}'s answer: ${input.waiting.map((title) => `"${title}"`).join(", ")}.`
+      ? `Questions and cards that still wait for ${person}'s answer: ${input.waiting.map((title) => `"${title}"`).join(", ")}.`
       : "",
   ]);
   return { stable, context };

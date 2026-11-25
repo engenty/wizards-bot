@@ -260,7 +260,7 @@ A card is the inline UI of the chat. The device draws it from its data: `title`,
 | kind       | draws as                                                                                                                                                                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `approval` | title, body, one button per action                                                                                                                                                                                                                                              |
-| `question` | title, body, the fields, the actions                                                                                                                                                                                                                                            |
+| `question` | title, body, the fields, the actions; with `reply`, see Questions of an agent                                                                                                                                                                                                   |
 | `connect`  | title, body, a button that opens `url` in the system browser, and the card's own actions ("Not now"); the home answers the card itself when the sign-in is done (`answer.by` is then "sign-in"). The sign-in ends at `wizardsbot://signed-in`, where the app closes its browser |
 | `secret`   | fields of type `secret` in a secure field; the values go to the home and are never shown again                                                                                                                                                                                  |
 | `pairing`  | the QR from `qr` and the code in `body`                                                                                                                                                                                                                                         |
@@ -285,6 +285,40 @@ A field may carry `value`: what it starts with. The device shows it typed or pic
 it like a typed value unless the person changes it. A card of another kind than `connect` may
 carry `url` as well: a page the person opens in the system browser ("Open page"), with the
 card's actions beside it.
+
+A `text` field may carry `format`: `long` (several lines), `number` (with its `unit`), `date` or
+`file` (the ids of files uploaded before, as a list). The home reads a number and a date as people
+write them ("2,4", "2,4 m", "31.12.2026"), so a device that does not know a format shows a text
+field. `unsure` is how the person says they don't know; the field's value is then `unsure`. An
+answer to a form that is not filled in, or not what its format says, gets 400 `invalid` with a
+sentence that names the field, and the card stays open.
+
+### Questions of an agent
+
+A card with `reply` is a question of the agent (`ask`). It is the agent's own message: draw
+`title` and `body` as its text, without a box, and mark it as waiting. It is in `GET /v1/items`,
+in `Agent.open` and in what is pushed, like every card that needs the person.
+
+| The card has                       | It is           | Draw                                                       | Answered by                                        |
+| ---------------------------------- | --------------- | ---------------------------------------------------------- | -------------------------------------------------- |
+| one field `answer`, action `reply` | one free answer | nothing more; the chat's input says `reply.placeholder`    | a message                                          |
+| `actions`, no `fields`             | a decision      | the actions as buttons                                     | an action, or a message                            |
+| `fields`, action `send`            | a form          | the fields and the button; sent, each label and its answer | the form (`values` as the fields say) or a message |
+
+An approval has no `reply`: it is a card, answered by its actions only.
+
+`POST /v1/conversations/:id/messages` takes `answers`: the id of the question the message answers,
+or `null` when it is about something else (the question stays open). Without `answers` the home
+takes the newest open question of the conversation, unless the agent is writing another message
+right now, and the agent reads whether the message is an answer. An id that is answered already makes it a message like any other.
+The message is stored as the person's, its files and `spoken` count as always, and the answer's
+card has `answer.action: "reply"` and the text as `values.answer`.
+
+A device that does not know `reply` shows a `question` card with its fields and actions. What it
+sends with the action `reply` is stored as the person's message too, so other devices show it in
+the chat. Its messages answer the newest question, as above.
+
+Over a channel the next message answers a question; a number picks a choice.
 
 ### Views in a card
 
@@ -356,8 +390,9 @@ A tool of the home that needs the person asks with a card and stops (`call.ask` 
 | stepped by the home (Ollama, a gateway)        | Mastra suspended the run at the tool call and keeps it in `mastra.db` | Mastra resumes the run: the tool's answer is the result of the same call, and the model goes on from there |
 | a subscription's client, which steps by itself | the client was told to end its turn                                   | the home runs the tool again and tells the agent what it says, as a `[home]` message                       |
 
-A message that arrives while a run is suspended ends that run, so the message is read at once.
-The card stays open and is then answered the second way. A start of the home ends nothing:
+A message that answers a question resumes its run. Any other message that arrives while a run is
+suspended ends that run, so it is read at once; the card stays open and is then answered the
+second way. A start of the home ends nothing:
 Mastra kept the run and goes on with it when the answer comes. What the person typed travels beside Mastra to the tool: Mastra keeps the card's id, not
 the answer. `ask`, `connection_call` and `folder_connect` ask this way; the other cards still start a new turn
 through `home.onCard`.

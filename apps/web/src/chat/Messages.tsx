@@ -356,6 +356,7 @@ export function Messages({
   waited,
   onChat,
   focus,
+  onFocused,
   onMissing,
 }: {
   /** Undefined while the conversation loads. */
@@ -372,6 +373,8 @@ export function Messages({
   onChat: (waited: Waited) => void;
   /** A card to show in this conversation, once each time it is asked for. */
   focus?: { cardId: string; at: number };
+  /** The card stands in view now. */
+  onFocused: (cardId: string) => void;
   /** The conversation does not hold that card. */
   onMissing: () => void;
 }) {
@@ -422,6 +425,7 @@ export function Messages({
     atEnd.current = false;
     card.scrollIntoView({ block: "start" });
     card.focus({ preventScroll: true });
+    onFocused(focus.cardId);
   }, [focus, agent.conversationId, first, Boolean(thread)]);
 
   // Whatever makes the list taller (text being written, a picture that has loaded) keeps it
@@ -440,6 +444,8 @@ export function Messages({
     follow();
     const observer = new ResizeObserver(follow);
     observer.observe(inner);
+    // What stands below the list takes room from it: a line above the input, a longer draft.
+    observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
