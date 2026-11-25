@@ -1,4 +1,4 @@
-import type { Level } from "@engenty/tool-harness";
+import { type Level, throughHarness } from "@engenty/tool-harness";
 import { Agent } from "@mastra/core/agent";
 import {
   MASTRA_RESOURCE_ID_KEY,
@@ -11,6 +11,7 @@ import { newToken } from "../ids.ts";
 import { LAST_MESSAGES } from "../mastra.ts";
 import { ASKED_OPTION } from "../models/client-model.ts";
 import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
+import { langOf, say, w } from "../setup/words.ts";
 import type { AgentRecord } from "../store/store.ts";
 import { cacheProcessor, markedInstructions } from "./cache.ts";
 import { Draft } from "./draft.ts";
@@ -447,7 +448,7 @@ class Turn {
   /** The engine's model, which says that it answers now when it is asked. */
   private told(engine: Engine, model: unknown): unknown {
     if (typeof model !== "object" || model === null) return model;
-    return new Proxy(model, {
+    return new Proxy(throughHarness(model), {
       get: (target, key) => {
         const value = Reflect.get(target, key, target);
         if (typeof value !== "function") return value;
@@ -1124,6 +1125,18 @@ export class Turns {
     let problem = turn.problem || (status === "failed" ? "it stopped with an error" : "");
     // A later engine may have answered after an earlier one failed.
     if (turn.model && !draft.empty) problem = "";
+    // A model that ends without a word: the person is told, and not left with an empty message.
+    if (!(problem || stopped || turn.quiet || turn.next) && draft.empty && !draft.asks) {
+      draft.write(
+        say(
+          w(
+            "The model ended without an answer. Try again, or choose a more capable one.",
+            "Das Modell hat ohne Antwort aufgehört. Versuche es noch einmal oder wähle ein stärkeres.",
+          ),
+          langOf(this.home.db),
+        ),
+      );
+    }
     if (problem && !stopped) {
       draft.write(`${draft.empty ? "" : "\n\n"}The model did not answer: ${problem}`);
     }
