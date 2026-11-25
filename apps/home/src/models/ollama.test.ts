@@ -111,7 +111,14 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
     const dataDir = mkdtempSync(join(tmpdir(), "wizards-bot-ollama-"));
     db = new Db(dataDir);
     models = new Models(
-      { dataDir, port: 0, publicUrl: undefined, ollamaUrl: url, subscriptions: [] },
+      {
+        dataDir,
+        port: 0,
+        publicUrl: undefined,
+        ollamaUrl: url,
+        lmstudioUrl: "http://127.0.0.1:9",
+        subscriptions: [],
+      },
       db,
       new Secrets(db, dataDir),
       "Ada's Mac",

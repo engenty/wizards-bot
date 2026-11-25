@@ -1,4 +1,9 @@
-import type { ClientId, ClientSetupStatus, OllamaModelsState } from "@engenty/model-setup";
+import type {
+  ClientId,
+  ClientSetupStatus,
+  LocalModelsState,
+  ServerStatus,
+} from "@engenty/model-setup";
 import {
   ClientPanel,
   type KeyProvider,
@@ -15,6 +20,8 @@ import {
   useCall,
   useClientChoices,
   useClientStage,
+  useServerChoices,
+  useText,
 } from "@engenty/model-setup/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { EngentyKind, Setup, SetupCheck } from "@wizards-bot/protocol";
@@ -31,13 +38,15 @@ import { followTerminal } from "./terminal";
 const LOCAL = "/v1/setup/local";
 const CLIENTS = ["setup", "clients"] as const;
 const PICK = ["setup", "pick"] as const;
-const OLLAMA = ["setup", "ollama"] as const;
 
 /** Each choice has a figure of its own. */
 const FIGURES: Record<string, EngentyKind> = {
   codex: "dome",
   claude: "oval",
+  antigravity: "wedge",
+  cursor: "sprout",
   ollama: "pebble",
+  lmstudio: "round",
   own: "bean",
 };
 
@@ -71,7 +80,7 @@ const PROVIDERS: Omit<KeyProvider, "stored">[] = [
 
 interface Pick {
   source: string | null;
-  /** The model of Ollama the person chose. */
+  /** The model of a server the person chose. */
   model: string | null;
   keys: Record<string, boolean>;
 }
@@ -112,22 +121,28 @@ function Sources({ setup }: { setup: Setup }) {
   const clients = useQuery({
     queryKey: [...keys.setup(), ...CLIENTS],
     queryFn: ({ signal }) =>
-      api.get<{ clients: ClientSetupStatus<ClientId>[] }>(`${LOCAL}/clients`, signal),
+      api.get<{ clients: ClientSetupStatus<ClientId>[]; servers: ServerStatus[] }>(
+        `${LOCAL}/clients`,
+        signal,
+      ),
   });
   const pick = useQuery({
     queryKey: [...keys.setup(), ...PICK],
     queryFn: ({ signal }) => api.get<Pick>(`${LOCAL}/models`, signal),
   });
-  // Ollama and own keys are opened before they are picked: what they need comes first.
-  const [opened, setOpened] = useState<"ollama" | "own" | null>(null);
+  // A server and own keys are opened before they are picked: what they need comes first.
+  const [opened, setOpened] = useState<string | null>(null);
   const [clicked, setClicked] = useState<string | null>(null);
   const found = clients.data?.clients ?? [];
   const clientChoices = useClientChoices(found);
-  const ollama = setup.models.find((check) => check.id === "ollama");
+  const servers = clients.data?.servers ?? [];
+  const serverChoices = useServerChoices(servers);
+  const said = useText();
   const source = pick.data?.source ?? null;
   const isKey = source !== null && PROVIDERS.some((provider) => provider.id === source);
   const selected = opened ?? (isKey ? "own" : source);
   const status = found.find((entry) => entry.id === selected);
+  const server = servers.find((entry) => entry.id === selected);
   const ready = works(
     selected === "own"
       ? setup.models.find((check) => check.id === source && isKey)
@@ -143,23 +158,12 @@ function Sources({ setup }: { setup: Setup }) {
 
   const choices: SetupChoice[] = [
     ...clientChoices,
-    ...(ollama
-      ? [
-          {
-            id: "ollama",
-            title: "Ollama",
-            description: t("setup.ollama.desc"),
-            ...(ollama.state === "absent"
-              ? { note: t("status.state.absent") }
-              : { note: t("setup.ollama.here") }),
-          },
-        ]
-      : []),
+    ...serverChoices,
     { id: "own", title: t("setup.own.title"), description: t("setup.own.desc") },
   ];
 
   const choose = async (id: string) => {
-    if (id === "ollama" || id === "own") {
+    if (id === "own" || servers.some((entry) => entry.id === id)) {
       setOpened(id);
       return;
     }
@@ -177,8 +181,8 @@ function Sources({ setup }: { setup: Setup }) {
     ? stand.heading
     : selected === "own"
       ? t("setup.own.heading")
-      : selected === "ollama"
-        ? t("setup.ollama.heading")
+      : server
+        ? said("server.heading")
         : stand.heading;
 
   return (
@@ -196,7 +200,7 @@ function Sources({ setup }: { setup: Setup }) {
             ? {
                 name: choices.find((choice) => choice.id === selected)?.title ?? selected,
                 heading,
-                stage: ready ? 2 : selected === "own" || selected === "ollama" ? 0 : stand.stage,
+                stage: ready ? 2 : selected === "own" || server ? 0 : stand.stage,
                 works: ready,
                 figure: <Engenty kind={FIGURES[selected] ?? "round"} size={96} />,
                 content: status ? (
@@ -204,11 +208,16 @@ function Sources({ setup }: { setup: Setup }) {
                     key={status.id}
                     client={status}
                     autoTest={!ready}
-                    hint={t("setup.client.hint", { name: status.name })}
+                    hint={t(
+                      status.id === "antigravity" ? "setup.client.talks" : "setup.client.hint",
+                      { name: status.label },
+                    )}
                   />
-                ) : selected === "ollama" ? (
-                  <OllamaPanel
-                    model={source === "ollama" ? (pick.data?.model ?? null) : null}
+                ) : server ? (
+                  <ServerPanel
+                    key={server.id}
+                    server={server}
+                    model={source === server.id ? (pick.data?.model ?? null) : null}
                     ready={ready}
                   />
                 ) : (
@@ -236,28 +245,38 @@ function Sources({ setup }: { setup: Setup }) {
 }
 
 /**
- * Ollama: what it holds, what to download, Ollama itself installed and started. Choosing a model
- * picks Ollama, and only then one is loaded, for the test.
+ * A server for open models: what it holds, what to download, the server itself installed and
+ * started. Choosing a model picks it, and only then one is loaded, for the test.
  */
-function OllamaPanel({ model, ready }: { model: string | null; ready: boolean }) {
+function ServerPanel({
+  server,
+  model,
+  ready,
+}: {
+  server: ServerStatus;
+  model: string | null;
+  ready: boolean;
+}) {
   const client = useQueryClient();
+  const said = useText();
+  const key = ["setup", "server", server.id];
   const state = useQuery({
-    queryKey: OLLAMA,
-    queryFn: ({ signal }) => api.get<OllamaModelsState>(`${LOCAL}/local-models`, signal),
-    // While a download runs or Ollama starts, the page asks how far it got.
+    queryKey: key,
+    queryFn: ({ signal }) => api.get<LocalModelsState>(`${LOCAL}/servers/${server.id}`, signal),
+    // While a download runs or the server starts, the page asks how far it got.
     refetchInterval: (query) => (modelsMoving(query.state.data) ? 1500 : false),
   });
   const choose = useCall(async (name: string) => {
-    await api.put(`${LOCAL}/models`, { source: "ollama", model: name });
+    await api.put(`${LOCAL}/models`, { source: server.id, model: name });
     await client.invalidateQueries({ queryKey: keys.setup() });
   });
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-[0.8125rem] text-ink-3">{t("setup.ollama.hint")}</p>
+      <p className="text-[0.8125rem] text-ink-3">{said("server.hint", { name: server.name })}</p>
       <LocalModels
         job="text"
         state={state.data}
-        onState={(next) => client.setQueryData(OLLAMA, next)}
+        onState={(next) => client.setQueryData(key, next)}
         inUse={model ? [model] : []}
         disabled={choose.busy}
         onChoose={(name) => void choose.run(name)}

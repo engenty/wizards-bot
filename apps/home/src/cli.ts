@@ -44,7 +44,7 @@ const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
   WIZARDS_BOT_URL    its public address, when it has one (https://…)
   WIZARDS_TUNNEL_URL where the address at wizards.host is claimed (default https://wizards.host)
   WIZARDS_BOT_FRPC   an frpc for that address, instead of the one the Bot Server downloads
-  WIZARDS_BOT_SUBSCRIPTIONS   the signed-in apps it may use (default claude,codex)
+  WIZARDS_BOT_SUBSCRIPTIONS   the signed-in apps it may use (default claude,codex,antigravity,cursor)
   WIZARDS_BOT_PATH   folders to look for claude, codex and ollama in, before PATH (also the
                      file path in the data folder)
 `;

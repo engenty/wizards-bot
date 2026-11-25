@@ -1,14 +1,19 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import {
+  antigravity,
   type ChatCall,
   type Client,
+  type ClientId,
   claude,
   codex,
+  cursor,
+  cursorWorkspace,
+  ownCursorServers,
   resolveEnv,
 } from "@engenty/local-models/clients";
 import {
@@ -20,7 +25,7 @@ import {
   type StreamResult,
 } from "@engenty/local-models/ollama";
 
-// An installed client (Claude Code, Codex) answering a turn of the home: the client runs its own
+// An installed client (Claude Code, Codex, Cursor Agent, Antigravity) answering a turn of the home: the client runs its own
 // steps, reaches only the home's tools over MCP (named `home`) and keeps the conversation itself.
 // How each client is started and read is `@engenty/local-models`.
 
@@ -31,9 +36,11 @@ export interface Subscription {
   label: string;
   /** Models the person can name; the first is what the home uses. `default`: the client picks. */
   models: { id: string; label: string }[];
+  /** It continues a conversation from any folder; else each turn tells it everything. */
+  resumes: boolean;
 }
 
-export type SubscriptionId = "claude" | "codex";
+export type SubscriptionId = ClientId;
 
 export const SUBSCRIPTIONS: Record<SubscriptionId, Subscription> = {
   claude: {
@@ -45,16 +52,37 @@ export const SUBSCRIPTIONS: Record<SubscriptionId, Subscription> = {
       { id: "sonnet", label: "Claude Sonnet" },
       { id: "haiku", label: "Claude Haiku" },
     ],
+    resumes: true,
   },
   codex: {
     client: codex,
     label: "Codex",
     models: [{ id: "default", label: "Codex (your subscription's default)" }],
+    resumes: true,
+  },
+  antigravity: {
+    client: antigravity,
+    label: "Antigravity",
+    models: [{ id: "default", label: "Antigravity (your subscription's default)" }],
+    resumes: true,
+  },
+  // Cursor keeps its chats per folder, and a turn's folder goes with the turn.
+  cursor: {
+    client: cursor,
+    label: "Cursor",
+    models: [{ id: "default", label: "Cursor (your subscription's default)" }],
+    resumes: false,
   },
 };
 
 export const isSubscription = (id: string): id is SubscriptionId =>
   Object.hasOwn(SUBSCRIPTIONS, id);
+
+/** The client behind a source, also one of a linked computer (`<computer>/<client>`). */
+export function subscriptionOf(sourceId: string): Subscription | undefined {
+  const id = sourceId.slice(sourceId.lastIndexOf("/") + 1);
+  return isSubscription(id) ? SUBSCRIPTIONS[id] : undefined;
+}
 
 /** The home's MCP server as the client knows it, and the variable Codex reads its key from. */
 const MCP_NAME = "home";
@@ -157,7 +185,7 @@ export function clientMessage(said: Pick<Said, "role" | "text">[], resumed: bool
 }
 
 /**
- * An installed client (Claude, Codex) as a model Mastra can ask. The client steps by
+ * An installed client as a model Mastra can ask. The client steps by
  * itself and reaches the home's tools over MCP with the turn's token, so Mastra sees one
  * answer without tool calls. The client keeps its own conversation, with its tool calls
  * and their results: a turn resumes it and tells it only what it has not read.
@@ -351,6 +379,19 @@ export async function runTurn(
     }),
     { mode: 0o600 },
   );
+  if (client.id === "cursor") {
+    for (const [path, text] of Object.entries(
+      cursorWorkspace({
+        system: turn.system,
+        mcp: { name: MCP_NAME, url: mcpUrl },
+        key: turn.mcpToken,
+        ownServers: ownCursorServers(),
+      }),
+    )) {
+      mkdirSync(dirname(join(dir, path)), { recursive: true });
+      writeFileSync(join(dir, path), text, { mode: 0o600 });
+    }
+  }
   const images = (turn.images ?? []).map((image, at) => {
     const file = join(dir, `picture-${at}.${image.mime.split("/")[1] ?? "png"}`);
     writeFileSync(file, Buffer.from(image.base64, "base64"), { mode: 0o600 });

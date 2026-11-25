@@ -11,7 +11,12 @@ import {
 import type { ModelSource } from "@wizards-bot/protocol";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { Home } from "../home.ts";
-import { type ClientEvent, type ClientRun, clientModel } from "../models/client-model.ts";
+import {
+  type ClientEvent,
+  type ClientRun,
+  clientModel,
+  subscriptionOf,
+} from "../models/client-model.ts";
 import { clientSessions, type Engine, type RemoteSources } from "../models/models.ts";
 import type { DeviceRecord } from "../store/store.ts";
 import type { ToComputer, ToHome } from "./wire.ts";
@@ -99,7 +104,9 @@ export class LinkHub implements RemoteSources {
           model,
           mcpToken,
           run,
-          sessions: clientSessions(this.home.db, conversationId, sourceId),
+          sessions: subscriptionOf(sourceId)?.resumes
+            ? clientSessions(this.home.db, conversationId, sourceId)
+            : undefined,
         }),
     };
   }

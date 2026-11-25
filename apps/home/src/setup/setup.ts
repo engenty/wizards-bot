@@ -7,14 +7,16 @@ import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
 import { isSubscription, SUBSCRIPTIONS } from "../models/client-model.ts";
 import { ACCOUNT, GATEWAY_PRESETS } from "../models/models.ts";
-import { onThisComputer, SUGGESTED } from "../models/ollama.ts";
+import { isServer, onThisComputer, SUGGESTED } from "../models/ollama.ts";
 import type { NewCard } from "../store/store.ts";
 import {
+  clientMissing,
   lookAtOllama,
   type Probe,
   probeAccount,
   probeClient,
   probeGateway,
+  probeLmStudio,
   probeOllama,
 } from "./probes.ts";
 import {
@@ -263,9 +265,20 @@ export class Setup {
     if (!isHosted(config)) {
       probes.set("ollama", () =>
         models.ollamaPicked()
-          ? probeOllama(config.ollamaUrl, models.memory, undefined, undefined, models.ollamaModel())
+          ? probeOllama(
+              config.ollamaUrl,
+              models.memory,
+              undefined,
+              undefined,
+              models.serverModel("ollama"),
+            )
           : lookAtOllama(config.ollamaUrl, models.memory),
       );
+      if (models.serverPicked("lmstudio")) {
+        probes.set("lmstudio", () =>
+          probeLmStudio(config.lmstudioUrl, models.memory, models.serverModel("lmstudio")),
+        );
+      }
     }
     for (const gateway of models.gateways()) {
       probes.set(gateway.id, () =>
@@ -466,14 +479,7 @@ export class Setup {
             `${name} is not installed on this computer.`,
             `${name} ist auf diesem Computer nicht installiert.`,
           ),
-          todo:
-            client.id === "claude"
-              ? w(
-                  "Install Claude Code, then run claude and /login.",
-                  "Installiere Claude Code, dann starte claude und /login.",
-                )
-              : w("Install Codex, then sign in.", "Installiere Codex, dann melde dich an."),
-          command: client.id === "claude" ? "claude" : "codex login",
+          ...clientMissing(client),
         });
         continue;
       }
@@ -556,6 +562,15 @@ export class Setup {
           "Starte Ollama, oder installiere es von ollama.com.",
         ),
       });
+    }
+    if (!hosted && models.serverPicked("lmstudio")) {
+      checks.push(
+        row(
+          "lmstudio",
+          "LM Studio",
+          w("LM Studio has not been tested yet.", "LM Studio ist noch nicht getestet."),
+        ),
+      );
     }
     for (const gateway of models.gateways()) {
       checks.push(
@@ -838,9 +853,10 @@ export class Setup {
         };
     const vision = this.home.models.forPictures();
     const seeing = answering.filter((check) =>
-      check.id === "ollama"
-        ? vision.here.length > 0
-        : isSubscription(check.id) ||
+      isServer(check.id)
+        ? vision.here.some((ref) => ref.startsWith(`${check.id}:`))
+        : check.id === "claude" ||
+          check.id === "codex" ||
           check.id === ACCOUNT.id ||
           this.home.models.gateways().some((g) => g.id === check.id),
     );

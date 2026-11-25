@@ -2,12 +2,9 @@ import { totalmem } from "node:os";
 import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { detectClient } from "@engenty/local-models/clients";
-import {
-  type ChatModel,
-  fits,
-  type InstalledModel,
-  ollamaModel,
-} from "@engenty/local-models/ollama";
+import { lmStudioFetch } from "@engenty/local-models/lmstudio";
+import { type ChatModel, ollamaModel } from "@engenty/local-models/ollama";
+import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
 import {
   type ModelService,
   type ModelSource,
@@ -26,11 +23,15 @@ import {
   runTurn,
   SUBSCRIPTIONS,
   type SubscriptionId,
+  subscriptionOf,
 } from "./client-model.ts";
-import { chatModels, MEMORY_SHARE, onThisComputer } from "./ollama.ts";
+import { chatModels, isServer, MEMORY_SHARE, onThisComputer } from "./ollama.ts";
 import { agreed, serviceOf, services } from "./services.ts";
 
 export type { ClientTurn } from "./client-model.ts";
+
+/** The servers on this computer, the one the home asks first in front. */
+const SERVERS_HERE: readonly ServerId[] = ["ollama", "lmstudio"];
 
 /** What answers a turn: a model Mastra asks. A subscription's model needs the turn's MCP token. */
 export interface Engine {
@@ -119,8 +120,17 @@ const OLLAMA = "models.ollama";
 
 const REFRESH_MS = 60_000;
 
+/** Tokens a model on this computer reads at most. */
+const CONTEXT = Number(process.env.WIZARDS_BOT_OLLAMA_CONTEXT ?? 16_384);
+
+/**
+ * Sources that answer only once the person picked them or put one of their models into the
+ * order, on every home: found alone they answer nowhere.
+ */
+const ON_PICK = new Set<string>(["antigravity", "cursor", "lmstudio"]);
+
 export class Models {
-  private ollama: InstalledModel[] = [];
+  private held: Record<ServerId, InstalledModel[]> = { ollama: [], lmstudio: [] };
   private clients: SubscriptionId[] = [];
   private refreshedAt = 0;
   private readonly config: Config;
@@ -146,15 +156,24 @@ export class Models {
   async refresh(force = false): Promise<void> {
     if (!force && Date.now() - this.refreshedAt < REFRESH_MS) return;
     this.refreshedAt = Date.now();
-    this.ollama = await chatModels(
-      this.config.ollamaUrl,
-      onThisComputer(this.config.ollamaUrl) ? this.memory : undefined,
+    const held = await Promise.all(
+      SERVERS_HERE.map((id) => {
+        const url = this.serverUrl(id);
+        const memory = onThisComputer(url) ? this.memory : undefined;
+        return chatModels(url, memory, undefined, id);
+      }),
     );
+    for (const [at, id] of SERVERS_HERE.entries()) this.held[id] = held[at] ?? [];
     const wanted = this.config.subscriptions.filter(isSubscription);
     const found = await Promise.all(
       wanted.map((id) => detectClient(SUBSCRIPTIONS[id].client, force)),
     );
     this.clients = wanted.filter((_, at) => found[at]?.version);
+  }
+
+  /** Where a server of this computer answers. */
+  serverUrl(id: ServerId): string {
+    return id === "ollama" ? this.config.ollamaUrl : this.config.lmstudioUrl;
   }
 
   // ── Gateways ──────────────────────────────────────────────────────────────
@@ -205,14 +224,16 @@ export class Models {
         models: SUBSCRIPTIONS[id].models,
       });
     }
-    if (this.ollama.length) {
+    for (const id of SERVERS_HERE) {
+      const held = this.held[id];
+      if (!held.length) continue;
       sources.push({
-        id: "ollama",
-        kind: "ollama",
-        label: "Ollama",
+        id,
+        kind: id,
+        label: SERVERS[id].name,
         where: this.where,
         online: true,
-        models: this.ollama.map((model) => ({ id: model.name, label: model.name })),
+        models: held.map((model) => ({ id: model.name, label: model.name })),
       });
     }
     return sources;
@@ -301,15 +322,28 @@ export class Models {
     }
   }
 
-  /** The model of Ollama the person put first; the home's own choice when they named none. */
-  ollamaModel(): string | undefined {
-    const ref = this.order().find((entry) => splitRef(entry).sourceId === "ollama");
+  /** The model of a server the person put first; the home's own choice when they named none. */
+  serverModel(id: ServerId): string | undefined {
+    const ref = this.order().find((entry) => splitRef(entry).sourceId === id);
     return ref && splitRef(ref).model;
+  }
+
+  /** Whether the person picked a source, in the setup or by naming one of its models in the order. */
+  isPicked(id: string): boolean {
+    return (
+      Boolean(this.picked()?.includes(id)) ||
+      this.order().some((ref) => splitRef(ref).sourceId === id)
+    );
+  }
+
+  /** Whether a server's models see the person's words: it was picked. */
+  serverPicked(id: ServerId): boolean {
+    return id === "ollama" ? this.ollamaPicked() : this.isPicked(id);
   }
 
   /** The model Ollama would load once the person picks it; none when none leaves the computer room. */
   ollamaOffer(): { model: string; size: number } | undefined {
-    const first = this.ollama[0];
+    const first = this.held.ollama[0];
     if (!first) return undefined;
     const here = onThisComputer(this.config.ollamaUrl);
     if (here && !fits(first, this.memory, MEMORY_SHARE)) return undefined;
@@ -346,7 +380,7 @@ export class Models {
 
   /**
    * Model refs in the order the home tries them: the person's order first, then a
-   * subscription, then Ollama, then a gateway; this computer before another one. This
+   * subscription, then Ollama, then LM Studio, then a gateway; this computer before another one. This
    * computer's Ollama is among them only once the person picked it; once they picked in the
    * setup, only what they picked is.
    */
@@ -358,6 +392,8 @@ export class Models {
       // A linked computer and the account are picked by linking and by the sign-up.
       const asked = source.id.includes("/") || source.id === ACCOUNT.id;
       if (picked && !asked && !picked.includes(source.id)) continue;
+      const own = source.id.slice(source.id.lastIndexOf("/") + 1);
+      if (ON_PICK.has(own) && !this.isPicked(source.id)) continue;
       if (source.online && (ollama || source.id !== "ollama")) available.set(source.id, source);
     }
     const refs: string[] = [];
@@ -368,7 +404,7 @@ export class Models {
       if (!refs.includes(ref)) refs.push(ref);
     };
     for (const ref of this.order()) add(ref);
-    for (const kind of ["subscription", "ollama", "gateway"] as const) {
+    for (const kind of ["subscription", "ollama", "lmstudio", "gateway"] as const) {
       for (const source of available.values()) {
         const first = source.models[0];
         // Of a source the person picked, the model they named is the one: no other is loaded.
@@ -384,14 +420,14 @@ export class Models {
    * else, which a picture of the person reaches only when the person said so.
    */
   forPictures(): { here: string[]; elsewhere: { ref: string; label: string }[] } {
-    const here = this.ollamaPicked()
-      ? this.ollama.filter((model) => model.vision).map((model) => `ollama:${model.name}`)
-      : [];
+    const here = SERVERS_HERE.filter((id) => this.serverPicked(id)).flatMap((id) =>
+      this.held[id].filter((model) => model.vision).map((model) => `${id}:${model.name}`),
+    );
     const elsewhere: { ref: string; label: string }[] = [];
     for (const ref of this.candidates()) {
       const { sourceId } = splitRef(ref);
       const source = this.sources().find((candidate) => candidate.id === sourceId);
-      if (source && source.kind !== "ollama") elsewhere.push({ ref, label: source.label });
+      if (source && !isServer(source.kind)) elsewhere.push({ ref, label: source.label });
     }
     return { here, elsewhere };
   }
@@ -409,6 +445,16 @@ export class Models {
       const chat = this.localChat(model);
       return chat && { ref, model: () => chat };
     }
+    if (sourceId === "lmstudio") {
+      if (!this.held.lmstudio.some((held) => held.name === model)) return undefined;
+      const url = this.config.lmstudioUrl;
+      const chat = createOpenAICompatible({
+        name: "lmstudio",
+        baseURL: `${url}/v1`,
+        fetch: lmStudioFetch(url, { context: CONTEXT }),
+      })(model);
+      return { ref, model: () => chat };
+    }
     const run = this.localClient(sourceId);
     if (run) {
       return {
@@ -419,7 +465,9 @@ export class Models {
             model,
             mcpToken,
             run,
-            sessions: clientSessions(this.db, conversationId, sourceId),
+            sessions: subscriptionOf(sourceId)?.resumes
+              ? clientSessions(this.db, conversationId, sourceId)
+              : undefined,
           }),
       };
     }
@@ -443,14 +491,14 @@ export class Models {
 
   /** An Ollama model of this computer. A linked computer serves it to its home through this. */
   localChat(model: string): ChatModel | undefined {
-    const found = this.ollama.find((m) => m.name === model);
+    const found = this.held.ollama.find((m) => m.name === model);
     if (!found) return undefined;
     return ollamaModel({
       url: this.config.ollamaUrl,
       model,
       tools: found.tools,
       thinking: found.thinking,
-      context: Number(process.env.WIZARDS_BOT_OLLAMA_CONTEXT ?? 16_384),
+      context: CONTEXT,
     });
   }
 

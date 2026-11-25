@@ -1,6 +1,7 @@
 // What a failed test call means, in one sentence the person can act on. The client's or the
 // service's own words are matched; the sentence and what to do are the Bot Server's, in both
 // languages (words.ts).
+import { type Client, failureCode } from "@engenty/local-models/clients";
 import { type Words, w } from "./words.ts";
 
 /** What a check found: the sentence, what to do, and a command when a terminal is the way. */
@@ -21,7 +22,7 @@ export function firstLine(detail: string): string {
 }
 
 /** "<name> did not answer: <what it said>." */
-const silent = (name: string, detail: string): Words => {
+export const silent = (name: string, detail: string): Words => {
   const why = firstLine(detail);
   return w(
     `${name} did not answer: ${why || "no reason given"}.`,
@@ -91,6 +92,42 @@ export function claudeSignedOut(): Finding {
       "Starte claude in einem Terminal, dann /login.",
     ),
     command: "claude",
+  };
+}
+
+/** Why a client without words of its own (Cursor Agent, Antigravity) did not answer. */
+export function explainClient(
+  client: Pick<Client, "id" | "name" | "bin">,
+  detail: string,
+): Finding {
+  switch (failureCode(detail)) {
+    case "exhausted":
+      return {
+        said: w(
+          `The limit of your ${client.name} plan is reached for now.`,
+          `Das Limit deines ${client.name}-Abos ist für den Moment erreicht.`,
+        ),
+        todo: w(
+          "It comes back by itself. Until then the Bot Server asks the next model.",
+          "Es kommt von selbst zurück. Bis dahin fragt der Bot Server das nächste Modell.",
+        ),
+      };
+    case "signed_out":
+      return clientSignedOut(client);
+    default:
+      return { said: silent(client.name, detail) };
+  }
+}
+
+/** Such a client is installed and not signed in. */
+export function clientSignedOut({ id, name, bin }: Pick<Client, "id" | "name" | "bin">): Finding {
+  return {
+    said: w(
+      `${name} is not signed in on this computer.`,
+      `${name} ist auf diesem Computer nicht angemeldet.`,
+    ),
+    todo: w("Sign in to it in the setup.", "Melde es in der Einrichtung an."),
+    command: id === "antigravity" ? bin : `${bin} login`,
   };
 }
 

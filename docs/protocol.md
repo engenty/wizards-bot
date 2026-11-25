@@ -1539,16 +1539,19 @@ hosted home has no Ollama (400 `refused`).
 
 On the person's own computer the setup asks first what the wizards think with, and tests what
 they picked. Its routes below `/v1/setup/local` are engenty wizards' (`@engenty/model-setup`):
-`GET /clients` (Claude Code and Codex, found and signed in or not), `GET` and `PUT /models` (the
+`GET /clients` (the clients Codex, Claude Code, Antigravity and Cursor Agent, found and signed in or
+not, and the servers Ollama and LM Studio, found and running or not), `GET` and `PUT /models` (the
 pick, `{ "source": "codex" }` or `{ "source": "ollama", "model": "gemma4:12b" }`, and which keys are stored), `POST /models/test`, `POST
-/keys/<provider>` (tests a key and keeps it when it works), `POST /ollama`, `GET /local-models` (what
-Ollama holds and what to download; loads nothing), `POST /local-models/pull`, `DELETE
-/local-models?model=…`, `POST /local-models/ollama` (installs and starts Ollama on a Mac), and for a client
+/keys/<provider>` (tests a key and keeps it when it works), for a server `GET /servers/<id>` (what it
+holds and what to download; loads nothing), `POST /servers/<id>/pull`, `DELETE
+/servers/<id>/models?model=…` (Ollama only), `POST /servers/<id>/start` (and installs Ollama on a
+Mac), `POST /servers/<id>/address`, and for a client
 `POST /harness/<id>/detect`, `/install` and `/login`, the last two in a terminal (`GET
 /terminal/<id>/stream` as events, `POST …/input`, `POST …/resize`, `DELETE`) that runs the
 catalog's install command or the client's own sign-in and nothing a request names. Once the person
 picked, only picked sources answer; a key added later or a source named in the order joins them.
-A linked computer answers as before. A home whose setup never asked keeps the order it had. A
+A linked computer answers as before, without LM Studio. A home whose setup never asked keeps the
+order it had; Antigravity, Cursor Agent and LM Studio answer there only once they are named in it. A
 hosted home has none of these routes.
 
 Test calls cost tokens. The home makes them only when asked: `POST /v1/setup/test` with
