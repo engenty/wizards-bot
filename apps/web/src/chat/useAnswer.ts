@@ -1,11 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Card } from "@wizards-bot/protocol";
+import type { Card, Message } from "@wizards-bot/protocol";
 import { useState } from "react";
 import { ApiError, api } from "../lib/api";
 import { withConsent } from "../lib/consent";
 import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
+import { uuid } from "../lib/uuid";
 
 /**
  * Answers a card. The first answer wins: a card someone answered meanwhile shows that answer,
@@ -42,5 +43,28 @@ export function useAnswer(card: Card) {
       setBusy(false);
     }
   };
-  return { answer, busy, problem };
+  /** Answers a question with a message, from outside its chat. */
+  const reply = async (text: string) => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const { message } = await withConsent(
+        () =>
+          api.post<{ message: Message }>(`/v1/conversations/${card.conversationId}/messages`, {
+            text,
+            answers: card.id,
+            clientId: uuid(),
+          }),
+        (models) => client.setQueryData(keys.models(), models),
+      );
+      applyEvent(client, { type: "message.created", message });
+      return true;
+    } catch (err) {
+      setProblem((err as Error).message || t("card.failed"));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { answer, reply, busy, problem };
 }

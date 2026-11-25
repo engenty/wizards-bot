@@ -69,6 +69,12 @@ final class AppModel {
     private(set) var consent: ConsentAsk?
 
     var showsItems = false
+    /// Per conversation, the question the person picked for their next message.
+    private var picked: [String: Questions.Picked] = [:]
+    /// The forms that are being filled in, by their question's card.
+    @ObservationIgnored private var formDrafts: [String: FormDraft] = [:]
+    /// Counts up when the input should take the focus: a question was picked.
+    private(set) var focusComposer = 0
     var showsAgents = false
     var showsSettings = false
     var showsPairing = false
@@ -480,6 +486,7 @@ final class AppModel {
             noteCard(card)
         } else {
             notifier.resolve([card.id])
+            formDrafts[card.id] = nil
         }
         notifier.setBadge(items.count)
         if items.isEmpty { showsItems = false }
@@ -506,7 +513,7 @@ final class AppModel {
         sending[conversationId, default: []].append(mine)
         let message = SendMessage(
             text: text, spoken: spoken ? true : nil, clientId: clientId, files: files.isEmpty ? nil : files.map(\.id),
-            later: later ? true : nil
+            later: later ? true : nil, answers: Questions.answers(waitingQuestions, target: targetQuestion)
         )
         Task {
             do {
@@ -543,6 +550,61 @@ final class AppModel {
                     sending[conversationId]?[index].state = .failed
                 }
             }
+        }
+    }
+
+    // MARK: - Questions
+
+    /// The questions of the agent on screen that wait for the person, oldest first.
+    var waitingQuestions: [Card] {
+        conversationId.map { Questions.waiting(in: items, conversationId: $0) } ?? []
+    }
+
+    /// The question the next message answers.
+    var targetQuestion: Card? {
+        guard let conversationId else { return nil }
+        return Questions.target(
+            waitingQuestions, picked: picked[conversationId], working: currentAgent?.state == .working,
+            lastMessageId: messages(in: conversationId).last?.id
+        )
+    }
+
+    /// True when the question has to be named above the input: it is not the last thing in the chat, or not the only one.
+    var namesQuestion: Bool {
+        guard let targetQuestion, let conversationId else { return false }
+        return waitingQuestions.count > 1 || messages(in: conversationId).last?.id != targetQuestion.messageId
+    }
+
+    /// The next message answers this question, or none of them.
+    func pick(_ card: Card?) {
+        guard let conversationId, let newest = waitingQuestions.last else { return }
+        picked[conversationId] = Questions.Picked(cardId: card?.id, newest: newest.id)
+        focusComposer += 1
+    }
+
+    /// What the person filled into a question's form so far.
+    func formDraft(of card: Card) -> FormDraft {
+        if let draft = formDrafts[card.id] { return draft }
+        let draft = FormDraft(fields: card.form ?? [])
+        formDrafts[card.id] = draft
+        return draft
+    }
+
+    /// Answers a question with a message, from outside its chat. Returns a sentence when that did not work.
+    func reply(_ card: Card, text: String) async -> String? {
+        guard let client else { return String(localized: "This card needs your Bot Server.") }
+        let message = SendMessage(text: text, clientId: UUID().uuidString, answers: .card(card.id))
+        do {
+            let waiting = models?.waitingForYes ?? []
+            if !waiting.isEmpty, await !askConsent(waiting) { return nil }
+            upsert(try await client.post(message, to: card.conversationId))
+            return nil
+        } catch HomeError.unreachable {
+            reachable = false
+            return String(localized: "Your Bot Server is out of reach. Try again in a moment.")
+        } catch {
+            handle(error)
+            return (error as? HomeError)?.message ?? String(localized: "That didn’t work. Try again.")
         }
     }
 
@@ -1047,7 +1109,10 @@ final class AppModel {
 
     private func speakIfTalking(_ message: Message) {
         guard message.role == .agent, isOnScreen(message.conversationId) else { return }
-        voice.reply(message.id, started: message.text, done: message.state != .streaming)
+        let done = message.state != .streaming
+        // The question the message ends with is no text of it: it is said after the text.
+        if done, !message.asked.isEmpty { voice.reply(message.id, grew: "\n\n" + message.asked) }
+        voice.reply(message.id, started: done ? message.spoken : message.text, done: done)
     }
 
     // MARK: - Notifications

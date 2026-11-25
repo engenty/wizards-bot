@@ -35,6 +35,8 @@ export interface Answer {
   values: Record<string, string | string[]>;
   /** The card as it was answered. */
   card: { id: string; title: string; actions: { id: string; label: string }[] };
+  /** What the person wrote, where a message answered. */
+  message?: string;
   /** Files the person gave with the answer. */
   files?: FileRef[];
   /** What the tool kept with `ask`, to know where it was. */

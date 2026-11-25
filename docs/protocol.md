@@ -286,12 +286,11 @@ it like a typed value unless the person changes it. A card of another kind than 
 carry `url` as well: a page the person opens in the system browser ("Open page"), with the
 card's actions beside it.
 
-A `text` field may carry `format`: `long` (several lines), `number` (with its `unit`), `date` or
-`file` (the ids of files uploaded before, as a list). The home reads a number and a date as people
-write them ("2,4", "2,4 m", "31.12.2026"), so a device that does not know a format shows a text
-field. `unsure` is how the person says they don't know; the field's value is then `unsure`. An
-answer to a form that is not filled in, or not what its format says, gets 400 `invalid` with a
-sentence that names the field, and the card stays open.
+A `number` field has the `unit` to show beside it; the home reads a number as people write it
+("2,4", "2,4 m"). A `date` is sent as "2026-12-31". A `file` is the list of ids of files uploaded
+before. `unsure` is how the person says they don't know; the field's value is then `unsure`. An
+answer to a form that is not filled in, or holds something else than its fields ask for, gets 400
+`invalid` with a sentence that names the field, and the card stays open.
 
 ### Questions of an agent
 
@@ -299,11 +298,11 @@ A card with `reply` is a question of the agent (`ask`). It is the agent's own me
 `title` and `body` as its text, without a box, and mark it as waiting. It is in `GET /v1/items`,
 in `Agent.open` and in what is pushed, like every card that needs the person.
 
-| The card has                       | It is           | Draw                                                       | Answered by                                        |
-| ---------------------------------- | --------------- | ---------------------------------------------------------- | -------------------------------------------------- |
-| one field `answer`, action `reply` | one free answer | nothing more; the chat's input says `reply.placeholder`    | a message                                          |
-| `actions`, no `fields`             | a decision      | the actions as buttons                                     | an action, or a message                            |
-| `fields`, action `send`            | a form          | the fields and the button; sent, each label and its answer | the form (`values` as the fields say) or a message |
+| The card has              | It is           | Draw                                                            | Answered by                                        |
+| ------------------------- | --------------- | --------------------------------------------------------------- | -------------------------------------------------- |
+| no `fields`, no `actions` | one free answer | nothing more; the chat's input says `reply.placeholder`         | a message                                          |
+| `actions`, no `fields`    | a decision      | the actions as buttons                                          | an action, or a message                            |
+| `fields`, action `send`   | a form          | the fields and the button; once sent, each label and its answer | the form (`values` as the fields say) or a message |
 
 An approval has no `reply`: it is a card, answered by its actions only.
 
@@ -311,12 +310,11 @@ An approval has no `reply`: it is a card, answered by its actions only.
 or `null` when it is about something else (the question stays open). Without `answers` the home
 takes the newest open question of the conversation, unless the agent is writing another message
 right now, and the agent reads whether the message is an answer. An id that is answered already makes it a message like any other.
-The message is stored as the person's, its files and `spoken` count as always, and the answer's
-card has `answer.action: "reply"` and the text as `values.answer`.
+The message is stored as the person's, its files and `spoken` count as always, and the card's
+`answer` has the `action` "reply" and the text as its `message`.
 
-A device that does not know `reply` shows a `question` card with its fields and actions. What it
-sends with the action `reply` is stored as the person's message too, so other devices show it in
-the chat. Its messages answer the newest question, as above.
+Where a question stands outside its chat (a list of what needs the person, a watch), a device
+offers a field of its own and sends the message with `answers`.
 
 Over a channel the next message answers a question; a number picks a choice.
 

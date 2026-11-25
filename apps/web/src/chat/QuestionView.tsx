@@ -1,6 +1,6 @@
 import { Textarea } from "@engenty/chatviews/react/ui";
 import type { Card } from "@wizards-bot/protocol";
-import { REPLY_ACTION, REPLY_FIELD } from "@wizards-bot/protocol/limits";
+import { REPLY_ACTION } from "@wizards-bot/protocol/limits";
 import { Check, CornerDownLeft } from "lucide-react";
 import { createContext, useContext, useState } from "react";
 import { useDraft } from "../lib/drafts";
@@ -17,6 +17,9 @@ interface Answering {
   target?: string;
   pick: (cardId: string) => void;
 }
+
+/** The draft of an answer written in the list. */
+const WORDS = "words";
 
 /** Without it, as in the list of what needs the person, a question brings a field of its own. */
 export const AnsweringContext = createContext<Answering | null>(null);
@@ -73,7 +76,7 @@ export function QuestionView({ card }: { card: Card }) {
   const answering = useContext(AnsweringContext);
   const [draft, setDraft] = useDraft(card.id);
   const [missing, setMissing] = useState<string[]>([]);
-  const { answer, busy, problem } = useAnswer(card);
+  const { answer, reply, busy, problem } = useAnswer(card);
   const form = formOf(card);
   const alert = problem ? (
     <p role="alert" className="text-[0.8125rem] text-rose">
@@ -105,11 +108,16 @@ export function QuestionView({ card }: { card: Card }) {
   const send = async (action: string) => {
     const empty = form ? missingIn(form, draft) : [];
     setMissing(empty);
-    if (!empty.length && (await answer(action, form || isFree(card) ? draft : {}))) {
+    if (!empty.length && (await answer(action, form ? draft : {}))) {
       setDraft(null);
     }
   };
-  const words = typeof draft[REPLY_FIELD] === "string" ? draft[REPLY_FIELD] : "";
+  const words = typeof draft[WORDS] === "string" ? draft[WORDS] : "";
+  const sendWords = async () => {
+    if (await reply(words.trim())) {
+      setDraft(null);
+    }
+  };
   const free = isFree(card);
   const open = answering && answering.target !== card.id;
   return (
@@ -130,7 +138,13 @@ export function QuestionView({ card }: { card: Card }) {
               </Button>
             ))}
           </div>
-          {alert}
+          {alert ??
+            // The empty part may be out of view.
+            (missing.some((id) => !draft[id]?.length) ? (
+              <p role="alert" className="text-[0.8125rem] text-rose">
+                {t("question.missing")}
+              </p>
+            ) : null)}
         </div>
       ) : free ? null : (
         <div className="flex flex-wrap gap-2">
@@ -155,9 +169,9 @@ export function QuestionView({ card }: { card: Card }) {
             placeholder={card.reply?.placeholder}
             minRows={2}
             value={words}
-            onChange={(e) => setDraft({ [REPLY_FIELD]: e.target.value })}
+            onChange={(e) => setDraft({ [WORDS]: e.target.value })}
           />
-          <Button disabled={busy || !words.trim()} onClick={() => void send(REPLY_ACTION)}>
+          <Button disabled={busy || !words.trim()} onClick={() => void sendWords()}>
             {t("question.send")}
           </Button>
         </div>

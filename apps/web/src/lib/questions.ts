@@ -1,19 +1,12 @@
 import type { Card, CardField, Message } from "@wizards-bot/protocol";
-import { REPLY_FIELD } from "@wizards-bot/protocol/limits";
-
-/** A form's value where the person says they don't know. */
-export const UNSURE = "unsure";
+import { UNSURE } from "@wizards-bot/protocol/limits";
 
 /** The fields of a question that is a form; none for one that is answered in words or by a choice. */
-export function formOf(card: Card): CardField[] | undefined {
-  return card.reply && card.fields && !card.fields.some((field) => field.id === REPLY_FIELD)
-    ? card.fields
-    : undefined;
-}
+export const formOf = (card: Card): CardField[] | undefined =>
+  card.reply ? card.fields : undefined;
 
 /** A question whose one answer is the next message. */
-export const isFree = (card: Card) =>
-  Boolean(card.reply && card.fields?.some((field) => field.id === REPLY_FIELD));
+export const isFree = (card: Card) => Boolean(card.reply && !card.fields && !card.actions.length);
 
 /** The questions that wait in one chat, oldest first. */
 export const questionsIn = (items: Card[], conversationId: string): Card[] =>
@@ -60,7 +53,7 @@ type Values = Record<string, string | string[]>;
 /** The fields of a form that still need an answer. "I don't know" is one. */
 export function missingIn(fields: CardField[], values: Values): string[] {
   return fields
-    .filter((field) => (field.required || field.unsure) && !values[field.id]?.length)
+    .filter((field) => field.required && !values[field.id]?.length)
     .map((field) => field.id);
 }
 
@@ -85,13 +78,13 @@ export function answerText(
   if (first === UNSURE && field.unsure) {
     return field.unsure;
   }
-  if (field.format === "file" && Array.isArray(value)) {
+  if (field.type === "file") {
     return files(list.length);
   }
-  if (field.format === "date" && /^\d{4}-\d{2}-\d{2}$/.test(first)) {
+  if (field.type === "date") {
     return new Intl.DateTimeFormat(lang, { dateStyle: "long", timeZone: "UTC" }).format(
       new Date(`${first}T00:00:00Z`),
     );
   }
-  return field.unit && field.format === "number" ? `${first} ${field.unit}` : list.join(", ");
+  return field.unit ? `${first} ${field.unit}` : list.join(", ");
 }

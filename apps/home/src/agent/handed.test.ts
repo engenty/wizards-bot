@@ -33,6 +33,17 @@ describe("a task one agent handed to another", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     assert.ok(ready());
   };
+  /** The person answers the question in the other agent's chat. */
+  const reply = async (answers: string) => {
+    await t.request(`/v1/conversations/${law.conversationId}/messages`, {
+      body: { text: "W", answers },
+    });
+    do {
+      await t.home.idle();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } while (t.home.store.agents().some((agent) => agent.state === "working"));
+    await t.home.idle();
+  };
   const handOver = () =>
     t.model.script.push(
       { calls: [{ name: "agent_message", arguments: { id: law.id, text: "May I build?" } }] },
@@ -66,7 +77,7 @@ describe("a task one agent handed to another", () => {
     assert.deepEqual(await waitsFor(), [{ agentId: law.id, cardId: card.id }]);
 
     t.model.script.push({ text: "In zone W you may." }, { text: "The law says you may." });
-    await t.answer(card.id, "reply", { answer: "W" });
+    await reply(card.id);
     assert.deepEqual(reports(), ["[home] Building law answered: In zone W you may."]);
     assert.equal(await waitsFor(), undefined);
     assert.deepEqual(t.last().parts, [{ type: "text", text: "The law says you may." }]);
@@ -75,12 +86,12 @@ describe("a task one agent handed to another", () => {
   it("waits on when the agent asks once more", async () => {
     await handOverAndAsk();
     t.model.script.push(ask);
-    await t.answer(t.item().id, "reply", { answer: "W" });
+    await reply(t.item().id);
     assert.deepEqual(reports(), []);
     assert.deepEqual(await waitsFor(), [{ agentId: law.id, cardId: t.item().id }]);
 
     t.model.script.push({ text: "You may." }, { text: "Good news." });
-    await t.answer(t.item().id, "reply", { answer: "W" });
+    await reply(t.item().id);
     assert.deepEqual(reports(), ["[home] Building law answered: You may."]);
   });
 
@@ -94,7 +105,7 @@ describe("a task one agent handed to another", () => {
     assert.deepEqual(reports(), []);
 
     t.model.script.push({ text: "You may." }, { text: "Good news." });
-    await t.answer(t.item().id, "reply", { answer: "W" });
+    await reply(t.item().id);
     assert.deepEqual(reports(), ["[home] Building law answered: You may."]);
   });
 
@@ -115,7 +126,7 @@ describe("a task one agent handed to another", () => {
     t = await testHome("Ada", undefined, { dataDir });
     assert.deepEqual(await waitsFor(), [{ agentId: law.id, cardId: card.id }]);
     t.model.script.push({ text: "You may." }, { text: "Good news." });
-    await t.answer(card.id, "reply", { answer: "W" });
+    await reply(card.id);
     assert.deepEqual(reports(), ["[home] Building law answered: You may."]);
     assert.equal(await waitsFor(), undefined);
   });

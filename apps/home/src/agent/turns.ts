@@ -348,7 +348,7 @@ class Turn {
       // A card without a button only shows something: a pairing code, a task's address.
       waiting: home.store
         .openCards(trigger.conversationId)
-        .filter((card) => card.actions.length)
+        .filter((card) => card.reply || card.actions.length)
         .map((card) => card.title),
       spoken: trigger.spoken === true,
       guest: trigger.guest,
@@ -512,6 +512,7 @@ export class Turns {
           card: { id: card.id, title: card.title, actions: card.actions },
           kept: payload.kept,
           by: card.answer?.admin?.name,
+          message: card.answer?.message,
           files: said?.files,
         },
         said,

@@ -1,5 +1,5 @@
 import type { Card, CardField, FileRef } from "@wizards-bot/protocol";
-import { REPLY_ACTION, REPLY_FIELD } from "@wizards-bot/protocol/limits";
+import { REPLY_ACTION, UNSURE } from "@wizards-bot/protocol/limits";
 import { z } from "zod";
 import { type Lang, langOf, say, w } from "../setup/words.ts";
 import type { AskCard } from "./tool.ts";
@@ -71,7 +71,6 @@ const WORDS = {
   unsure: w("I don't know", "Weiß ich nicht"),
   answer: w("Your answer", "Deine Antwort"),
   own: w("Or answer in your own words", "Oder antworte in deinen Worten"),
-  date: w("2026-12-31", "31.12.2026"),
 };
 
 /** A form's field ids are its parts' places: `p1`, `p2`. */
@@ -85,9 +84,12 @@ export function formFields(parts: FormPart[], lang: Lang): CardField[] {
   return parts.map((part, at) => {
     const kind = kindOf(part);
     const unsure = say(WORDS.unsure, lang);
-    const base = { id: idOf(at), label: part.label, placeholder: part.hint };
-    // A part the person may not know is never required: a device that cannot say so leaves it empty.
-    const required = !part.optional && !part.unsure;
+    const base = {
+      id: idOf(at),
+      label: part.label,
+      placeholder: part.hint,
+      required: !part.optional,
+    };
     if (kind === "choice" || kind === "choices" || kind === "yes_no") {
       const named =
         kind === "yes_no"
@@ -99,20 +101,14 @@ export function formFields(parts: FormPart[], lang: Lang): CardField[] {
       return {
         ...base,
         type: kind === "choices" ? "multi" : "choice",
-        options: part.unsure ? [...named, { id: "unsure", label: unsure }] : named,
-        required: !part.optional,
+        options: part.unsure ? [...named, { id: UNSURE, label: unsure }] : named,
       };
     }
     return {
       ...base,
-      type: "text",
-      ...(kind === "text" ? {} : { format: kind === "long_text" ? "long" : kind }),
+      type: kind,
       ...(kind === "number" && part.unit ? { unit: part.unit } : {}),
-      placeholder:
-        part.hint ??
-        (kind === "number" ? part.unit : kind === "date" ? say(WORDS.date, lang) : undefined),
       ...(part.unsure ? { unsure } : {}),
-      required,
     };
   });
 }
@@ -133,20 +129,14 @@ export function numberOf(typed: string, unit?: string): number | undefined {
   return /^[+-]?(\d+\.?\d*|\.\d+)$/.test(text) ? Number(text) : undefined;
 }
 
-/** "2026-12-31", "31.12.2026" and "31. 12. 2026" are 2026-12-31; a day that is none is none. */
-export function dateOf(typed: string): string | undefined {
-  const text = typed.trim();
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text);
-  const local = /^(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})$/.exec(text);
-  const [year, month, day] = iso
-    ? [iso[1], iso[2], iso[3]]
-    : local
-      ? [local[3], local[2], local[1]]
-      : [];
-  if (!year || !month || !day) return undefined;
-  const date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  const at = new Date(`${date}T00:00:00Z`);
-  return Number.isNaN(at.getTime()) || at.toISOString().slice(0, 10) !== date ? undefined : date;
+/** Whether it is a day that exists, as "2026-12-31". */
+export function isDate(text: string): boolean {
+  const at = new Date(`${text}T00:00:00Z`);
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(text) &&
+    !Number.isNaN(at.getTime()) &&
+    at.toISOString().slice(0, 10) === text
+  );
 }
 
 /**
@@ -179,36 +169,31 @@ export function readForm(
       if (labels.some((option) => !option) || (field.type === "choice" && list.length > 1))
         return problem("choose one of the options.", "wähle eine der Antworten.");
       const yes = field.options[0]?.id === "yes";
-      values[field.id] = list.includes("unsure")
+      values[field.id] = list.includes(UNSURE)
         ? "unknown"
         : field.type === "multi"
           ? labels.map((option) => option?.label ?? "")
           : yes
             ? first === "yes"
             : (labels[0]?.label ?? "");
-    } else if (field.unsure && (first === "unsure" || first === "?" || first === field.unsure)) {
+    } else if (field.unsure && first === UNSURE) {
       values[field.id] = "unknown";
-    } else if (field.format === "number") {
+    } else if (field.type === "number") {
       const number = numberOf(first, field.unit);
       if (number === undefined) return problem("that is not a number.", "das ist keine Zahl.");
       values[field.id] = number;
-    } else if (field.format === "date") {
-      const date = dateOf(first);
-      if (!date)
+    } else if (field.type === "date") {
+      if (!isDate(first)) return problem("that is not a date.", "das ist kein Datum.");
+      values[field.id] = first;
+    } else if (field.type === "file") {
+      const known = list.map(fileOf).filter((file) => file !== undefined);
+      if (known.length < list.length)
         return problem(
-          "that is not a date, e.g. 2026-12-31.",
-          "das ist kein Datum, z. B. 31.12.2026.",
+          "a file is not on the Bot Server. Add it again.",
+          "eine Datei ist nicht auf dem Bot Server. Füge sie noch einmal hinzu.",
         );
-      values[field.id] = date;
-    } else if (field.format === "file") {
-      const given = list.map(fileOf);
-      // A device that cannot attach a file says in words what it would be.
-      if (given.some((file) => !file)) values[field.id] = list.join(", ");
-      else {
-        const known = given.filter((file) => file !== undefined);
-        files.push(...known);
-        values[field.id] = known.map((file) => ({ file: file.name, id: file.id }));
-      }
+      files.push(...known);
+      values[field.id] = known.map((file) => ({ file: file.name, id: file.id }));
     } else {
       values[field.id] = list.join(", ");
     }
@@ -216,11 +201,9 @@ export function readForm(
   return { values, files };
 }
 
-/** The fields a question's card is answered with as a form; none for one that is answered in words. */
+/** The fields of a question that is a form. */
 export const formOf = (card: Card): CardField[] | undefined =>
-  card.reply && card.fields && !card.fields.some((field) => field.id === REPLY_FIELD)
-    ? card.fields
-    : undefined;
+  card.reply ? card.fields : undefined;
 
 /** The card of a question, as `ask` makes it. */
 export function questionCard(input: AskInput, lang: Lang): AskCard {
@@ -258,14 +241,11 @@ export function questionCard(input: AskInput, lang: Lang): AskCard {
         style: at === 0 ? "primary" : "plain",
       })),
     };
-  // The field and its button are for a device that answers every question on its card.
-  const placeholder = input.hint ?? say(WORDS.answer, lang);
   return {
     ...base,
     kind: "question",
-    reply: { placeholder },
-    fields: [{ id: REPLY_FIELD, label: placeholder, type: "text", required: true }],
-    actions: [{ id: REPLY_ACTION, label: say(WORDS.send, lang), style: "primary" }],
+    reply: { placeholder: input.hint ?? say(WORDS.answer, lang) },
+    actions: [],
   };
 }
 
@@ -293,7 +273,7 @@ export function askTool(context: TurnContext): Tool {
       return { text: [text, read.text].filter(Boolean).join("\n\n"), pictures: read.pictures };
     };
     if (action === REPLY_ACTION) {
-      const said = typeof values[REPLY_FIELD] === "string" ? values[REPLY_FIELD].trim() : "";
+      const said = answer.message?.trim();
       const what = input.form?.length
         ? "The person wrote instead of filling in the form"
         : input.choices?.length

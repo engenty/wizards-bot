@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { hostname, networkInterfaces, userInfo } from "node:os";
 import type { Admin, Card, HomeInfo, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
-import { REPLY_ACTION, REPLY_FIELD } from "@wizards-bot/protocol/limits";
+import { REPLY_ACTION } from "@wizards-bot/protocol/limits";
 import { Handed } from "./agent/handed.ts";
 import { McpTurns } from "./agent/mcp.ts";
 import type { Tool } from "./agent/tool.ts";
@@ -251,7 +251,15 @@ export class Home {
    */
   async answer(
     cardId: string,
-    input: { action: string; values?: CardValues; by: string; admin?: Admin; said?: Trigger },
+    input: {
+      action: string;
+      values?: CardValues;
+      /** The message that answered a question, and what it would have started. */
+      message?: string;
+      said?: Trigger;
+      by: string;
+      admin?: Admin;
+    },
   ): Promise<Card | undefined> {
     const before = this.store.card(cardId);
     if (!before) return undefined;
@@ -265,6 +273,7 @@ export class Home {
     const card = this.store.answerCard(cardId, {
       action: input.action,
       values: Object.keys(shown).length ? shown : undefined,
+      message: input.message,
       by: input.by,
       ...(input.admin ? { admin: input.admin } : {}),
     });
@@ -318,10 +327,9 @@ export class Home {
       void this.turns.enqueue(trigger);
       return;
     }
-    const text = words.trim();
     void this.answer(question.id, {
       action: REPLY_ACTION,
-      values: text ? { [REPLY_FIELD]: text } : {},
+      message: words.trim(),
       by,
       admin,
       said: trigger,

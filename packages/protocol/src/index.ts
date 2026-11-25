@@ -133,22 +133,29 @@ export const CardField = z.object({
   /**
    * `folder`: a folder of the home's computer the person picks, never types first; its value
    * is the folder's path.
+   * `number`: as the person types it, with a point or a comma. `date`: "2026-12-31". `file`: the
+   * ids of files uploaded before.
    */
-  type: z.enum(["text", "secret", "choice", "multi", "folder"]),
+  type: z.enum([
+    "text",
+    "long_text",
+    "number",
+    "date",
+    "file",
+    "secret",
+    "choice",
+    "multi",
+    "folder",
+  ]),
   options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
   /**
    * A text field's hint. On a `folder` field that starts with a folder not made yet, the line
    * that says the home makes it; it is shown while that folder is the one chosen.
    */
   placeholder: z.string().optional(),
-  /**
-   * What a `text` field takes, as a form asks for it: several lines, a number (with its `unit`
-   * beside it), a date, files. The home reads a number and a date from what is typed as well, so
-   * a device that does not know the format shows a text field.
-   */
-  format: z.enum(["long", "number", "date", "file"]).optional(),
+  /** The unit of a number, shown beside the field. */
   unit: z.string().optional(),
-  /** The person may say they don't know, in these words. Its value is "unsure". */
+  /** The person may say they don't know, in these words. The field's value is then "unsure". */
   unsure: z.string().optional(),
   required: z.boolean().optional(),
   /** What the field starts with. The person may change it; it is sent like a typed value. */
@@ -181,8 +188,8 @@ export const VIEW_ANSWER = "view";
 export const CardAnswer = z.object({
   action: z.string(),
   /**
-   * A view's answer: what the person says with it, a button's message or a form's send button
-   * ("Plan Wednesday", "Send").
+   * What the person says with it: the message that answered a question (`action` is "reply"), or
+   * of a view a button's message or a form's send button ("Plan Wednesday", "Send").
    */
   message: z.string().optional(),
   /** A view's answer: the form's values by field name, as the person left them. */
@@ -212,8 +219,8 @@ export const Card = z.object({
   actions: z.array(CardAction),
   /**
    * A question of the agent: it is the agent's own message, and what the person writes in the
-   * chat answers it. `placeholder`: what the empty input says meanwhile. A device that does not
-   * know this shows a card with the same fields and actions.
+   * chat answers it. `placeholder`: what the empty input says meanwhile. Without fields and
+   * actions it waits for that message alone.
    */
   reply: z.object({ placeholder: z.string() }).optional(),
   url: z.string().optional(),

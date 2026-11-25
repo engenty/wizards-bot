@@ -17,8 +17,7 @@ const card = (id: string, over: Partial<Card> = {}): Card => ({
   state: "open",
   title: "Wie hoch?",
   reply: { placeholder: "Höhe" },
-  fields: [{ id: "answer", label: "Höhe", type: "text", required: true }],
-  actions: [{ id: "reply", label: "Senden", style: "primary" }],
+  actions: [],
   agentId: "agt_1",
   conversationId: "cnv_1",
   messageId: `msg_${id}`,
@@ -27,13 +26,13 @@ const card = (id: string, over: Partial<Card> = {}): Card => ({
 });
 
 const FORM: CardField[] = [
-  { id: "p1", label: "Höhe", type: "text", format: "number", unit: "m", required: true },
+  { id: "p1", label: "Höhe", type: "number", unit: "m", required: true },
   {
     id: "p2",
     label: "Abstand",
-    type: "text",
-    format: "number",
+    type: "number",
     unit: "m",
+    required: true,
     unsure: "Weiß ich nicht",
   },
   {
@@ -45,8 +44,8 @@ const FORM: CardField[] = [
       { id: "o2", label: "Stein" },
     ],
   },
-  { id: "p4", label: "Beginn", type: "text", format: "date" },
-  { id: "p5", label: "Plan", type: "text", format: "file" },
+  { id: "p4", label: "Beginn", type: "date" },
+  { id: "p5", label: "Plan", type: "file" },
 ];
 
 const idle = { working: false };
@@ -56,7 +55,7 @@ const b = card("b");
 describe("what kind of question", () => {
   it("is free, a form, or a choice", () => {
     const form = card("f", { fields: FORM });
-    const choice = card("c", { fields: undefined });
+    const choice = card("c", { actions: [{ id: "choice_0", label: "Ja", style: "primary" }] });
     expect([isFree(a), isFree(form), isFree(choice)]).toEqual([true, false, false]);
     expect([formOf(a), formOf(form), formOf(choice)]).toEqual([undefined, FORM, undefined]);
     expect(formOf(card("x", { reply: undefined, fields: FORM }))).toBeUndefined();

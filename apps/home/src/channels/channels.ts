@@ -102,8 +102,6 @@ export function cardsAsText(cards: Card[], lang: Lang = "en"): string {
             lang,
           ),
         );
-      } else if (card.reply && card.fields?.length) {
-        // One free answer: the question says it all.
       } else if (card.fields?.length)
         lines.push(
           say(

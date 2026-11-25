@@ -1,11 +1,11 @@
 import { NumberInput } from "@engenty/chatviews/react/field-looks";
 import { Label, Segmented, Select, Textarea } from "@engenty/chatviews/react/ui";
 import type { CardField } from "@wizards-bot/protocol";
+import { UNSURE } from "@wizards-bot/protocol/limits";
 import { Paperclip } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { ShownFile } from "../lib/files";
 import { t } from "../lib/i18n";
-import { UNSURE } from "../lib/questions";
 import { useAttachments } from "../lib/uploads";
 import { Button, cn, Input } from "../ui";
 import { FilePreview, FileTile } from "../ui/FilePreview";
@@ -125,8 +125,8 @@ function Control({
       />
     );
   }
-  switch (field.format) {
-    case "long":
+  switch (field.type) {
+    case "long_text":
       return (
         <Textarea
           id={id}
@@ -141,8 +141,7 @@ function Control({
           <NumberInput
             value={typed}
             unit={field.unit}
-            // The unit stands beside the field.
-            placeholder={field.placeholder === field.unit ? undefined : field.placeholder}
+            placeholder={field.placeholder}
             onChange={(next) => onChange(String(next ?? ""))}
           />
         </div>
@@ -153,12 +152,12 @@ function Control({
       return (
         <Input
           id={id}
-          type={field.format === "date" ? "date" : "text"}
+          type={field.type === "date" ? "date" : "text"}
           autoComplete="off"
           placeholder={field.placeholder}
           value={typed}
           onChange={(e) => onChange(e.target.value)}
-          className={cn(field.format === "date" && "max-w-52")}
+          className={cn(field.type === "date" && "max-w-52")}
         />
       );
   }
@@ -177,12 +176,12 @@ function Part({
   onChange: (value: string | string[]) => void;
 }) {
   const id = useId();
-  const label = <Label required={field.required || Boolean(field.unsure)}>{field.label}</Label>;
+  const label = <Label required={field.required}>{field.label}</Label>;
   const control = <Control id={id} field={field} value={value} onChange={onChange} />;
   const unsure = field.unsure;
   return (
     <div>
-      {field.options || field.format === "file" ? (
+      {field.options || field.type === "file" ? (
         <fieldset>
           <legend className="contents">{label}</legend>
           {control}

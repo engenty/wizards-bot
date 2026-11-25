@@ -4,7 +4,7 @@ import type { Card, Message } from "@wizards-bot/protocol";
 import { z } from "zod";
 import { cardsAsText } from "../channels/channels.ts";
 import { type TestHome, testHome } from "../test/fakes.ts";
-import { dateOf, formFields, numberOf, questionCard, readForm } from "./ask.ts";
+import { formFields, isDate, numberOf, questionCard, readForm } from "./ask.ts";
 
 const asking = (args: Record<string, unknown>) => ({ calls: [{ name: "ask", arguments: args }] });
 
@@ -49,14 +49,13 @@ describe("a question of an agent", () => {
       await t.say("Darf ich eine Sauna bauen?");
       const card = t.item();
       assert.deepEqual(card.reply, { placeholder: "Höhe" });
-      assert.equal(card.actions[0]?.label, "Senden");
       assert.equal(t.home.store.mainAgent().state, "needs_you");
 
       t.model.script.push({ text: "Dann ja." });
       await write({ text: "2,4 m", answers: card.id });
       assert.equal(newest()?.role, "tool");
       assert.match(told(), /^The person answered "Wie hoch\?": 2,4 m\n/);
-      assert.equal(t.home.store.card(card.id)?.answer?.values?.answer, "2,4 m");
+      assert.equal(t.home.store.card(card.id)?.answer?.message, "2,4 m");
       assert.equal(t.home.store.items().length, 0);
       // The question stands once, and nothing of it again in the answer.
       assert.deepEqual(said(), [
@@ -81,24 +80,24 @@ describe("a question of an agent", () => {
       assert.deepEqual(said().at(-1), ["agent", ["Dann ja."]]);
     });
 
-    it("is answered by a device that knows nothing of it: by message, or on its card", async () => {
+    it("is answered by a message that names no question, and by no card", async () => {
       t.model.script.push(asking({ title: "Wie hoch?" }));
       await t.say("Darf ich?");
-      t.model.script.push(asking({ title: "Und wo?" }));
+      const card = t.item();
+      assert.deepEqual([card.fields, card.actions], [undefined, []]);
+      const pressed = await t.request(`/v1/cards/${card.id}/answer`, { body: { action: "reply" } });
+      assert.equal(pressed.status, 400);
+      t.model.script.push({ text: "Dann ja." });
       await write({ text: "2,4 m" });
       assert.match(told(), /"Wie hoch\?": 2,4 m/);
+    });
 
-      const card = t.item();
-      assert.deepEqual(card.fields?.[0]?.type, "text");
-      const empty = await t.request(`/v1/cards/${card.id}/answer`, { body: { action: "reply" } });
-      assert.equal(empty.status, 400);
-      t.model.script.push({ text: "Dann ja." });
-      await t.answer(card.id, "reply", { answer: "Hinten" });
-      assert.match(told(), /"Und wo\?": Hinten/);
-      assert.deepEqual(said().slice(-2), [
-        ["you", ["Hinten"]],
-        ["agent", ["Dann ja."]],
-      ]);
+    it("the agent is reminded of it in a turn about something else", async () => {
+      t.model.script.push(asking({ title: "Wie hoch?" }));
+      await t.say("Darf ich?");
+      t.model.script.push({ text: "Es ist zwölf." });
+      await write({ text: "Wie spät ist es?", answers: null });
+      assert.match(t.model.requests.at(-1)?.context ?? "", /still wait.*"Wie hoch\?"/);
     });
 
     it("stays open for a message about something else", async () => {
@@ -187,7 +186,7 @@ describe("a question of an agent", () => {
       const card = t.item();
       assert.deepEqual(
         card.fields?.map((field) => field.type),
-        ["text", "text", "choice", "choice", "text", "multi"],
+        ["number", "number", "choice", "choice", "date", "multi"],
       );
       const wrong = await t.request(`/v1/cards/${card.id}/answer`, {
         body: { action: "send", values: { p1: "hoch" } },
@@ -231,7 +230,7 @@ describe("a question of an agent", () => {
       t.model.script.push(asking({ title: "Wo?", form: [{ label: "Standort" }] }));
       await t.say("Darf ich?");
       assert.deepEqual(t.item().reply, { placeholder: "Standort" });
-      assert.equal(t.item().actions[0]?.id, "reply");
+      assert.equal(t.item().fields, undefined);
     });
   });
 
@@ -300,10 +299,10 @@ describe("a form's values", () => {
     assert.equal(numberOf(""), undefined);
   });
   it("days that exist", () => {
-    assert.equal(dateOf("2026-12-31"), "2026-12-31");
-    assert.equal(dateOf("1. 3. 2026"), "2026-03-01");
-    assert.equal(dateOf("31.02.2026"), undefined);
-    assert.equal(dateOf("morgen"), undefined);
+    assert.equal(isDate("2026-12-31"), true);
+    assert.equal(isDate("2026-02-31"), false);
+    assert.equal(isDate("31.12.2026"), false);
+    assert.equal(isDate("morgen"), false);
   });
   it("names the part that is wrong, in the person's language", () => {
     const fields = formFields([{ label: "Höhe", kind: "number" }], "de");
@@ -317,7 +316,7 @@ describe("a form's values", () => {
       { problem: "Art: choose one of the options." },
     );
   });
-  it("files it knows, and words of a device that gives none", () => {
+  it("only files it knows", () => {
     const fields = formFields([{ label: "Plan", kind: "file" }], "de");
     const file = { id: "fil_1", name: "plan.pdf", mime: "application/pdf", size: 1 };
     const of = (id: string) => (id === file.id ? file : undefined);
@@ -325,10 +324,17 @@ describe("a form's values", () => {
       values: { p1: [{ file: "plan.pdf", id: "fil_1" }] },
       files: [file],
     });
-    assert.deepEqual(readForm(fields, { p1: "im Büro" }, of, "de"), {
-      values: { p1: "im Büro" },
+    assert.match(JSON.stringify(readForm(fields, { p1: ["fil_2"] }, of, "de")), /noch einmal/);
+  });
+  it("what the person does not know, where they may say so", () => {
+    const part = { label: "Höhe", kind: "number" as const };
+    const read = (fields: ReturnType<typeof formFields>) =>
+      readForm(fields, { p1: "unsure" }, () => undefined, "de");
+    assert.deepEqual(read(formFields([{ ...part, unsure: true }], "de")), {
+      values: { p1: "unknown" },
       files: [],
     });
+    assert.ok("problem" in read(formFields([part], "de")));
   });
 });
 
