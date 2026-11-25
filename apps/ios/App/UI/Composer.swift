@@ -28,6 +28,7 @@ struct Composer: View {
                     .padding(.horizontal, 12)
                     .onTapGesture { voice.problem = nil }
             }
+            answering
             attached
             HStack(alignment: .bottom, spacing: 8) {
                 if model.isPaired, voice.mode == .off {
@@ -35,7 +36,7 @@ struct Composer: View {
                 }
                 Group {
                     if voice.mode == .off {
-                        TextField("Message", text: $text, axis: .vertical)
+                        TextField(model.targetQuestion?.reply?.placeholder ?? String(localized: "Message"), text: $text, axis: .vertical)
                             .lineLimit(1 ... 6)
                             .focused($focused)
                     } else {
@@ -82,6 +83,7 @@ struct Composer: View {
         .padding(.bottom, 8)
         .frame(maxWidth: 720)
         .frame(maxWidth: .infinity)
+        .onChange(of: model.focusComposer) { focused = voice.mode == .off }
         .animation(.snappy, value: voice.mode)
         .animation(.snappy, value: showsStop)
         .animation(.snappy, value: model.attachments.list.map(\.id))
@@ -145,6 +147,32 @@ struct Composer: View {
         guard canSend else { return }
         model.send(text, files: model.attachments.take(), later: later && showsStop)
         text = ""
+    }
+
+    /// The question the message answers, where the chat alone does not say which.
+    @ViewBuilder
+    private var answering: some View {
+        if model.namesQuestion, let question = model.targetQuestion {
+            HStack(spacing: 8) {
+                Text("You are answering: \(question.title)")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Button {
+                    model.pick(nil)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.footnote.weight(.semibold))
+                        .frame(width: 36, height: 36)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("Write about something else")
+            }
+            .padding(.leading, 12)
+        }
     }
 
     // MARK: Files

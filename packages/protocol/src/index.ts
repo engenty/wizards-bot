@@ -133,14 +133,30 @@ export const CardField = z.object({
   /**
    * `folder`: a folder of the home's computer the person picks, never types first; its value
    * is the folder's path.
+   * `number`: as the person types it, with a point or a comma. `date`: "2026-12-31". `file`: the
+   * ids of files uploaded before.
    */
-  type: z.enum(["text", "secret", "choice", "multi", "folder"]),
+  type: z.enum([
+    "text",
+    "long_text",
+    "number",
+    "date",
+    "file",
+    "secret",
+    "choice",
+    "multi",
+    "folder",
+  ]),
   options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
   /**
    * A text field's hint. On a `folder` field that starts with a folder not made yet, the line
    * that says the home makes it; it is shown while that folder is the one chosen.
    */
   placeholder: z.string().optional(),
+  /** The unit of a number, shown beside the field. */
+  unit: z.string().optional(),
+  /** The person may say they don't know, in these words. The field's value is then "unsure". */
+  unsure: z.string().optional(),
   required: z.boolean().optional(),
   /** What the field starts with. The person may change it; it is sent like a typed value. */
   value: z.union([z.string(), z.array(z.string())]).optional(),
@@ -172,8 +188,8 @@ export const VIEW_ANSWER = "view";
 export const CardAnswer = z.object({
   action: z.string(),
   /**
-   * A view's answer: what the person says with it, a button's message or a form's send button
-   * ("Plan Wednesday", "Send").
+   * What the person says with it: the message that answered a question (`action` is "reply"), or
+   * of a view a button's message or a form's send button ("Plan Wednesday", "Send").
    */
   message: z.string().optional(),
   /** A view's answer: the form's values by field name, as the person left them. */
@@ -201,6 +217,12 @@ export const Card = z.object({
   /** A view drawn in the card, in place of fields; its own buttons answer it. */
   view: ViewProgram.optional(),
   actions: z.array(CardAction),
+  /**
+   * A question of the agent: it is the agent's own message, and what the person writes in the
+   * chat answers it. `placeholder`: what the empty input says meanwhile. Without fields and
+   * actions it waits for that message alone.
+   */
+  reply: z.object({ placeholder: z.string() }).optional(),
   url: z.string().optional(),
   /** Text to draw as a QR code. */
   qr: z.string().optional(),
@@ -327,6 +349,11 @@ export const SendMessage = z.object({
    * in the middle of it. Without a reply being written it is read at once.
    */
   later: z.boolean().optional(),
+  /**
+   * The question (a card with `reply`) this message answers. Null: none, it is about something
+   * else. Left out: the newest question that waits in the conversation, if there is one.
+   */
+  answers: z.string().nullable().optional(),
 });
 export type SendMessage = z.infer<typeof SendMessage>;
 

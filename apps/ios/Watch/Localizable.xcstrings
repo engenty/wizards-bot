@@ -110,6 +110,26 @@
           }
         }
       }
+    },
+    "Answer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antworten"
+          }
+        }
+      }
+    },
+    "Fill in the form on your phone, or answer here" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Füll das Formular am Telefon aus, oder antworte hier"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

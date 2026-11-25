@@ -219,7 +219,7 @@ describe("a group home", () => {
     assert.equal(late.status, 409);
     await t.home.idle();
     const told = JSON.stringify(t.model.requests.at(-1)?.messages ?? []);
-    assert.match(told, /Ben answered the card/);
+    assert.match(told, /Ben answered\./);
   });
 
   test("a pairing code an admin asks for pairs the device as theirs", async () => {

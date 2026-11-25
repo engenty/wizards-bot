@@ -92,7 +92,7 @@ describe("a home", () => {
     });
     const reply = await t.say("Plan my trip");
     const card = reply.parts.find((part) => part.type === "card")?.card;
-    assert.equal(card?.kind, "approval");
+    assert.equal(card?.kind, "question");
     assert.equal(card?.state, "open");
     const items = (await (await t.request("/v1/items")).json()) as { items: { id: string }[] };
     assert.deepEqual(

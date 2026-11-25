@@ -279,6 +279,7 @@ struct ChatView: View {
                 ForEach(messages) { message in
                     MessageView(message: message)
                         .id(message.id)
+                        .environment(\.answersInChat, true)
                 }
             }
             // Each message is a place the chat can be at, so it knows where the person is reading.
