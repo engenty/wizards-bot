@@ -4,6 +4,10 @@ All notable changes to wizards.bot. Generated from [Conventional Commits](https:
 by [git-cliff](https://git-cliff.org) via `pnpm release`. Pre-`1.0`: a **minor**
 bump is a notable or breaking change, **patch** is fixes and small features.
 
+## [0.1.6] - 2026-11-25
+
+- ADDED **[home]** Every person of the team on its home (#78)
+
 ## [0.1.5] - 2026-11-25
 
 - ADDED **[web]** Base color in every theme, agents in bubbles, and how much of their tools is shown (#75)
