@@ -167,6 +167,11 @@ a reply being written, `later` changes nothing.
 `POST /v1/conversations/:id/stop` stops the reply that is being written, and what waits for after
 it. The messages stay with the agent, which reads them with the next one; `queued` is cleared.
 
+`POST /v1/conversations/:id/warm` says that the person has the conversation open. A model on the
+home's computer that answers it (Apple MLX) is loaded and reads what the next turn starts with, so
+the answer begins sooner; it leaves the memory 10 minutes after it was last used. Any other model
+is not asked anything.
+
 `POST /v1/conversations/:id/import` with `ImportMessages` → `{ "messages": Message[] }`. A phone
 sends what it wrote with its own model while the home was out of reach. The `model` of such a
 message is `apple:on-device`.
@@ -216,6 +221,10 @@ Rules for a device that draws messages:
 - Draw parts in order. Text is Markdown.
 - While a message is `streaming`, the home announces every new part with `message.updated` (a new
   text or reasoning part arrives empty) and then sends its text as `message.delta`.
+- `message.waiting` (`{ "conversationId", "messageId", "state", "share"? }`) says what a message
+  that is being written waits for: a model on the home's computer is `loading`, is `reading` the
+  conversation (`share`, 0 to 1) or is `thinking`. Show it as one line until `none` or the next
+  text arrives.
 - A `reasoning` part (`{ "type": "reasoning", "text" }`) is what the model thought before it
   answered, as far as it shows it, in Markdown. Draw it quiet, open while the message streams and
   folded away once it is done. It is not the answer: a voice, a notification and a channel read
@@ -1587,8 +1596,8 @@ model is pulled.
 `GET /v1/events` is a server-sent event stream. Each event is one line of JSON in `data:` with
 the `Event` shape, and an `id:`. A device reconnects with `Last-Event-ID`; the home replays what
 the device missed or sends `{ "type": "reset" }`, after which the device loads agents, items and
-its open conversation again. `message.delta` events have no id and are never replayed: after a
-reconnect the device loads the message. The home sends a comment line every 20 seconds.
+its open conversation again. `message.delta` and `message.waiting` events have no id and are never
+replayed: after a reconnect the device loads the message. The home sends a comment line every 20 seconds.
 
 ```
 id: 412

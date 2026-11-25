@@ -7,6 +7,7 @@ import {
 import type { Admin, Card, Channel, FileRef, Message } from "@wizards-bot/protocol";
 import type { Home } from "../home.ts";
 import { newToken } from "../ids.ts";
+import { LAST_MESSAGES } from "../mastra.ts";
 import { ASKED_OPTION } from "../models/client-model.ts";
 import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
 import type { AgentRecord } from "../store/store.ts";
@@ -182,8 +183,17 @@ class Turn {
   private readonly home: Home;
   private readonly agent: AgentRecord;
   private readonly engines: Engine[];
+  /** The turn says nothing: its model only reads what the conversation starts with. */
+  private readonly ahead: boolean;
 
-  constructor(home: Home, agent: AgentRecord, trigger: Trigger, engines: Engine[]) {
+  constructor(
+    home: Home,
+    agent: AgentRecord,
+    trigger: Trigger,
+    engines: Engine[],
+    { ahead = false } = {},
+  ) {
+    this.ahead = ahead;
     this.home = home;
     this.agent = agent;
     this.engines = engines;
@@ -201,17 +211,20 @@ class Turn {
   get parts(): { draft: Draft; context: TurnContext; tools: Tool[]; asking: Asking } {
     if (this.started) return this.started;
     const { home, agent, trigger } = this;
+    const message = {
+      conversationId: trigger.conversationId,
+      // A quiet task's run disturbs no one while it works. It becomes an answer when it has one.
+      role: trigger.task?.quiet ? ("note" as const) : ("agent" as const),
+      agentId: agent.id,
+      channel: trigger.channel,
+      parts: [],
+      state: "streaming" as const,
+    };
     const draft = new Draft(
       home.store,
-      home.store.addMessage({
-        conversationId: trigger.conversationId,
-        // A quiet task's run disturbs no one while it works. It becomes an answer when it has one.
-        role: trigger.task?.quiet ? "note" : "agent",
-        agentId: agent.id,
-        channel: trigger.channel,
-        parts: [],
-        state: "streaming",
-      }),
+      this.ahead
+        ? { ...message, id: "", createdAt: new Date().toISOString() }
+        : home.store.addMessage(message),
     );
     const context: TurnContext = {
       home,
@@ -256,7 +269,7 @@ class Turn {
       },
     };
     // A subscription's client reaches these tools over MCP with the turn's token.
-    home.mcp.open(this.mcpToken, { tools, draft, asking });
+    if (!this.ahead) home.mcp.open(this.mcpToken, { tools, draft, asking });
     this.started = { draft, context, tools, asking };
     return this.started;
   }
@@ -347,7 +360,15 @@ class Turn {
   /** The engines in the order Mastra tries them: when one fails, it asks the next. */
   models(): unknown {
     const models = this.engines.map((engine) => ({
-      model: engine.model({ mcpToken: this.mcpToken, conversationId: this.trigger.conversationId }),
+      model: engine.model({
+        mcpToken: this.mcpToken,
+        conversationId: this.trigger.conversationId,
+        onWaiting: (waiting) =>
+          this.parts.draft.waiting(
+            waiting?.state ?? "none",
+            waiting?.total ? (waiting.done ?? 0) / waiting.total : undefined,
+          ),
+      }),
       maxRetries: 0,
     }));
     return models.length === 1 ? models[0]?.model : models;
@@ -422,6 +443,8 @@ export class Turns {
   /** The running turn of each conversation. */
   private readonly runs = new Map<string, Turn>();
   private readonly pending = new Set<Promise<void>>();
+  /** Conversations a model reads ahead right now. */
+  private readonly reading = new Set<string>();
   /** Conversations whose agent was given the next turn of longer work that has not begun yet. */
   private readonly between = new Set<string>();
   /** Conversations the person stopped between two turns of longer work. */
@@ -544,6 +567,55 @@ export class Turns {
       // Asked before every step: a skill loaded in one step brings its tools to the next.
       prepareStep: () => ({ activeTools: turn.shownTools() }),
     };
+  }
+
+  /**
+   * The person has a conversation open: a model of this computer that answers it is loaded and
+   * reads what the next turn starts with, so its answer begins at once. A turn that comes
+   * meanwhile goes first and goes on from what was read.
+   */
+  async readAhead(conversationId: string): Promise<void> {
+    const { store, models, mastra } = this.home;
+    const conversation = store.conversation(conversationId);
+    const agent = conversation && store.agent(conversation.agentId);
+    if (
+      agent?.origin !== "own" ||
+      this.runs.has(conversationId) ||
+      this.reading.has(conversationId)
+    )
+      return;
+    this.reading.add(conversationId);
+    try {
+      await models.refresh();
+      const engine = models.candidates().map((ref) => models.engine(ref))[0];
+      const model = engine?.ahead?.();
+      if (!(engine && model)) return;
+      const trigger: Trigger = { conversationId, text: "", channel: "home" };
+      const turn = new Turn(this.home, agent, trigger, [engine], { ahead: true });
+      const { tools, draft, asking } = turn.parts;
+      const { messages } = await mastra.memory
+        .recall({
+          threadId: conversationId,
+          resourceId: agent.id,
+          perPage: LAST_MESSAGES,
+          orderBy: { field: "createdAt", direction: "DESC" },
+        })
+        .catch(() => ({ messages: [] }));
+      const reader = new Agent({
+        id: `${agent.id}-ahead`,
+        name: agent.name,
+        instructions: markedInstructions(turn.instructions()),
+        model: model as never,
+        tools: mastraTools(tools, draft, asking, () => undefined) as never,
+      });
+      // The last message stands for what the person writes next. It is not read.
+      await reader.generate([...messages, { role: "user", content: "." }] as never, {
+        maxSteps: 1,
+        activeTools: turn.shownTools() as never,
+      });
+    } finally {
+      this.reading.delete(conversationId);
+    }
   }
 
   /** Calls `listener` with every turn that ended and is not followed by another turn of the same work. */

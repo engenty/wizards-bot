@@ -483,10 +483,12 @@ export class Store {
    * someone else has with an agent is told to no device.
    */
   emit(
-    event: Extract<Event, { type: "message.created" | "message.updated" | "message.delta" }>,
+    event: Extract<
+      Event,
+      { type: "message.created" | "message.updated" | "message.delta" | "message.waiting" }
+    >,
   ): void {
-    const conversationId =
-      event.type === "message.delta" ? event.conversationId : event.message.conversationId;
+    const conversationId = "message" in event ? event.message.conversationId : event.conversationId;
     if (!this.isGuest(conversationId)) this.events.emit(event);
   }
 
