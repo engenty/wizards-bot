@@ -980,7 +980,7 @@ export const de: Record<Key, Line> = {
   "step.done.folder_look": { one: "{n} Ordner angesehen", other: "{n} Ordner angesehen" },
   "step.did.folder_look": "angesehen",
   "step.now.look": "Sieht nach: {name}",
-  "step.done.look": { one: "{n}-mal nachgesehen", other: "{n}-mal nachgesehen" },
+  "step.done.look": { one: "{n}× nachgesehen", other: "{n}× nachgesehen" },
   "step.did.look": "angesehen",
   "step.now.skill": "Liest den Skill {name}",
   "step.done.skill": { one: "{n} Skill gelesen", other: "{n} Skills gelesen" },

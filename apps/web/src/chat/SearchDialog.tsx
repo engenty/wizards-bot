@@ -201,7 +201,7 @@ function Palette({
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {askRow ? (
           <RowButton row={askRow} on={at === 0} onHover={() => setAt(0)}>
-            <kbd className="shrink-0 font-mono text-[0.6875rem] text-ink-4 max-sm:hidden">
+            <kbd className="shrink-0 font-mono text-[0.6875rem] text-ink-4 max-sm:hidden coarse:hidden">
               {MAC ? "⌘↵" : "Ctrl ↵"}
             </kbd>
           </RowButton>

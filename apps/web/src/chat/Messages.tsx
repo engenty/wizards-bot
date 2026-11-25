@@ -104,7 +104,10 @@ function Parts({
           return null;
         }
         return mine ? (
-          <div key={key} className="rounded-xl rounded-br-md bg-paper-2 px-4 py-2.5">
+          <div
+            key={key}
+            className="rounded-xl rounded-br-md bg-paper-2 px-4 py-2.5 max-sm:px-3 max-sm:py-2"
+          >
             <Markdown text={part.text} className="text-[0.9375rem]" />
           </div>
         ) : (
@@ -138,7 +141,7 @@ function Parts({
             key={key}
             type="button"
             onClick={() => onDocument(part.documentId)}
-            className="flex w-full max-w-sm items-center gap-2.5 rounded-xl bg-card px-3.5 py-3 text-left text-[0.9375rem] shadow-soft ring-1 ring-border-soft transition hover:ring-ink-4"
+            className="flex w-full max-w-sm items-center gap-2.5 rounded-xl bg-card px-3.5 py-3 max-sm:px-3 max-sm:py-2.5 text-left text-[0.9375rem] shadow-soft ring-1 ring-border-soft transition hover:ring-ink-4"
           >
             <FileText className="size-4 shrink-0 text-ink-3" />
             <span className="min-w-0 flex-1 truncate font-medium">{part.title}</span>

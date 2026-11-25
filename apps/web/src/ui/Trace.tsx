@@ -71,7 +71,7 @@ export function TraceCollapsible({
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen(!open)}
-        className="group flex w-fit min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-md text-left text-ink-3 outline-none transition-colors hover:text-ink focus-visible:bg-accent coarse:min-h-11"
+        className="group relative flex w-fit min-w-0 max-w-full cursor-pointer items-center gap-1 rounded-md text-left text-ink-3 outline-none transition-colors hover:text-ink focus-visible:bg-accent coarse:after:absolute coarse:after:inset-x-0 coarse:after:-inset-y-1.5"
       >
         {line}
         <TraceIcon className="text-ink-4 group-aria-expanded:rotate-90 motion-safe:transition-transform">

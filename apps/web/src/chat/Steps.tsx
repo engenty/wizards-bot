@@ -121,7 +121,7 @@ function StepRow({ row, running }: { row: Row; running: boolean }) {
   return (
     <TraceLine
       status={turning ? "running" : failed ? "error" : undefined}
-      className="max-w-full coarse:min-h-9"
+      className="max-w-full coarse:min-h-8"
     >
       {turning ? (
         <Spinner className="size-3.5 shrink-0" />
