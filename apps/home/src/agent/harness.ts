@@ -293,6 +293,11 @@ export function metaTools(harness: ToolHarness<Held>): Tool[] {
   ];
 }
 
+/** How long a search waits for vectors where the answer itself takes seconds. */
+const LOCAL_WAIT_MS = 8000;
+
+const onThisComputer = (sourceId: string) => ["ollama", "lmstudio", "mlx"].includes(sourceId);
+
 /** Vectors of the tools' texts, in the home's database. */
 function vectorStore(home: Home): VectorStore {
   const key = (text: string) => createHash("sha256").update(text).digest("base64url");
@@ -344,6 +349,8 @@ export class ToolSearch {
       store: vectorStore(this.home),
       embedder: () => this.embedder(sourceId),
       judge: toolJudge(() => this.decision(sourceId)),
+      // A model on this computer takes longer than that for its own first word.
+      ...(onThisComputer(sourceId) ? { waitMs: LOCAL_WAIT_MS } : {}),
     });
     this.searches.set(sourceId, made);
     return made;
