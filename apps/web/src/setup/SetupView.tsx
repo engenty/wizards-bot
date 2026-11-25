@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import type { Card, Setup, SetupAddress, SetupCheck } from "@wizards-bot/protocol";
+import type { Card, Setup, SetupCheck } from "@wizards-bot/protocol";
 import { KeyRound } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { CardView } from "../chat/CardView";
@@ -8,12 +8,12 @@ import { api } from "../lib/api";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { useItems } from "../lib/queries";
-import { Button, cn, Select, Spinner } from "../ui";
-import { QrCode } from "../ui/Qr";
+import { Button, cn, Select } from "../ui";
 import { CheckList, Command, useTest } from "./Checks";
 import { FoldersStep } from "./Folders";
 import { Frame } from "./Frame";
 import { ModelStep } from "./ModelStep";
+import { ReachStep } from "./Reach";
 import { canGoOn, type Step, stepsOf, testing, testOnOpen } from "./steps";
 
 const GATEWAYS = [
@@ -114,134 +114,6 @@ function GatewayKey({ onProblem }: { onProblem: (text: string) => void }) {
   );
 }
 
-/** The phone's code, made when the step opens: a QR for the wizards.bot app, and the code to type. */
-function AddPhone({ onProblem }: { onProblem: (text: string) => void }) {
-  const [pairing, setPairing] = useState<{ address: string; code: string; link: string } | null>(
-    null,
-  );
-  const asked = useRef(false);
-  useEffect(() => {
-    if (asked.current) return;
-    asked.current = true;
-    api
-      .post<{ address: string; code: string; link: string }>("/v1/setup/pairing", {})
-      .then(setPairing, (err: Error) => onProblem(err.message));
-  }, [onProblem]);
-  return (
-    <div className="flex flex-wrap items-center gap-5 py-3.5">
-      {pairing ? (
-        <QrCode text={pairing.link} label={t("setup.phone.qr")} />
-      ) : (
-        <span className="grid size-32 place-items-center rounded-lg bg-paper-2">
-          <Spinner className="size-5 text-ink-3" />
-        </span>
-      )}
-      <ol className="min-w-0 flex-1 space-y-1.5 text-[0.875rem] leading-snug">
-        <li>
-          <span className="text-ink-3">1</span> {t("setup.phone.get")}
-        </li>
-        <li>
-          <span className="text-ink-3">2</span> {t("setup.phone.scan")}
-        </li>
-        {pairing ? (
-          <li className="pt-1 text-[0.8125rem] text-ink-3">
-            {t("setup.phone.type")}{" "}
-            <span className="font-mono text-ink-2 tracking-wider">{pairing.code}</span>
-            <span className="block break-all font-mono text-[0.75rem]">{pairing.address}</span>
-          </li>
-        ) : null}
-      </ol>
-    </div>
-  );
-}
-
-/** What the address says while it is switched on: how far it is, or why it is not on. */
-function addressState(address: SetupAddress): { text: string; problem: boolean } | null {
-  if (!address.on) return null;
-  if (address.state === "on") return { text: t("setup.away.on"), problem: false };
-  if (address.state === "starting") {
-    return {
-      text: address.reason
-        ? t("setup.away.again", { why: address.reason })
-        : t("setup.away.starting"),
-      problem: false,
-    };
-  }
-  return {
-    text: t("setup.away.problem", { why: address.reason ?? address.state }),
-    problem: true,
-  };
-}
-
-/**
- * The address at wizards.host, off until the person switches it on: then the phone reaches the
- * Bot Server through the relay, also away from home.
- */
-function AwayAddress({
-  address,
-  onProblem,
-}: {
-  address: SetupAddress;
-  onProblem: (text: string) => void;
-}) {
-  const client = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const toggle = () => {
-    setBusy(true);
-    api
-      .post<Setup>("/v1/setup/address", { on: !address.on })
-      .then(
-        (saved) => client.setQueryData(keys.setup(), saved),
-        (err: Error) => onProblem(err.message),
-      )
-      .finally(() => setBusy(false));
-  };
-  const state = addressState(address);
-  return (
-    <div className="py-3.5">
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-[0.9375rem]">{t("setup.away.title")}</p>
-          {address.name ? (
-            <p className="break-all font-mono text-[0.75rem] text-ink-2">{address.name}</p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={address.on}
-          aria-label={t("setup.away.title")}
-          disabled={busy}
-          onClick={toggle}
-          className={cn(
-            "relative h-6 w-10 shrink-0 cursor-pointer rounded-full outline-none transition-colors disabled:cursor-default",
-            address.on ? "bg-ember" : "bg-paper-2",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-0.5 left-0.5 size-5 rounded-full bg-background shadow-sm transition-transform",
-              address.on && "translate-x-4",
-            )}
-          />
-        </button>
-      </div>
-      <p className="mt-1 text-[0.8125rem] text-ink-3 leading-snug">{t("setup.away.hint")}</p>
-      {state ? (
-        <p
-          role="status"
-          className={cn(
-            "mt-1.5 text-[0.8125rem] leading-snug",
-            state.problem ? "text-rose" : "text-ink-2",
-          )}
-        >
-          {state.text}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 /** One way to a model that is set up by hand: what it is, and what to do. */
 function Option({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
   return (
@@ -290,7 +162,7 @@ const onComputer = (check: SetupCheck) =>
 
 /**
  * The first start of a home, as a short conversation: the person's name, which model answers
- * (each tested with a short call), the folders, and the phone. It stands where the chat stands, not over
+ * (each tested with a short call), the folders, and how the Bot Server is reached. It stands where the chat stands, not over
  * it. What it changes later goes through the main agent or the settings.
  */
 export function SetupView({ setup }: { setup: Setup }) {
@@ -308,8 +180,8 @@ export function SetupView({ setup }: { setup: Setup }) {
   const accounts = models.filter((check) => !onComputer(check));
   const link = setup.models.find((check) => check.id === "link");
   const last = at === steps.length - 1;
-  /** The models stand in two columns, as in engenty wizards. */
-  const wide = step === "models" && !setup.hosted;
+  /** The models stand in two columns over the whole width, as in engenty wizards. */
+  const columns = step === "models" && !setup.hosted;
 
   // A hosted home's account is tested once when its step opens, if it never was. On the person's
   // computer they pick first, and the pick is tested.
@@ -354,16 +226,11 @@ export function SetupView({ setup }: { setup: Setup }) {
 
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <Frame wide={wide}>
-        <main
-          className={cn(
-            "mx-auto flex w-full flex-1 flex-col px-4 pt-6 pb-6 sm:px-6",
-            wide ? "max-w-6xl" : "max-w-xl",
-          )}
-        >
+      <Frame>
+        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-6 pb-6 sm:px-6">
           {steps.length > 1 ? <Dashes steps={steps} at={at} /> : null}
 
-          <div className="mt-6">
+          <div className={cn("mt-6", !columns && "mx-auto w-full max-w-132")}>
             {step === "name" ? (
               <>
                 <Says>{t("setup.name.title")}</Says>
@@ -438,29 +305,17 @@ export function SetupView({ setup }: { setup: Setup }) {
               <FoldersStep setup={setup} own={own} onOwn={setOwn} onProblem={setProblem} />
             ) : null}
 
-            {step === "devices" ? (
-              <>
-                <Says>{t("setup.phone.ask")}</Says>
-                <div className="ml-[2.125rem]">
-                  <Group>
-                    {/* A new code once the address is on: the QR then leads to wizards.host. */}
-                    <AddPhone
-                      key={setup.address?.state === "on" ? "away" : "here"}
-                      onProblem={setProblem}
-                    />
-                  </Group>
-                  {setup.address && !setup.hosted ? (
-                    <Group>
-                      <AwayAddress address={setup.address} onProblem={setProblem} />
-                    </Group>
-                  ) : null}
-                </div>
-              </>
-            ) : null}
+            {step === "devices" ? <ReachStep setup={setup} onProblem={setProblem} /> : null}
           </div>
 
           {problem ? (
-            <p role="alert" className="mt-4 text-[0.8125rem] text-rose">
+            <p
+              role="alert"
+              className={cn(
+                "mt-4 text-[0.8125rem] text-rose",
+                !columns && "mx-auto w-full max-w-132",
+              )}
+            >
               {problem}
             </p>
           ) : null}
@@ -471,11 +326,6 @@ export function SetupView({ setup }: { setup: Setup }) {
               </Button>
             ) : null}
             <span className="flex-1" />
-            {step === "devices" ? (
-              <Button variant="ghost" busy={busy} onClick={() => void next()}>
-                {t("setup.later")}
-              </Button>
-            ) : null}
             <Button busy={busy} disabled={!canGoOn(step, setup, name)} onClick={() => void next()}>
               {last ? t("setup.finish") : t("setup.next")}
             </Button>
