@@ -167,6 +167,11 @@ export class Skills {
     return this.loaded.get(conversationId)?.has(name) === true;
   }
 
+  /** Whether a skill brings the tool. */
+  owned(tool: string): boolean {
+    return (this.owners.get(tool)?.length ?? 0) > 0;
+  }
+
   /** Whether a model sees a tool now: a skill's tool only while the skill is loaded. */
   shows(conversationId: string, tool: string): boolean {
     const owners = this.owners.get(tool);

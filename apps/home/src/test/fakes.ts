@@ -3,6 +3,7 @@ import { createServer as createHttpServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Level } from "@engenty/tool-harness";
 import { serve } from "@hono/node-server";
 import type { Card, Message } from "@wizards-bot/protocol";
 import type { ChannelAdapter } from "../channels/channels.ts";
@@ -89,7 +90,16 @@ export class FakeOllama {
             }),
           );
         }
-        this.requests.push(withoutContext(JSON.parse(body)));
+        const asked = withoutContext(JSON.parse(body));
+        this.requests.push(asked);
+        // A tool the harness keeps out of the prompt is called as a model calls it.
+        const shown = new Set(
+          ((asked.tools ?? []) as { function: { name: string } }[]).map((t) => t.function.name),
+        );
+        const called = (call: { name: string; arguments: Record<string, unknown> }) =>
+          shown.has(call.name) || !shown.has("tool_call")
+            ? call
+            : { name: "tool_call", arguments: { name: call.name, input: call.arguments } };
         const next = this.script.shift() ?? { text: "(nothing scripted)" };
         const lines: unknown[] = [];
         for (const word of (next.text ?? "").split(/(?<= )/)) {
@@ -97,7 +107,10 @@ export class FakeOllama {
         }
         if (next.calls) {
           lines.push({
-            message: { content: "", tool_calls: next.calls.map((call) => ({ function: call })) },
+            message: {
+              content: "",
+              tool_calls: next.calls.map((call) => ({ function: called(call) })),
+            },
           });
         }
         lines.push({ done: true, done_reason: "stop", prompt_eval_count: 1, eval_count: 1 });
@@ -164,12 +177,14 @@ export async function testHome(
    * `dataDir`: what an earlier home kept, for the same home at another address.
    * `config`: settings of its start, e.g. those of a hosted home.
    * `unpicked`: nobody has picked Ollama, the scripted model, so the home does not ask it.
+   * `level`: what the scripted model can be trusted with.
    */
   at: {
     port?: number;
     dataDir?: string;
     unreachable?: boolean;
     unpicked?: boolean;
+    level?: Level;
     config?: Partial<Config>;
   } = {},
 ): Promise<TestHome> {
@@ -195,6 +210,11 @@ export async function testHome(
   // A new home offers the morning look after the first answers. Only its own test wants that.
   home.db.setMeta("morning.offer", "not_new");
   if (!at.unpicked) home.models.pickOllama(true);
+  const engine = home.models.engine.bind(home.models);
+  home.models.engine = (ref) => {
+    const found = engine(ref);
+    return found && { ...found, level: at.level ?? "high" };
+  };
   await home.models.refresh(true);
   const app = createServer(home);
   const server = serve({ fetch: app.fetch, port, hostname: "127.0.0.1" });

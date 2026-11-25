@@ -111,13 +111,24 @@ export class Draft {
   }
 
   /** Ends the message: as the agent's answer, or as a note that no one is told about. */
-  finish(state: "done" | "failed", model?: string, role: "agent" | "note" = "agent"): Message {
+  finish(
+    state: "done" | "failed",
+    model?: string,
+    role: "agent" | "note" = "agent",
+    unsourced = false,
+  ): Message {
     for (const [index, part] of this.parts.entries()) {
       if (part.type === "activity" && part.state === "running") {
         this.parts[index] = { ...part, state: state === "done" ? "done" : "failed" };
       }
     }
-    return this.store.updateMessage(this.id, { parts: this.parts, state, model, role }) as Message;
+    return this.store.updateMessage(this.id, {
+      parts: this.parts,
+      state,
+      model,
+      role,
+      unsourced,
+    }) as Message;
   }
 
   /** Ends the message as one line the person can find: what a quiet task's run leaves. */

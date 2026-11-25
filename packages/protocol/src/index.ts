@@ -285,6 +285,11 @@ export const Message = z.object({
   /** Which model wrote it, e.g. "ollama:qwen3.8:27b-mlx". */
   model: z.string().optional(),
   /**
+   * A small model wrote it out of itself: no tool, file, document or page was read for it. The
+   * person sees that beside the answer.
+   */
+  unsourced: z.boolean().optional(),
+  /**
    * The person sent it for after the answer: the agent reads it once the reply being written is
    * done. Cleared when that turn starts, and when the person stops the reply.
    */

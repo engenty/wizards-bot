@@ -35,6 +35,9 @@ importers:
       '@engenty/browser':
         specifier: 0.21.0
         version: 0.21.0(@mastra/core@1.82.0(ai@7.0.163(zod@4.6.7))(express@5.3.0)(zod-to-json-schema@3.25.2(zod@4.6.7))(zod@4.6.7))(bare-buffer@3.7.3)(zod@4.6.7)
+      '@engenty/decision-model':
+        specifier: 0.21.0
+        version: 0.21.0
       '@engenty/local-models':
         specifier: 0.21.0
         version: 0.21.0(ai@7.0.163(zod@4.6.7))
@@ -44,6 +47,12 @@ importers:
       '@engenty/plugins':
         specifier: 0.21.0
         version: 0.21.0(zod@4.6.7)
+      '@engenty/search-index':
+        specifier: 0.21.0
+        version: 0.21.0
+      '@engenty/tool-harness':
+        specifier: 0.21.0
+        version: 0.21.0
       '@engenty/vault':
         specifier: 0.21.0
         version: 0.21.0
@@ -483,6 +492,9 @@ packages:
       react-dom:
         optional: true
 
+  '@engenty/decision-model@0.21.0':
+    resolution: {integrity: sha512-2jCrQCXsNahCI64WH7mZQ/8+pFNDJ7lR0W9glY/eMNpnskSy2G7J+vGm2TL59Q9zp71t17DwIM0wvs+nHGxQ/g==}
+
   '@engenty/local-models@0.21.0':
     resolution: {integrity: sha512-ToPLiJw3kok0gd8pK7AKF7bDoI1eO8iRo7V9YDgLu+YRRl6ofR8coUNf+wrbaIftnxORVB+epBSZx0Ot/gbv6A==}
     peerDependencies:
@@ -521,6 +533,12 @@ packages:
     resolution: {integrity: sha512-HUktv3VGf5QgsOrD/5dji2R0cjdQXLhrDOQi70bJ4JVA4drmuM33BUOGfWS2OPFdU6h1LApxlczGXxp5tJ0HLg==}
     peerDependencies:
       zod: ^4.1.0
+
+  '@engenty/search-index@0.21.0':
+    resolution: {integrity: sha512-jFN1hm85v5s6IiagwyPRH3JeicKrQPcIJYiiZdQrjbSCjOYyvbaQecnC67bCkUdwrisrWdWd0FRAEuaOBkq9lA==}
+
+  '@engenty/tool-harness@0.21.0':
+    resolution: {integrity: sha512-7F0vqcLtq/iWztm+Pcj9FtDdXStddhPkkW7H+TO67VzX/wEH4yMYsrjYuaoWMVUDXD2xCife2jRs+By37/2BWQ==}
 
   '@engenty/vault@0.21.0':
     resolution: {integrity: sha512-pOEBb1gBKH8JsNRFRqgS1ZdsQxvzgw9wNcxPf/s7ZGccg1zGAR6M6X+t1233VMylDEkO6PRd7QozeEC2Ob8O+A==}
@@ -4199,6 +4217,10 @@ snapshots:
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
 
+  '@engenty/decision-model@0.21.0':
+    dependencies:
+      undici: 7.30.2
+
   '@engenty/local-models@0.21.0(ai@7.0.163(zod@4.6.7))':
     dependencies:
       '@modelcontextprotocol/server': 2.4.0
@@ -4229,6 +4251,13 @@ snapshots:
   '@engenty/plugins@0.21.0(zod@4.6.7)':
     dependencies:
       zod: 4.6.7
+
+  '@engenty/search-index@0.21.0': {}
+
+  '@engenty/tool-harness@0.21.0':
+    dependencies:
+      '@engenty/decision-model': 0.21.0
+      '@engenty/search-index': 0.21.0
 
   '@engenty/vault@0.21.0':
     dependencies:

@@ -75,16 +75,18 @@ export const markedInstructions = (content: string) => ({
  * turn's changing context from the run's request context.
  */
 export function cacheProcessor(
-  contextOf: (requestContext: { get(key: string): unknown } | undefined) => string,
+  contextOf: (
+    requestContext: { get(key: string): unknown } | undefined,
+  ) => string | Promise<string>,
 ) {
   return {
     id: "cache-marks",
-    processLLMRequest: ({
+    processLLMRequest: async ({
       prompt,
       requestContext,
     }: {
       prompt: PromptMessage[];
       requestContext?: { get(key: string): unknown };
-    }) => ({ prompt: cacheMarks(prompt, contextOf(requestContext)) }),
+    }) => ({ prompt: cacheMarks(prompt, await contextOf(requestContext)) }),
   };
 }

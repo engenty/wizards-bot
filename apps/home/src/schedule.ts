@@ -35,17 +35,31 @@ export function nextAfter(rule: Rule, from: Date): Date | undefined {
 /** How an agent says when: once (`at`) or again and again (`every`). */
 export const When = z.object({
   at: z.string().optional().describe("Once, at this local time: 2026-11-24T09:00."),
-  every: z.enum(["hour", "day", "weekday", "week"]).optional(),
+  every: z
+    .enum(["hour", "day", "weekday", "week"])
+    .optional()
+    .describe(
+      "`week`: once a week, on the one day in `weekday` (“every Friday”). `weekday`: every day from Monday to Friday.",
+    ),
   time: z
     .string()
     .regex(/^\d{1,2}:\d{2}$/)
     .optional()
     .describe("For day, weekday and week: 08:30."),
-  weekday: z.number().int().min(0).max(6).optional().describe("For week: 0 is Sunday."),
+  weekday: z
+    .number()
+    .int()
+    .min(0)
+    .max(6)
+    .optional()
+    .describe("For week: 0 is Sunday, 1 Monday, 5 Friday, 6 Saturday."),
 });
 
 /** The rule an agent's input means, or what is missing, in words for the agent. */
 export function ruleOf(input: z.infer<typeof When>): Rule | string {
+  if (input.at && input.every) {
+    return "Give `at` for once or `every` for a repeating task, not both. “Every Friday” is `every`: “week” with `weekday`: 5 and a `time`, without `at`.";
+  }
   if (input.at) return { at: new Date(input.at).toISOString() };
   if (input.every === "hour") return { every: "hour" };
   if (!input.every) return "Give `at` for once or `every` for a repeating task.";
