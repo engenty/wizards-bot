@@ -4,6 +4,12 @@ All notable changes to wizards.bot. Generated from [Conventional Commits](https:
 by [git-cliff](https://git-cliff.org) via `pnpm release`. Pre-`1.0`: a **minor**
 bump is a notable or breaking change, **patch** is fixes and small features.
 
+## [0.1.8] - 2026-11-25
+
+- ADDED **[home]** Members of a team chat with its agents, each in a conversation of their own (#84)
+- ADDED **[chat]** An agent shows a view in a card (#83)
+- ADDED **[home]** The studio the team works in is a connection, used as the person who writes (#82)
+
 ## [0.1.7] - 2026-11-25
 
 - ADDED **[home]** The studio the team works in shows the home's page inside its own (#80)
