@@ -90,7 +90,7 @@ describe("the setup shared with engenty wizards", () => {
   test("a chosen model is the one that answers, after a test of its own", async () => {
     await call("PUT", "/models", { source: "ollama", model: "fake:1" });
     assert.deepEqual(t.home.models.picked(), ["ollama"]);
-    assert.equal(t.home.models.serverModel("ollama"), "fake:1");
+    assert.equal(t.home.models.namedModel("ollama"), "fake:1");
     assert.equal(((await (await t.request("/v1/setup")).json()) as Setup).working, false);
     const { body } = await call("POST", "/models/test", {});
     assert.equal(body.ok, true);
@@ -130,6 +130,18 @@ describe("the setup shared with engenty wizards", () => {
     const { body } = await call("PUT", "/models", { keys: { openrouter: "" } });
     assert.equal((body.keys as Record<string, boolean>).openrouter, false);
     assert.deepEqual(t.home.models.candidates(), ["openai:gpt-5-mini"]);
+  });
+
+  test("a key added in the settings joins the pick, and its test keeps the models it had", async () => {
+    const { models } = t.home;
+    models.pickSource("codex");
+    for (const gateway of models.gateways()) models.removeGateway(gateway.id);
+    const added = await call("POST", "/keys/openrouter?add", { key: "sk-good" });
+    assert.equal(added.body.ok, true);
+    assert.deepEqual(models.picked(), ["codex", "openrouter"]);
+    models.addGatewayModel("openrouter", "some/model");
+    await call("POST", "/keys/openrouter?add", {});
+    assert.deepEqual(models.gateways()[0]?.models, ["openrouter/auto", "some/model"]);
   });
 
   test("the order and a later key add to the pick", () => {

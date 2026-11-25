@@ -1,13 +1,7 @@
-import { useQueryClient } from "@tanstack/react-query";
 import type { Card, CardField } from "@wizards-bot/protocol";
 import { Check } from "lucide-react";
-import { useState } from "react";
-import { ApiError, api } from "../lib/api";
-import { withConsent } from "../lib/consent";
 import { type Draft, useDraft } from "../lib/drafts";
-import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
-import { keys } from "../lib/keys";
 import { nameOf } from "../lib/paths";
 import { useThisDevice } from "../lib/queries";
 import { Button, cn, Input } from "../ui";
@@ -15,6 +9,8 @@ import { Markdown } from "../ui/Markdown";
 import { QrCode } from "../ui/Qr";
 import { FolderPicker } from "./FolderPicker";
 import { PersonCard } from "./PersonCard";
+import { QuestionView } from "./QuestionView";
+import { useAnswer } from "./useAnswer";
 
 const STYLES = { primary: "primary", plain: "secondary", danger: "danger" } as const;
 
@@ -113,16 +109,19 @@ function Field({
   );
 }
 
+/** A card, or a question of an agent: its own words, which the chat answers. */
+export function CardView({ card }: { card: Card }) {
+  return card.reply ? <QuestionView card={card} /> : <PlainCard card={card} />;
+}
+
 /**
  * A card, drawn from its data alone: title, body, fields, a sign-in link, a QR code and one
  * button per action. Answered or expired, it stays with its title and what was chosen. The
  * first answer wins: a card someone answered meanwhile shows that answer.
  */
-export function CardView({ card }: { card: Card }) {
-  const client = useQueryClient();
+function PlainCard({ card }: { card: Card }) {
   const [draft, setDraft] = useDraft(card.id);
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const { answer, busy, problem } = useAnswer(card);
   const me = useThisDevice();
 
   if (card.state !== "open") {
@@ -139,7 +138,7 @@ export function CardView({ card }: { card: Card }) {
     const admin = card.answer?.admin;
     const other = admin && admin.id !== me.data?.admin?.id ? admin.name : undefined;
     return (
-      <section className="rounded-xl bg-paper-2 px-4 py-3">
+      <section className="rounded-xl bg-paper-2 px-4 py-3 max-sm:px-3 max-sm:py-2">
         <h3 className="font-medium text-[0.9375rem]">{card.title}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-[0.8125rem] text-ink-2">
           <Check className="size-3.5 shrink-0 text-moss" />
@@ -166,35 +165,14 @@ export function CardView({ card }: { card: Card }) {
   const fields = card.fields ?? [];
   const values = valuesOf(fields, draft);
   const complete = filled(fields, values);
-  const answer = async (action: string) => {
-    setBusy(true);
-    setProblem(null);
-    try {
-      const { card: answered } = await withConsent(
-        () =>
-          api.post<{ card: Card }>(`/v1/cards/${card.id}/answer`, {
-            action,
-            ...(Object.keys(values).length ? { values } : {}),
-          }),
-        (models) => client.setQueryData(keys.models(), models),
-      );
+  const send = async (action: string) => {
+    if (await answer(action, values)) {
       setDraft(null);
-      applyEvent(client, { type: "card.updated", card: answered });
-    } catch (err) {
-      const kept = err instanceof ApiError && err.code === "already_answered" && err.body?.card;
-      if (kept) {
-        setProblem(t("card.already"));
-        applyEvent(client, { type: "card.updated", card: kept as Card });
-      } else {
-        setProblem((err as Error).message || t("card.failed"));
-      }
-    } finally {
-      setBusy(false);
     }
   };
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-card p-4 shadow-soft ring-1 ring-border-soft">
+    <section className="flex flex-col gap-3 rounded-xl bg-card p-4 max-sm:gap-2 max-sm:p-3 shadow-soft ring-1 ring-border-soft">
       <h3 className="font-display font-semibold text-[1.0625rem] leading-snug">{card.title}</h3>
       {card.body ? <Markdown text={card.body} className="text-[0.875rem]" /> : null}
       {card.qr ? <QrCode text={card.qr} label={t("card.qr", { title: card.title })} /> : null}
@@ -220,7 +198,7 @@ export function CardView({ card }: { card: Card }) {
               href={card.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm hover:brightness-[1.06] coarse:h-11"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-primary px-4 font-medium text-primary-foreground text-sm hover:brightness-[1.06] coarse:h-9 coarse:px-3.5"
             >
               {card.kind === "connect" ? t("card.signIn") : t("card.open")}
             </a>
@@ -230,7 +208,7 @@ export function CardView({ card }: { card: Card }) {
               key={action.id}
               variant={STYLES[action.style]}
               disabled={busy || (action.style === "primary" && !complete)}
-              onClick={() => void answer(action.id)}
+              onClick={() => void send(action.id)}
               className={cn(action.style === "danger" && "border border-border")}
             >
               {action.label}

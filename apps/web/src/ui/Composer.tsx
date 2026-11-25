@@ -7,6 +7,7 @@ import { type ReactNode, type Ref, useEffect, useImperativeHandle, useRef, useSt
 import { canUseCamera } from "../lib/device";
 import { pastedName } from "../lib/files";
 import { t } from "../lib/i18n";
+import { useKeyboard } from "../lib/keyboard";
 import { useDictation } from "../lib/speech";
 import { useAttachments } from "../lib/uploads";
 import { CameraDialog } from "./CameraDialog";
@@ -69,6 +70,7 @@ export function Composer({
   className?: string;
   ref?: Ref<ComposerHandle>;
 }) {
+  const keyboard = useKeyboard();
   const [text, setText] = useState("");
   const attached = useAttachments();
   const [tall, setTall] = useState(false);
@@ -198,7 +200,7 @@ export function Composer({
             placeholder={
               speech.listening
                 ? t("composer.listening")
-                : busy
+                : busy && keyboard
                   ? t("composer.later", { keys: LATER_KEYS })
                   : placeholder
             }
@@ -286,6 +288,7 @@ function PlusMenu({
   onPhoto: () => void;
   items: PlusItem[];
 }) {
+  const keyboard = useKeyboard();
   const [at, setAt] = useState<{ bottom: number; left: number } | null>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -361,7 +364,7 @@ function PlusMenu({
         >
           {entry(
             { icon: <Paperclip />, label: t("composer.upload"), onSelect: onAttach },
-            UPLOAD_KEYS,
+            keyboard ? UPLOAD_KEYS : undefined,
           )}
           {entry({ icon: <Camera />, label: t("composer.photo"), onSelect: onPhoto })}
           {items.length ? <div className="mx-2 my-1 border-border-soft border-t" /> : null}

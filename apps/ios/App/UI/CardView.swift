@@ -1,9 +1,18 @@
 import AuthenticationServices
 import SwiftUI
 
+/// A card, or a question of an agent: its own words, which the chat answers.
+struct CardView: View {
+    let card: Card
+
+    var body: some View {
+        if card.reply == nil { PlainCard(card: card) } else { QuestionView(card: card) }
+    }
+}
+
 /// A card of the chat, drawn from its data: title, body, QR, fields, link and actions. A kind this
 /// version does not know is drawn the same way, from whatever it carries.
-struct CardView: View {
+private struct PlainCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
     @Environment(\.openURL) private var openURL
@@ -223,7 +232,7 @@ struct CardView: View {
     }
 }
 
-extension CardView {
+extension PlainCard {
     /// The folder picked on an answered card, with its main action.
     fileprivate func pickedFolder(_ chosen: CardAction) -> String? {
         guard chosen.style == .primary,
@@ -234,7 +243,7 @@ extension CardView {
 }
 
 /// One field of a card.
-private struct FieldView: View {
+struct FieldView: View {
     let field: CardField
     @Binding var text: String
     @Binding var chosen: Set<String>
@@ -265,9 +274,22 @@ private struct FieldView: View {
             case .folder:
                 // A folder the card proposes to make: the line that says so, while it is chosen.
                 FolderField(path: $text, hint: field.value == .text(text) ? field.placeholder : nil)
+            case .number:
+                HStack(spacing: 10) {
+                    TextField(text: $text, prompt: Text(verbatim: field.placeholder ?? "")) { Text(verbatim: field.label) }
+                        .keyboardType(.numbersAndPunctuation)
+                        .modifier(FieldBox())
+                        .frame(maxWidth: 200)
+                    if let unit = field.unit {
+                        Text(verbatim: unit)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            case .date:
+                DayField(text: $text, label: field.label)
             default:
                 TextField(text: $text, prompt: Text(verbatim: field.placeholder ?? ""), axis: .vertical) { Text(verbatim: field.label) }
-                    .lineLimit(1 ... 5)
+                    .lineLimit(field.type == .longText ? 3 ... 10 : 1 ... 5)
                     .modifier(FieldBox())
             }
         }
@@ -292,7 +314,36 @@ private struct FieldView: View {
     }
 }
 
-private struct FieldBox: ViewModifier {
+/// A day: none until the person picks one, and it can be taken away again.
+private struct DayField: View {
+    @Binding var text: String
+    let label: String
+
+    var body: some View {
+        if let day = FormDate.date(from: text) {
+            HStack(spacing: 8) {
+                DatePicker(
+                    selection: Binding(get: { day }, set: { text = FormDate.text(from: $0) }), displayedComponents: .date
+                ) { Text(verbatim: label) }
+                    .labelsHidden()
+                    .environment(\.timeZone, .gmt)
+                Button("Remove the date", systemImage: "xmark.circle.fill") { text = "" }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tertiary)
+            }
+        } else {
+            Button("Choose a date", systemImage: "calendar") {
+                var local = Calendar.current.dateComponents([.year, .month, .day], from: .now)
+                local.timeZone = .gmt
+                text = FormDate.text(from: Calendar(identifier: .gregorian).date(from: local) ?? .now)
+            }
+            .buttonStyle(ActionButtonStyle(style: .plain))
+        }
+    }
+}
+
+struct FieldBox: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(.horizontal, 12)

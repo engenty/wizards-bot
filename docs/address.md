@@ -1,8 +1,8 @@
 # Reaching your Bot Server away from home
 
 A Bot Server on a computer at home is reached on that network only. In the setup's last step
-(and by asking the main agent, `address_switch`), the person can switch on **Reach me away from
-home**: the Bot Server then gets a name at `wizards.host`, such as `k7qf2mxd3a.wizards.host`,
+(and by asking the main agent, `address_switch`), the person can pick **Away from home
+too**: the Bot Server then gets a name at `wizards.host`, such as `k7qf2mxd3a.wizards.host`,
 and the phone reaches it there from anywhere. It is off until the person switches it on. A Bot
 Server on wizards.bot, or one started with an address of its own (`WIZARDS_BOT_URL`), does not
 offer it.

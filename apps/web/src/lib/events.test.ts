@@ -198,9 +198,14 @@ describe("applyEvent", () => {
     expect(client.getQueryData(keys.folders())).toEqual([folder]);
     applyEvent(client, {
       type: "models.updated",
-      models: { sources: [], order: [], services: [] },
+      models: { sources: [], order: [], answers: [], services: [] },
     });
-    expect(client.getQueryData(keys.models())).toEqual({ sources: [], order: [], services: [] });
+    expect(client.getQueryData(keys.models())).toEqual({
+      sources: [],
+      order: [],
+      answers: [],
+      services: [],
+    });
   });
 
   it("marks an open document that is behind to be loaded again, and every list after a reset", () => {

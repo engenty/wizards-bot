@@ -23,6 +23,7 @@ import { NewBotDialog } from "./chat/NewBotDialog";
 import { SearchDialog } from "./chat/SearchDialog";
 import { type Asker, SettingsDialog } from "./chat/SettingsDialog";
 import { Sidebar, SidebarDrawer } from "./chat/Sidebar";
+import { type OpenTarget, StepTargets } from "./chat/Steps";
 import { Engenty } from "./engenty/Engenty";
 import { api } from "./lib/api";
 import { withConsent } from "./lib/consent";
@@ -209,7 +210,11 @@ export function Home() {
   const [artifactId, setArtifactId] = useState<string | null>(null);
   const [about, setAbout] = useState(false);
   // A connected folder in the file browser, at a place inside it.
-  const [folderView, setFolderView] = useState<{ id: string; path: string } | null>(null);
+  const [folderView, setFolderView] = useState<{
+    id: string;
+    path: string;
+    show?: { path: string; at: number };
+  } | null>(null);
   const [reference, setReference] = useState<{ text: string; at: number }>();
   const [dialog, setDialog] = useState<Open | null>(null);
   /** The card a chat is opened at. */
@@ -349,6 +354,47 @@ export function Home() {
       setFocus({ agentId: picked.id, cardId, at: Date.now() });
     }
   };
+  const showDocument = (id: string) => {
+    setArtifactId(null);
+    setAbout(false);
+    setFolderView(null);
+    setDocumentId(id);
+  };
+  const showArtifact = (id: string) => {
+    setDocumentId(null);
+    setAbout(false);
+    setFolderView(null);
+    setArtifactId(id);
+  };
+  // What a step of an agent was about: a file in the file browser, a document, an agent's chat.
+  const openTarget: OpenTarget = (target) => {
+    switch (target.to) {
+      case "file": {
+        const { folderId, path, folder } = target;
+        const at = path.lastIndexOf("/");
+        return () => {
+          setDocumentId(null);
+          setArtifactId(null);
+          setAbout(false);
+          setFolderView({
+            id: folderId,
+            path: folder ? path : path.slice(0, Math.max(at, 0)),
+            ...(folder ? {} : { show: { path, at: Date.now() } }),
+          });
+        };
+      }
+      case "document":
+        return () => showDocument(target.id);
+      case "artifact":
+        return () => showArtifact(target.id);
+      case "agent": {
+        const other = agents.data?.find((each) => each.id === target.id);
+        return other && (() => showChat(other));
+      }
+      default:
+        return;
+    }
+  };
   const signOut = async () => {
     await api.del("/v1/device").catch(() => undefined);
     setDeviceToken(null);
@@ -446,44 +492,36 @@ export function Home() {
       <div ref={main} className="relative flex h-full min-w-0 flex-1">
         {/* The chat on a lighter ground than the list beside it. */}
         <div className="h-full min-w-0 flex-1 bg-card">
-          <OpenArtifact.Provider value={artifactId}>
-            <Chat
-              agent={agent}
-              agents={agents.data ?? []}
-              items={items.data ?? []}
-              link={link}
-              onAgents={side === "none" ? () => setDrawer(true) : undefined}
-              onList={side === "rail" ? openList : undefined}
-              onHideList={side === "open" ? () => setCollapsed(true) : undefined}
-              onAgent={() => {
-                setDocumentId(null);
-                setArtifactId(null);
-                setFolderView(null);
-                setAbout((open) => !open);
-              }}
-              unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
-              onItems={() => setDialog("items")}
-              onChat={showChat}
-              focus={focus?.agentId === agent.id ? focus : undefined}
-              onDocument={(id) => {
-                setArtifactId(null);
-                setAbout(false);
-                setFolderView(null);
-                setDocumentId(id);
-              }}
-              onArtifact={(id) => {
-                setDocumentId(null);
-                setAbout(false);
-                setFolderView(null);
-                setArtifactId(id);
-              }}
-              reference={reference}
-              onFolder={() => {
-                setFolderFrom(agent.conversationId);
-                setDialog("folder");
-              }}
-            />
-          </OpenArtifact.Provider>
+          <StepTargets.Provider value={openTarget}>
+            <OpenArtifact.Provider value={artifactId}>
+              <Chat
+                agent={agent}
+                agents={agents.data ?? []}
+                items={items.data ?? []}
+                link={link}
+                onAgents={side === "none" ? () => setDrawer(true) : undefined}
+                onList={side === "rail" ? openList : undefined}
+                onHideList={side === "open" ? () => setCollapsed(true) : undefined}
+                onAgent={() => {
+                  setDocumentId(null);
+                  setArtifactId(null);
+                  setFolderView(null);
+                  setAbout((open) => !open);
+                }}
+                unread={(agents.data ?? []).some((a) => a.id !== agent.id && (a.unread || a.open))}
+                onItems={() => setDialog("items")}
+                onChat={showChat}
+                focus={focus?.agentId === agent.id ? focus : undefined}
+                onDocument={showDocument}
+                onArtifact={showArtifact}
+                reference={reference}
+                onFolder={() => {
+                  setFolderFrom(agent.conversationId);
+                  setDialog("folder");
+                }}
+              />
+            </OpenArtifact.Provider>
+          </StepTargets.Provider>
         </div>
         {beside && !standing.leaving ? (
           <Divider
@@ -524,6 +562,7 @@ export function Home() {
                   key={paneId}
                   id={paneId}
                   start={folderView?.path ?? ""}
+                  show={folderView?.show}
                   {...paneProps}
                   onAsk={(text) => setReference({ text, at: Date.now() })}
                   onClose={() => setFolderView(null)}

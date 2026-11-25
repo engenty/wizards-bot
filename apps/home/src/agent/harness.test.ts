@@ -115,6 +115,22 @@ describe("a small model", () => {
     }
   });
 
+  test("does not ask the person about an input that cannot be meant", async () => {
+    const t = await testHome("Ada", undefined, { level: "basic" });
+    try {
+      const input = { ...friday, weekday: 5, at: "2026-01-01T09:00" };
+      t.model.script.push(
+        { calls: [{ name: "tool_call", arguments: { name: "schedule_set", input } }] },
+        { text: "I try again." },
+      );
+      await t.say("Remind me of the bills every Friday");
+      assert.match(heard(t), /Nothing was done[\s\S]*not both/);
+      assert.equal(t.home.store.items().length, 0);
+    } finally {
+      t.stop();
+    }
+  });
+
   test("is not given what it cannot be trusted with, whatever way it calls it", async () => {
     const t = await testHome("Ada", undefined, { level: "basic" });
     try {
@@ -133,6 +149,61 @@ describe("a small model", () => {
       assert.ok(!offered(t).includes("artifact_write"));
       assert.match(heard(t), /more capable/);
       assert.equal(t.home.store.agents().length, 1);
+    } finally {
+      t.stop();
+    }
+  });
+
+  test("asks whether a more capable model takes over, once, and lets it", async () => {
+    const t = await testHome("Ada", undefined, { level: "basic" });
+    try {
+      const { models } = t.home;
+      const engine = models.engine.bind(models);
+      const sources = models.sources.bind(models);
+      const own = models.candidates()[0] ?? "";
+      models.candidates = () => [own, "big:one"];
+      models.engine = (ref) => {
+        const found = engine(own);
+        return found && (ref === own ? found : { ...found, ref, level: "high" });
+      };
+      // The person said yes to the service before: no turn sends to another one.
+      models.waitingForYes = () => [];
+      models.sources = () => [
+        ...sources(),
+        {
+          id: "big",
+          kind: "gateway",
+          label: "Big",
+          where: "the cloud",
+          online: true,
+          models: [{ id: "one", label: "one" }],
+          service: "big",
+        },
+      ];
+      const call = (name: string) => ({
+        name: "tool_call",
+        arguments: {
+          name,
+          input: { name: "Tax", kind: "drop", about: "Taxes", instructions: "Help with taxes" },
+        },
+      });
+      t.model.script.push(
+        { calls: [call("agent_create"), call("agent_create")] },
+        { text: "I cannot do that myself." },
+      );
+      await t.say("Make a bot for my taxes");
+      assert.match(heard(t), /Nothing was done[\s\S]*asked on a card/);
+      const cards = t.home.store.items();
+      assert.equal(cards.length, 1);
+      assert.equal(cards[0]?.title, "Let Big · one take over?");
+      assert.match(cards[0]?.body ?? "", /outside your computer/);
+      assert.equal(t.home.store.agents().length, 1);
+
+      t.model.script.push({ calls: [call("agent_create")] }, { text: "Made it." });
+      await t.answer(cards[0]?.id ?? "", "take_over");
+      await t.home.turns.idle();
+      assert.equal(t.home.store.agents().length, 2);
+      assert.match(JSON.stringify(t.model.requests.at(-1)?.messages), /take over[\s\S]*Make a bot/);
     } finally {
       t.stop();
     }

@@ -114,7 +114,7 @@ const TRAITS: Record<string, Trait> = {
     uses: "Change the person's picture: hair, eyes, clothes, look.",
   },
   home_check: { uses: "Is the server fine, its status, its health, what is wrong." },
-  device_pair: { changes: true, uses: "Connect a new phone, watch or computer." },
+  device_pair: { uses: "Connect a new phone, watch or computer." },
   channel_connect: {
     changes: true,
     uses: "Telegram, WhatsApp, Slack, Signal, e-mail: be reached and answer there.",
@@ -188,9 +188,13 @@ const held = (tool: Tool): Held => {
   };
 };
 
-/** What the model reads when it calls a tool it cannot be trusted with. */
+/** What the model reads when it calls a tool it cannot be trusted with and no other one can help. */
 const beyond = (tool: Tool) =>
   `Nothing was done. ${tool.name} needs a more capable model than the one that answers now. Tell the person so: they choose one in the settings.`;
+
+/** What the model reads of such tools when a more capable model can be offered. */
+export const CALL_ANYWAY =
+  "Not for the model that answers now. Call the one that fits anyway, with an empty input: the person is asked whether a more capable model takes over";
 
 /** A call's input as the person reads it on the card. */
 function shownInput(tool: Tool, input: Record<string, unknown>): string {
@@ -216,6 +220,8 @@ export function guarded(
   home: Home,
   /** The tool ran through. */
   ran: (name: string) => void = () => undefined,
+  /** Asks the person whether a more capable model takes over; what the model reads then. */
+  offer: (tool: Tool, needs: Level) => string | undefined = () => undefined,
 ): Tool {
   const { needs = "basic", changes } = traitOf(tool.name);
   const confirms = changes === true && !tool.asks;
@@ -228,13 +234,15 @@ export function guarded(
     ...tool,
     ...(confirms ? { asks: true as const } : {}),
     run: async (input, call) => {
-      if (!reaches(level(), needs)) return beyond(tool);
+      if (!reaches(level(), needs)) return offer(tool, needs) ?? beyond(tool);
       if (!confirms) return run(input, call);
       if (call.answer) {
         if (call.answer.action !== "do") return "The person said no. Nothing was done.";
         return run(input, { ...call, answer: undefined });
       }
       if (level() !== "basic") return run(input, call);
+      const wrong = tool.wrong?.(input as Record<string, unknown>);
+      if (wrong) return `Nothing was done. ${wrong}`;
       const lang = langOf(home.db);
       return call.ask({
         kind: "approval",
@@ -256,12 +264,15 @@ export function turnHarness(
   level: Level,
   search: CatalogSearch,
   always: (name: string) => boolean,
+  /** A more capable model can be offered. */
+  offers = false,
 ): ToolHarness<Held> {
   return createToolHarness({
     tools: tools.map(held),
     core: (tool) => traitOf(tool.name).core === true || always(tool.name),
     level,
     search,
+    ...(offers ? { beyond: CALL_ANYWAY } : {}),
   });
 }
 
@@ -292,6 +303,11 @@ export function metaTools(harness: ToolHarness<Held>): Tool[] {
     },
   ];
 }
+
+/** How long a search waits for vectors where the answer itself takes seconds. */
+const LOCAL_WAIT_MS = 8000;
+
+const onThisComputer = (sourceId: string) => ["ollama", "lmstudio", "mlx"].includes(sourceId);
 
 /** Vectors of the tools' texts, in the home's database. */
 function vectorStore(home: Home): VectorStore {
@@ -344,6 +360,8 @@ export class ToolSearch {
       store: vectorStore(this.home),
       embedder: () => this.embedder(sourceId),
       judge: toolJudge(() => this.decision(sourceId)),
+      // A model on this computer takes longer than that for its own first word.
+      ...(onThisComputer(sourceId) ? { waitMs: LOCAL_WAIT_MS } : {}),
     });
     this.searches.set(sourceId, made);
     return made;

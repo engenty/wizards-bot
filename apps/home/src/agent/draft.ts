@@ -1,5 +1,9 @@
 import type { Event, Message, Part } from "@wizards-bot/protocol";
+import { now } from "../ids.ts";
 import type { Store } from "../store/store.ts";
+import type { Step } from "./steps.ts";
+
+type Activity = Extract<Part, { type: "activity" }>;
 
 /** The agent's message while it is being written. */
 export class Draft {
@@ -32,6 +36,11 @@ export class Draft {
       (part) =>
         part.type === "card" && part.card.state === "open" && part.card.level === "needs_you",
     );
+  }
+
+  /** The message ends in a question that the chat answers. */
+  get questions(): boolean {
+    return this.parts.some((part) => part.type === "card" && part.card.reply !== undefined);
   }
 
   get text(): string {
@@ -87,13 +96,23 @@ export class Draft {
     });
   }
 
-  activity(id: string, label: string, state: "running" | "done" | "failed"): void {
+  /** A step as it starts and as it ends, in one place of the message. */
+  activity(id: string, label: string, state: Activity["state"], step: Step = {}): void {
     const index = this.activities.get(id);
+    const before = index === undefined ? undefined : (this.parts[index] as Activity);
+    const part: Activity = {
+      type: "activity",
+      label,
+      state,
+      ...step,
+      startedAt: before?.startedAt ?? now(),
+      ...(state === "running" ? {} : { endedAt: now() }),
+    };
     if (index === undefined) {
       this.activities.set(id, this.parts.length);
-      this.parts.push({ type: "activity", label, state });
+      this.parts.push(part);
     } else {
-      this.parts[index] = { type: "activity", label, state };
+      this.parts[index] = part;
     }
     this.save();
   }
@@ -119,7 +138,11 @@ export class Draft {
   ): Message {
     for (const [index, part] of this.parts.entries()) {
       if (part.type === "activity" && part.state === "running") {
-        this.parts[index] = { ...part, state: state === "done" ? "done" : "failed" };
+        this.parts[index] = {
+          ...part,
+          state: state === "done" ? "done" : "failed",
+          endedAt: now(),
+        };
       }
     }
     return this.store.updateMessage(this.id, {

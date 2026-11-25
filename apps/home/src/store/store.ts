@@ -78,6 +78,7 @@ interface CardRow {
   qr: string | null;
   answer: string | null;
   payload: string | null;
+  reply: string | null;
   agent_id: string;
   conversation_id: string;
   message_id: string;
@@ -147,6 +148,7 @@ export interface NewCard {
   body?: string;
   fields?: CardField[];
   actions: CardAction[];
+  reply?: Card["reply"];
   url?: string;
   qr?: string;
   /** What the home does when the card is answered. Never sent to a device. */
@@ -772,7 +774,7 @@ export class Store {
   ): Card {
     const id = newId("crd");
     this.db.run(
-      "insert into card (id, kind, level, state, title, body, fields, actions, url, qr, payload, agent_id, conversation_id, message_id, created_at) values (?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "insert into card (id, kind, level, state, title, body, fields, actions, url, qr, payload, reply, agent_id, conversation_id, message_id, created_at) values (?, ?, ?, 'open', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       id,
       input.kind,
       input.level,
@@ -783,6 +785,7 @@ export class Store {
       input.url ?? null,
       input.qr ?? null,
       input.payload === undefined ? null : JSON.stringify(input.payload),
+      input.reply ? JSON.stringify(input.reply) : null,
       where.agentId,
       where.conversationId,
       where.messageId,
@@ -818,7 +821,7 @@ export class Store {
   openCards(conversationId: string): Card[] {
     return this.db
       .all<CardRow>(
-        "select * from card where state = 'open' and conversation_id = ?",
+        "select * from card where state = 'open' and conversation_id = ? order by created_at, rowid",
         conversationId,
       )
       .map(toCard);
@@ -1119,6 +1122,7 @@ function toCard(row: CardRow): Card {
     body: row.body ?? undefined,
     fields: row.fields ? (JSON.parse(row.fields) as CardField[]) : undefined,
     actions: JSON.parse(row.actions) as CardAction[],
+    ...(row.reply ? { reply: JSON.parse(row.reply) as Card["reply"] } : {}),
     url: row.url ?? undefined,
     qr: row.qr ?? undefined,
     answer: row.answer ? (JSON.parse(row.answer) as CardAnswer) : undefined,

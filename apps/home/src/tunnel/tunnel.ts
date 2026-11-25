@@ -95,7 +95,7 @@ export class Tunnel {
     const saved = this.saved();
     if (saved) return saved.name;
     const file = join(this.dir, "claim.pem");
-    return existsSync(file) ? nameOf(claimKey(file)) : undefined;
+    return existsSync(file) ? nameOf(claimKey(file), this.relay.domain) : undefined;
   }
 
   /**

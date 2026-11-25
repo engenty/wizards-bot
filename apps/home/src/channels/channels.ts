@@ -2,10 +2,12 @@ import { randomInt } from "node:crypto";
 import type { Card, CardField, Channel, Message } from "@wizards-bot/protocol";
 import type { Hono } from "hono";
 import { z } from "zod";
+import { formOf } from "../agent/ask.ts";
 import { defineTool, type Tool } from "../agent/tool.ts";
 import type { Trigger, TurnContext } from "../agent/turns.ts";
 import type { Home } from "../home.ts";
 import { now } from "../ids.ts";
+import { type Lang, langOf, say, w } from "../setup/words.ts";
 
 export type ChannelId = Extract<Channel, "slack" | "email" | "whatsapp" | "signal">;
 
@@ -28,6 +30,8 @@ export interface Outgoing {
   /** Open cards the message carries. A channel without buttons sends `cardsAsText`. */
   cards: Card[];
   thread?: string;
+  /** What the person reads: what a channel says itself is in it. */
+  lang?: Lang;
 }
 
 export interface ChannelSetup {
@@ -72,19 +76,54 @@ interface Running {
 const ENDS_TURN =
   "The card is in the chat. End your turn now with at most one short sentence. The answer arrives as the next message.";
 
-/** A card for a channel that has no buttons: the person answers with a number. */
-export function cardsAsText(cards: Card[]): string {
+/** A part of a form as a line of text, with what may be answered. */
+const partAsText = ({ label, unit, options }: CardField): string =>
+  `- ${label}${unit ? ` (${unit})` : ""}${options ? `: ${options.map((option) => option.label).join(" / ")}` : ""}`;
+
+/**
+ * Cards for a channel that has no buttons: the person picks an answer by its number. A question
+ * of an agent is answered with the next message.
+ */
+export function cardsAsText(cards: Card[], lang: Lang = "en"): string {
   return cards
     .map((card) => {
       const lines = [card.title];
       if (card.body) lines.push(card.body);
       if (card.url) lines.push(card.url);
-      if (card.fields?.length) lines.push("Answer this one in the wizards.bot app.");
+      const form = formOf(card);
+      if (form) {
+        lines.push(form.map(partAsText).join("\n"));
+        lines.push(
+          say(
+            w(
+              "Answer here in your own words, or fill in the form in the wizards.bot app.",
+              "Antworte hier in deinen Worten, oder füll das Formular in der wizards.bot-App aus.",
+            ),
+            lang,
+          ),
+        );
+      } else if (card.fields?.length)
+        lines.push(
+          say(
+            w("Answer this one in the wizards.bot app.", "Beantworte das in der wizards.bot-App."),
+            lang,
+          ),
+        );
       else if (card.actions.length) {
         lines.push(
           card.actions.map((action, index) => `${index + 1}: ${action.label}`).join("   "),
         );
-        lines.push("Reply with the number.");
+        lines.push(
+          card.reply
+            ? say(
+                w(
+                  "Reply with the number, or in your own words.",
+                  "Antworte mit der Zahl oder in deinen Worten.",
+                ),
+                lang,
+              )
+            : say(w("Reply with the number.", "Antworte mit der Zahl."), lang),
+        );
       }
       return lines.join("\n");
     })
@@ -207,19 +246,22 @@ export class Channels {
       channel: id,
       parts: [{ type: "text", text: incoming.text }],
     });
-    void home.turns.enqueue({
-      conversationId,
-      text: incoming.text,
-      channel: id,
-      replyTo: { channel: id, peer, thread: incoming.thread },
-    });
+    home.said(
+      {
+        conversationId,
+        text: incoming.text,
+        channel: id,
+        replyTo: { channel: id, peer, thread: incoming.thread },
+      },
+      { words: incoming.text, by },
+    );
   }
 
   async send(id: ChannelId, peer: string, out: Outgoing): Promise<void> {
     const running = this.running.get(id);
     if (!running) return;
     try {
-      await running.adapter.send(running.settings, peer, out);
+      await running.adapter.send(running.settings, peer, { lang: langOf(this.home.db), ...out });
     } catch (error) {
       console.error(`[${id}] could not send: ${(error as Error).message}`);
     }

@@ -24,23 +24,24 @@ import {
   useText,
 } from "@engenty/model-setup/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { EngentyKind, Setup, SetupCheck } from "@wizards-bot/protocol";
+import type { EngentyKind, Setup } from "@wizards-bot/protocol";
 import { type ReactNode, useMemo, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import { api } from "../lib/api";
 import { t, useLang } from "../lib/i18n";
 import { keys } from "../lib/keys";
+import { works } from "../lib/sources";
 import { followTerminal } from "./terminal";
 
 // What the wizards think with, as engenty wizards' studio asks it: the same page
 // (@engenty/model-setup), on this Bot Server's routes and ground.
 
-const LOCAL = "/v1/setup/local";
+export const LOCAL = "/v1/setup/local";
 const CLIENTS = ["setup", "clients"] as const;
 const PICK = ["setup", "pick"] as const;
 
 /** Each choice has a figure of its own. */
-const FIGURES: Record<string, EngentyKind> = {
+export const FIGURES: Record<string, EngentyKind> = {
   codex: "dome",
   claude: "oval",
   antigravity: "wedge",
@@ -52,7 +53,7 @@ const FIGURES: Record<string, EngentyKind> = {
 };
 
 /** The gateways and providers a key is taken for. */
-const PROVIDERS: Omit<KeyProvider, "stored">[] = [
+export const PROVIDERS: Omit<KeyProvider, "stored">[] = [
   {
     id: "openrouter",
     name: "OpenRouter",
@@ -86,24 +87,71 @@ interface Pick {
   keys: Record<string, boolean>;
 }
 
-const works = (check: SetupCheck | undefined) =>
-  check?.state === "ok" || check?.state === "warning";
+/** What the setup finds on the Bot Server's computer: the clients, and the servers for open models. */
+export function useFound(enabled = true) {
+  // Below the setup's own key: whatever tells the setup anew tells this too.
+  return useQuery({
+    queryKey: [...keys.setup(), ...CLIENTS],
+    enabled,
+    queryFn: ({ signal }) =>
+      api.get<{ clients: ClientSetupStatus<ClientId>[]; servers: ServerStatus[] }>(
+        `${LOCAL}/clients`,
+        signal,
+      ),
+  });
+}
 
-/** The app around the shared parts: its calls with this device's token, its language. */
-function Host({ children }: { children: ReactNode }) {
+/** What the person picked in the setup, and which keys are stored. */
+export function usePick(enabled = true) {
+  return useQuery({
+    queryKey: [...keys.setup(), ...PICK],
+    enabled,
+    queryFn: ({ signal }) => api.get<Pick>(`${LOCAL}/models`, signal),
+  });
+}
+
+const serverKey = (id: string) => ["setup", "server", id];
+
+/** A server for open models, its models and the ones to download; none is loaded. */
+export function useServer(id: string) {
+  return useQuery({
+    queryKey: serverKey(id),
+    queryFn: ({ signal }) => api.get<LocalModelsState>(`${LOCAL}/servers/${id}`, signal),
+    // While a download runs or the server starts, the page asks how far it got.
+    refetchInterval: (query) => (modelsMoving(query.state.data) ? 1500 : false),
+  });
+}
+
+/** A client's hint: what the wizards do with it. */
+export const clientHint = (client: ClientSetupStatus<ClientId>) =>
+  t(client.id === "antigravity" ? "setup.client.talks" : "setup.client.hint", {
+    name: client.label,
+  });
+
+/**
+ * The app around the shared parts: its calls with this device's token, its language. `post`: the
+ * settings' way, where some calls are for one source among several.
+ */
+export function Host({
+  children,
+  post,
+}: {
+  children: ReactNode;
+  post?: <T>(path: string, body?: unknown) => Promise<T>;
+}) {
   const client = useQueryClient();
   const shown = useLang();
   const host = useMemo<SetupHostApi>(
     () => ({
       lang: shown,
-      post: (path, body) => api.post(`${LOCAL}${path}`, body ?? {}),
+      post: post ?? ((path, body) => api.post(`${LOCAL}${path}`, body ?? {})),
       put: (path, body) => api.put(`${LOCAL}${path}`, body),
       del: (path) => api.del(`${LOCAL}${path}`),
       follow: (terminal, on) => followTerminal(`${LOCAL}/terminal/${terminal}/stream`, on),
       open: (url) => window.open(url, "_blank", "noopener"),
       changed: () => client.invalidateQueries({ queryKey: keys.setup() }),
     }),
-    [client, shown],
+    [client, shown, post],
   );
   return <SetupProvider host={host}>{children}</SetupProvider>;
 }
@@ -118,19 +166,8 @@ export function ModelStep({ setup }: { setup: Setup }) {
 
 function Sources({ setup }: { setup: Setup }) {
   const client = useQueryClient();
-  // Below the setup's own key: whatever tells the setup anew tells these too.
-  const clients = useQuery({
-    queryKey: [...keys.setup(), ...CLIENTS],
-    queryFn: ({ signal }) =>
-      api.get<{ clients: ClientSetupStatus<ClientId>[]; servers: ServerStatus[] }>(
-        `${LOCAL}/clients`,
-        signal,
-      ),
-  });
-  const pick = useQuery({
-    queryKey: [...keys.setup(), ...PICK],
-    queryFn: ({ signal }) => api.get<Pick>(`${LOCAL}/models`, signal),
-  });
+  const clients = useFound();
+  const pick = usePick();
   // A server and own keys are opened before they are picked: what they need comes first.
   const [opened, setOpened] = useState<string | null>(null);
   const [clicked, setClicked] = useState<string | null>(null);
@@ -209,17 +246,17 @@ function Sources({ setup }: { setup: Setup }) {
                     key={status.id}
                     client={status}
                     autoTest={!ready}
-                    hint={t(
-                      status.id === "antigravity" ? "setup.client.talks" : "setup.client.hint",
-                      { name: status.label },
-                    )}
+                    hint={clientHint(status)}
                   />
                 ) : server ? (
                   <ServerPanel
                     key={server.id}
                     server={server}
                     model={source === server.id ? (pick.data?.model ?? null) : null}
-                    ready={ready}
+                    autoTest={!ready}
+                    onChoose={(name) =>
+                      api.put(`${LOCAL}/models`, { source: server.id, model: name })
+                    }
                   />
                 ) : (
                   <OwnKeys
@@ -249,42 +286,45 @@ function Sources({ setup }: { setup: Setup }) {
  * A server for open models: what it holds, what to download, the server itself installed and
  * started. Choosing a model picks it, and only then one is loaded, for the test.
  */
-function ServerPanel({
+export function ServerPanel({
   server,
   model,
-  ready,
+  autoTest = false,
+  testFirst = false,
+  onChoose,
 }: {
   server: ServerStatus;
+  /** Its model in use. */
   model: string | null;
-  ready: boolean;
+  /** Make the test call without a click. */
+  autoTest?: boolean;
+  /** The test stands above the models. */
+  testFirst?: boolean;
+  onChoose: (model: string) => Promise<unknown>;
 }) {
   const client = useQueryClient();
   const said = useText();
-  const key = ["setup", "server", server.id];
-  const state = useQuery({
-    queryKey: key,
-    queryFn: ({ signal }) => api.get<LocalModelsState>(`${LOCAL}/servers/${server.id}`, signal),
-    // While a download runs or the server starts, the page asks how far it got.
-    refetchInterval: (query) => (modelsMoving(query.state.data) ? 1500 : false),
-  });
+  const state = useServer(server.id);
   const choose = useCall(async (name: string) => {
-    await api.put(`${LOCAL}/models`, { source: server.id, model: name });
+    await onChoose(name);
     await client.invalidateQueries({ queryKey: keys.setup() });
   });
+  const test = model ? <ModelTest key={model} auto={autoTest} /> : null;
   return (
     <div className="flex flex-col gap-5">
+      {testFirst ? test : null}
       <p className="text-[0.8125rem] text-ink-3">{said("server.hint", { name: server.name })}</p>
       <LocalModels
         job="text"
         state={state.data}
-        onState={(next) => client.setQueryData(key, next)}
+        onState={(next) => client.setQueryData(serverKey(server.id), next)}
         inUse={model ? [model] : []}
         disabled={choose.busy}
         onChoose={(name) => void choose.run(name)}
         onlyHeld
       />
       {choose.error ? <p className="text-[0.875rem] text-rose">{choose.error}</p> : null}
-      {model ? <ModelTest key={model} auto={!ready} /> : null}
+      {testFirst ? null : test}
     </div>
   );
 }

@@ -133,14 +133,30 @@ export const CardField = z.object({
   /**
    * `folder`: a folder of the home's computer the person picks, never types first; its value
    * is the folder's path.
+   * `number`: as the person types it, with a point or a comma. `date`: "2026-12-31". `file`: the
+   * ids of files uploaded before.
    */
-  type: z.enum(["text", "secret", "choice", "multi", "folder"]),
+  type: z.enum([
+    "text",
+    "long_text",
+    "number",
+    "date",
+    "file",
+    "secret",
+    "choice",
+    "multi",
+    "folder",
+  ]),
   options: z.array(z.object({ id: z.string(), label: z.string() })).optional(),
   /**
    * A text field's hint. On a `folder` field that starts with a folder not made yet, the line
    * that says the home makes it; it is shown while that folder is the one chosen.
    */
   placeholder: z.string().optional(),
+  /** The unit of a number, shown beside the field. */
+  unit: z.string().optional(),
+  /** The person may say they don't know, in these words. The field's value is then "unsure". */
+  unsure: z.string().optional(),
   required: z.boolean().optional(),
   /** What the field starts with. The person may change it; it is sent like a typed value. */
   value: z.union([z.string(), z.array(z.string())]).optional(),
@@ -172,8 +188,8 @@ export const VIEW_ANSWER = "view";
 export const CardAnswer = z.object({
   action: z.string(),
   /**
-   * A view's answer: what the person says with it, a button's message or a form's send button
-   * ("Plan Wednesday", "Send").
+   * What the person says with it: the message that answered a question (`action` is "reply"), or
+   * of a view a button's message or a form's send button ("Plan Wednesday", "Send").
    */
   message: z.string().optional(),
   /** A view's answer: the form's values by field name, as the person left them. */
@@ -201,6 +217,12 @@ export const Card = z.object({
   /** A view drawn in the card, in place of fields; its own buttons answer it. */
   view: ViewProgram.optional(),
   actions: z.array(CardAction),
+  /**
+   * A question of the agent: it is the agent's own message, and what the person writes in the
+   * chat answers it. `placeholder`: what the empty input says meanwhile. Without fields and
+   * actions it waits for that message alone.
+   */
+  reply: z.object({ placeholder: z.string() }).optional(),
   url: z.string().optional(),
   /** Text to draw as a QR code. */
   qr: z.string().optional(),
@@ -226,6 +248,86 @@ export type FileRef = z.infer<typeof FileRef>;
 
 // ── Messages ────────────────────────────────────────────────────────────────
 
+/**
+ * What a step of an agent does. A device says it in the person's language and counts the steps
+ * that do the same. `ask`: the step stopped to ask the person, whatever it is about. `look` and
+ * `set` are what the home keeps: a `topic` says what of it.
+ */
+export const StepKind = z.enum([
+  "file_write",
+  "file_edit",
+  "file_copy",
+  "file_move",
+  "file_delete",
+  "folder_make",
+  "document_write",
+  "artifact_write",
+  "agent_make",
+  "agent_ask",
+  "device_ask",
+  "task_set",
+  "set",
+  "draft",
+  "command",
+  "page_use",
+  "sign_in",
+  "memory",
+  "ask",
+  "page_read",
+  "file_read",
+  "picture_look",
+  "document_read",
+  "artifact_read",
+  "search",
+  "folder_look",
+  "look",
+  "skill",
+  "tool_search",
+  "go_on",
+]);
+export type StepKind = z.infer<typeof StepKind>;
+
+/** What of the home a step of the kind `look` or `set` is about. */
+export const StepTopic = z.enum([
+  "address",
+  "agents",
+  "avatar",
+  "channels",
+  "connections",
+  "contacts",
+  "devices",
+  "folders",
+  "handle",
+  "invites",
+  "key",
+  "links",
+  "models",
+  "name",
+  "outside",
+  "plugins",
+  "rooms",
+  "tasks",
+  "vault",
+]);
+export type StepTopic = z.infer<typeof StepTopic>;
+
+/** What a step of an agent is about, and where a device opens it. */
+export const StepObject = z.object({
+  /** A file's path in its folder, a page's title, the words searched for, a command. */
+  name: z.string().optional(),
+  topic: StepTopic.optional(),
+  /** How many, for a step that does it to several at once. */
+  count: z.number().optional(),
+  /** The connected folder `name` is a path in. */
+  folderId: z.string().optional(),
+  /** The page's address: http or https. */
+  url: z.string().optional(),
+  documentId: z.string().optional(),
+  artifactId: z.string().optional(),
+  agentId: z.string().optional(),
+});
+export type StepObject = z.infer<typeof StepObject>;
+
 export const Part = z.discriminatedUnion("type", [
   /** Markdown. Grows by `message.delta` while the message is streaming. */
   z.object({ type: z.literal("text"), text: z.string() }),
@@ -236,11 +338,18 @@ export const Part = z.discriminatedUnion("type", [
   z.object({ type: z.literal("document"), documentId: z.string(), title: z.string() }),
   /** An artifact the chat opens beside itself. */
   z.object({ type: z.literal("artifact"), artifactId: z.string(), title: z.string() }),
-  /** One line about what the agent is doing. */
+  /**
+   * One step of the agent. `label` is the line a device shows that does not know `kind`, or for
+   * a step without one: a tool of a plugin or a connection.
+   */
   z.object({
     type: z.literal("activity"),
     label: z.string(),
     state: z.enum(["running", "done", "failed"]),
+    kind: StepKind.optional(),
+    object: StepObject.optional(),
+    startedAt: z.string().optional(),
+    endedAt: z.string().optional(),
   }),
   /**
    * What the model thought before it answered, as far as it shows it. Grows by `message.delta`
@@ -327,6 +436,11 @@ export const SendMessage = z.object({
    * in the middle of it. Without a reply being written it is read at once.
    */
   later: z.boolean().optional(),
+  /**
+   * The question (a card with `reply`) this message answers. Null: none, it is about something
+   * else. Left out: the newest question that waits in the conversation, if there is one.
+   */
+  answers: z.string().nullable().optional(),
 });
 export type SendMessage = z.infer<typeof SendMessage>;
 
@@ -1169,10 +1283,25 @@ export const Models = z.object({
   order: z.array(z.string()),
   /** The model the next message would use. */
   current: z.string().optional(),
+  /**
+   * Every model ref the next message would try, in that order: a source's first one is its model
+   * in use. An older home sends none.
+   */
+  answers: z.array(z.string()).default([]),
   /** The services in use and those the person said yes to. An older home sends none. */
   services: z.array(ModelService).default([]),
 });
 export type Models = z.infer<typeof Models>;
+
+/**
+ * The model of a source, chosen by the person. A gateway also takes one it has not used yet: the
+ * home asks it once and keeps it when it answers.
+ */
+export const ChooseModel = z.object({
+  source: z.string().min(1).max(80),
+  model: z.string().trim().min(1).max(120),
+});
+export type ChooseModel = z.infer<typeof ChooseModel>;
 
 /** The services in use that wait for the person's yes. */
 export const waitingForYes = (models: Pick<Models, "services">): ModelService[] =>

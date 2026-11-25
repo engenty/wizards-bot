@@ -125,7 +125,7 @@ export function signalAdapter(options: SignalOptions = {}): ChannelAdapter {
 
     async send(settings, peer, out) {
       const { url, number } = accountOf(settings);
-      const message = [out.text, cardsAsText(out.cards)].filter(Boolean).join("\n\n");
+      const message = [out.text, cardsAsText(out.cards, out.lang)].filter(Boolean).join("\n\n");
       const response = await fetch(`${url}/api/v1/rpc`, {
         method: "POST",
         headers: { "content-type": "application/json" },

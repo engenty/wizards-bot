@@ -1,9 +1,11 @@
 import { TOOL_CALL } from "@engenty/tool-harness";
 import { createTool } from "@mastra/core/tools";
+import type { FileRef, StepObject } from "@wizards-bot/protocol";
 import { z } from "zod";
 import type { Picture } from "../files/pictures.ts";
 import type { NewCard } from "../store/store.ts";
 import type { Draft } from "./draft.ts";
+import { stepOf } from "./steps.ts";
 
 /**
  * Something an agent can do. The same definition serves a model the home steps through
@@ -16,10 +18,19 @@ export interface Tool<I = any> {
   input: z.ZodType<I>;
   /** What the person sees while it runs, e.g. "Writing “Packing list”". */
   label?(input: Record<string, unknown>): string;
+  /** What is wrong with an input, for the model, before the person is asked about it. */
+  wrong?(input: Record<string, unknown>): string | undefined;
+  /**
+   * What a call is about, for its line in the chat, where the tool's entry in `steps.ts` does not
+   * say it: the file with its folder, the page once it answered.
+   */
+  object?(input: Record<string, unknown>, answer?: string): StepObject | undefined;
   /** What a call does, in the person's words, for a card that asks before it runs. Markdown. */
   says?(input: Record<string, unknown>): string;
   /** Set on a tool that asks the person with `call.ask`: it runs again with the answer. */
   asks?: true;
+  /** Set on a tool that leaves no line in the message: what it shows says it all. */
+  silent?: true;
   /** Returns what the model reads, and with `pictures` what it looks at. */
   run(input: I, call: Call): Promise<string | Looked>;
 }
@@ -35,6 +46,10 @@ export interface Answer {
   values: Record<string, string | string[]>;
   /** The card as it was answered. */
   card: { id: string; title: string; actions: { id: string; label: string }[] };
+  /** What the person wrote, where a message answered. */
+  message?: string;
+  /** Files the person gave with the answer. */
+  files?: FileRef[];
   /** What the tool kept with `ask`, to know where it was. */
   kept: unknown;
   /** In a group home: the admin who answered. */
@@ -111,6 +126,10 @@ interface MastraCall {
 
 let calls = 0;
 
+/** The person's no, on the cards a tool asks with. */
+const declined = (answer: Answer | undefined): boolean =>
+  answer?.action === "deny" || answer?.action === "leave";
+
 /**
  * Runs a tool for a model and shows it as one line of the message. A failure is not
  * thrown: the model reads what went wrong and can try again.
@@ -127,26 +146,34 @@ export async function runTool(
   try {
     label = tool.label?.(input) ?? tool.name;
   } catch {}
-  draft.activity(id, label, "running");
+  // A call that asked, or was told no, did not do what it is for.
+  let held = declined(asking?.answer);
+  const line = (state: "running" | "done" | "failed", answer?: string) => {
+    if (tool.silent) return;
+    const step = stepOf(tool, input, answer);
+    draft.activity(id, label, state, held && state === "done" ? { ...step, kind: "ask" } : step);
+  };
+  line("running");
   try {
     const call: Call = {
       answer: asking?.answer,
       ask: async (card, kept) => {
         if (!asking) throw new Error("This tool cannot ask the person here.");
         const made = asking.card(tool, input, card, kept);
+        held = true;
         await asking.suspend?.({ cardId: made.id });
         return ENDS_TURN;
       },
     };
     const answer = await tool.run(tool.input.parse(input), call);
-    draft.activity(id, label, "done");
+    line("done", typeof answer === "string" ? answer : answer.text);
     // In a group home the agent hears which admin decided.
-    const by = call.answer?.by ? `${call.answer.by} answered the card.\n` : "";
+    const by = call.answer?.by ? `${call.answer.by} answered.\n` : "";
     return typeof answer === "string"
       ? { text: `${by}${answer}`, pictures: [], failed: false }
       : { ...answer, text: `${by}${answer.text}`, failed: false };
   } catch (error) {
-    draft.activity(id, label, "failed");
+    line("failed");
     const text =
       error instanceof z.ZodError
         ? `Invalid input: ${z.prettifyError(error)}`

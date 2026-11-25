@@ -1,5 +1,5 @@
-import type { Agent, Message, Part } from "@wizards-bot/protocol";
-import { Check, ChevronRight, FileText, X } from "lucide-react";
+import type { Agent, Message } from "@wizards-bot/protocol";
+import { ChevronRight, FileText } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import type { Thread, Waiting } from "../lib/events";
@@ -8,29 +8,15 @@ import { useChatView, useToolDetail } from "../lib/look";
 import type { Waited } from "../lib/needs";
 import { askToNotify, canAskToNotify, notifyLater } from "../lib/notify";
 import { useThisDevice } from "../lib/queries";
+import { runsOf } from "../lib/steps";
 import { elapsed } from "../lib/time";
-import { Button, cn, Spinner } from "../ui";
+import { Button, cn } from "../ui";
 import { Markdown } from "../ui/Markdown";
 import { ArtifactPart } from "./AppView";
 import { CardView } from "./CardView";
 import { Face, Writer } from "./Face";
 import { MessageFiles } from "./MessageFiles";
-
-/** One line about what the agent is doing, or did. */
-function Activity({ part }: { part: Extract<Part, { type: "activity" }> }) {
-  return (
-    <div className="flex items-center gap-2 text-[0.8125rem] text-ink-3">
-      {part.state === "running" ? (
-        <Spinner className="size-3.5 shrink-0" />
-      ) : part.state === "failed" ? (
-        <X className="size-3.5 shrink-0 text-rose" />
-      ) : (
-        <Check className="size-3.5 shrink-0 text-moss" />
-      )}
-      <span className="min-w-0">{part.label}</span>
-    </div>
-  );
-}
+import { Steps } from "./Steps";
 
 /** An agent about to answer: three dots that rise in turn. */
 function Typing() {
@@ -84,12 +70,12 @@ function Elapsed({ since }: { since: string }) {
  * the column; a wide table or a long line of code scrolls inside it.
  */
 const BUBBLE = {
-  right: "bubble max-w-full rounded-xl rounded-br-md bg-bubble px-4 py-2.5",
-  left: "bubble w-fit max-w-full rounded-xl rounded-tl-md bg-bubble-agent px-4 py-2.5",
+  right: "bubble max-w-full rounded-xl rounded-br-md bg-bubble px-4 py-2.5 max-sm:px-3 max-sm:py-2",
+  left: "bubble w-fit max-w-full rounded-xl rounded-tl-md bg-bubble-agent px-4 py-2.5 max-sm:px-3 max-sm:py-2",
 };
 
 /**
- * A message's parts, in order. Files are drawn together; a part of a type this page does not
+ * A message's parts, in order, the steps between two of them as one. Files are drawn together; a part of a type this page does not
  * know shows its title, or one line, and never breaks the message.
  */
 function Parts({
@@ -111,8 +97,19 @@ function Parts({
   const firstFile = message.parts.findIndex((part) => part.type === "file");
   const sources = message.parts.flatMap((part) => (part.type === "source" ? [part] : []));
   const firstSource = message.parts.findIndex((part) => part.type === "source");
-  return message.parts.map((part, i) => {
+  return runsOf(message.parts).map((run) => {
+    if (run.type === "steps") {
+      return (
+        <Steps
+          key={`steps-${run.at}`}
+          parts={run.parts}
+          steps={run.steps}
+          live={run.last && message.state === "streaming"}
+        />
+      );
+    }
     // The message is one list for as long as it stands: a part keeps its place.
+    const { part, at: i } = run;
     const key = `${part.type}-${i}`;
     switch (part.type) {
       case "text":
@@ -126,8 +123,6 @@ function Parts({
         ) : (
           <Markdown key={key} text={part.text} className="text-[0.9375rem]" />
         );
-      case "activity":
-        return <Activity key={key} part={part} />;
       case "reasoning":
         return part.text ? (
           <Reasoning key={key} text={part.text} live={message.state === "streaming"} />
@@ -156,7 +151,7 @@ function Parts({
             key={key}
             type="button"
             onClick={() => onDocument(part.documentId)}
-            className="flex w-full max-w-sm items-center gap-2.5 rounded-xl bg-card px-3.5 py-3 text-left text-[0.9375rem] shadow-soft ring-1 ring-border-soft transition hover:ring-ink-4"
+            className="flex w-full max-w-sm items-center gap-2.5 rounded-xl bg-card px-3.5 py-3 max-sm:px-3 max-sm:py-2.5 text-left text-[0.9375rem] shadow-soft ring-1 ring-border-soft transition hover:ring-ink-4"
           >
             <FileText className="size-4 shrink-0 text-ink-3" />
             <span className="min-w-0 flex-1 truncate font-medium">{part.title}</span>
@@ -283,6 +278,9 @@ function MessageView({
   const thinking =
     message.state === "streaming" &&
     !message.parts.some((part) => part.type === "activity" && part.state === "running");
+  const run = runsOf(message.parts).at(-1);
+  // The line of several steps turns until the answer goes on: it says the same.
+  const turning = tools !== "none" && run?.type === "steps" && run.steps.length > 1;
   // An answer that was stopped before its first word is done and holds nothing: no figure
   // stands beside nothing.
   if (!drawn && message.state === "done") {
@@ -317,7 +315,7 @@ function MessageView({
         />
         {message.state === "streaming" ? (
           <div className="flex items-center gap-2.5">
-            {thinking ? (
+            {thinking && !turning ? (
               // Before the first word the dots are the bubble the words come into.
               <div className={bubbles && !drawn ? BUBBLE.left : undefined}>
                 <Typing />
@@ -388,6 +386,7 @@ export function Messages({
   waited,
   onChat,
   focus,
+  onFocused,
   onMissing,
 }: {
   /** Undefined while the conversation loads. */
@@ -404,6 +403,8 @@ export function Messages({
   onChat: (waited: Waited) => void;
   /** A card to show in this conversation, once each time it is asked for. */
   focus?: { cardId: string; at: number };
+  /** The card stands in view now. */
+  onFocused: (cardId: string) => void;
   /** The conversation does not hold that card. */
   onMissing: () => void;
 }) {
@@ -454,6 +455,7 @@ export function Messages({
     atEnd.current = false;
     card.scrollIntoView({ block: "start" });
     card.focus({ preventScroll: true });
+    onFocused(focus.cardId);
   }, [focus, agent.conversationId, first, Boolean(thread)]);
 
   // Whatever makes the list taller (text being written, a picture that has loaded) keeps it
@@ -472,6 +474,8 @@ export function Messages({
     follow();
     const observer = new ResizeObserver(follow);
     observer.observe(inner);
+    // What stands below the list takes room from it: a line above the input, a longer draft.
+    observer.observe(el);
     return () => observer.disconnect();
   }, []);
 

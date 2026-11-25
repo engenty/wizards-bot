@@ -195,7 +195,15 @@ message is `apple:on-device`.
   "model": "ollama:qwen3.8:27b-mlx",
   "createdAt": "2026-11-21T09:12:00.000Z",
   "parts": [
-    { "type": "activity", "label": "Reading your calendar", "state": "done" },
+    {
+      "type": "activity",
+      "label": "Writing Trips/Week.md",
+      "state": "done",
+      "kind": "file_write",
+      "object": { "name": "Trips/Week.md", "folderId": "fld_…" },
+      "startedAt": "2026-11-21T09:12:04.000Z",
+      "endedAt": "2026-11-21T09:12:05.000Z"
+    },
     { "type": "text", "text": "You are free after 14:00." },
     { "type": "document", "documentId": "doc_…", "title": "Week plan" },
     { "type": "artifact", "artifactId": "art_…", "title": "Spending by month" },
@@ -233,6 +241,19 @@ Rules for a device that draws messages:
   text arrives.
 - A message with `unsourced: true` was written by a small model out of itself: no tool, file or page
   was read for it. Say so beside it.
+- An `activity` part is one step of the agent. `label` is an English line, drawn by a device that
+  does not know more. `kind` (`StepKind`) says what the step does and `object` (`StepObject`) what
+  it is about, so a device says it in the person's language: a file's path (`name`) in a connected
+  folder (`folderId`), a page's title and address (`url`, http or https), a document, an artifact,
+  an agent, the words searched for, a command, what of the home it looked at or set (`topic`), and
+  `count` for a step that does it to several at once. `startedAt` and `endedAt` are its times. All
+  of them may be missing: in messages of an older home, and for a tool of a plugin or a connection,
+  which is its label. A kind the device does not know is its label too.
+- A step of the kind `ask` did not do what it is about: it asked the person, or the person said no.
+- Steps that follow each other are drawn as one line: while they run the newest and how many, then
+  what was done, counted ("15 files written · 7 pages read in the browser · 2 min"), and how many
+  failed. It opens to the things they were done to, each once. Reasoning between them goes with
+  them. A text, a card, a file, a document and an artifact stand where they are, never inside.
 - A `reasoning` part (`{ "type": "reasoning", "text" }`) is what the model thought before it
   answered, as far as it shows it, in Markdown. Draw it quiet, open while the message streams and
   folded away once it is done. It is not the answer: a voice, a notification and a channel read
@@ -262,7 +283,7 @@ A card is the inline UI of the chat. The device draws it from its data: `title`,
 | kind       | draws as                                                                                                                                                                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `approval` | title, body, one button per action                                                                                                                                                                                                                                              |
-| `question` | title, body, the fields, the actions                                                                                                                                                                                                                                            |
+| `question` | title, body, the fields, the actions; with `reply`, see Questions of an agent                                                                                                                                                                                                   |
 | `connect`  | title, body, a button that opens `url` in the system browser, and the card's own actions ("Not now"); the home answers the card itself when the sign-in is done (`answer.by` is then "sign-in"). The sign-in ends at `wizardsbot://signed-in`, where the app closes its browser |
 | `secret`   | fields of type `secret` in a secure field; the values go to the home and are never shown again                                                                                                                                                                                  |
 | `pairing`  | the QR from `qr` and the code in `body`                                                                                                                                                                                                                                         |
@@ -287,6 +308,38 @@ A field may carry `value`: what it starts with. The device shows it typed or pic
 it like a typed value unless the person changes it. A card of another kind than `connect` may
 carry `url` as well: a page the person opens in the system browser ("Open page"), with the
 card's actions beside it.
+
+A `number` field has the `unit` to show beside it; the home reads a number as people write it
+("2,4", "2,4 m"). A `date` is sent as "2026-12-31". A `file` is the list of ids of files uploaded
+before. `unsure` is how the person says they don't know; the field's value is then `unsure`. An
+answer to a form that is not filled in, or holds something else than its fields ask for, gets 400
+`invalid` with a sentence that names the field, and the card stays open.
+
+### Questions of an agent
+
+A card with `reply` is a question of the agent (`ask`). It is the agent's own message: draw
+`title` and `body` as its text, without a box, and mark it as waiting. It is in `GET /v1/items`,
+in `Agent.open` and in what is pushed, like every card that needs the person.
+
+| The card has              | It is           | Draw                                                            | Answered by                                        |
+| ------------------------- | --------------- | --------------------------------------------------------------- | -------------------------------------------------- |
+| no `fields`, no `actions` | one free answer | nothing more; the chat's input says `reply.placeholder`         | a message                                          |
+| `actions`, no `fields`    | a decision      | the actions as buttons                                          | an action, or a message                            |
+| `fields`, action `send`   | a form          | the fields and the button; once sent, each label and its answer | the form (`values` as the fields say) or a message |
+
+An approval has no `reply`: it is a card, answered by its actions only.
+
+`POST /v1/conversations/:id/messages` takes `answers`: the id of the question the message answers,
+or `null` when it is about something else (the question stays open). Without `answers` the home
+takes the newest open question of the conversation, unless the agent is writing another message
+right now, and the agent reads whether the message is an answer. An id that is answered already makes it a message like any other.
+The message is stored as the person's, its files and `spoken` count as always, and the card's
+`answer` has the `action` "reply" and the text as its `message`.
+
+Where a question stands outside its chat (a list of what needs the person, a watch), a device
+offers a field of its own and sends the message with `answers`.
+
+Over a channel the next message answers a question; a number picks a choice.
 
 ### Views in a card
 
@@ -358,8 +411,9 @@ A tool of the home that needs the person asks with a card and stops (`call.ask` 
 | stepped by the home (Ollama, a gateway)        | Mastra suspended the run at the tool call and keeps it in `mastra.db` | Mastra resumes the run: the tool's answer is the result of the same call, and the model goes on from there |
 | a subscription's client, which steps by itself | the client was told to end its turn                                   | the home runs the tool again and tells the agent what it says, as a `[home]` message                       |
 
-A message that arrives while a run is suspended ends that run, so the message is read at once.
-The card stays open and is then answered the second way. A start of the home ends nothing:
+A message that answers a question resumes its run. Any other message that arrives while a run is
+suspended ends that run, so it is read at once; the card stays open and is then answered the
+second way. A start of the home ends nothing:
 Mastra kept the run and goes on with it when the answer comes. What the person typed travels beside Mastra to the tool: Mastra keeps the card's id, not
 the answer. `ask`, `connection_call` and `folder_connect` ask this way; the other cards still start a new turn
 through `home.onCard`.
@@ -1445,8 +1499,18 @@ devices of that admin only. The theme, its colour and the language are each devi
 
 ## Models
 
-`GET /v1/models` → `Models`. The person changes them by conversation; this route only shows
-them.
+`GET /v1/models` → `Models`. `answers` are the model refs the next message would try, in order;
+the first one of a source is its model in use. The person changes them by conversation or in the
+settings:
+
+- `PUT /v1/models/order` (`{ "order": ["claude:opus", "ollama:qwen3:8b"] }`) → `Models`: the named
+  refs come first, the other sources behind them.
+- `PUT /v1/models/source` with `ChooseModel` (`{ "source": "claude", "model": "opus" }`) →
+  `Models`: the model of one source. The source keeps its place among those that answer, one that
+  did not answer comes last, and the others keep theirs; nothing is loaded or asked by it. A
+  gateway also takes a model it has not used yet: the home asks it once and keeps it when it
+  answers. 400 `refused` when the source has no such model. A source's last test call is put away
+  when its model changes; the next one asks the chosen model.
 
 ### Where what the person writes goes
 
@@ -1574,7 +1638,8 @@ they picked. Its routes below `/v1/setup/local` are engenty wizards' (`@engenty/
 not, and the servers Ollama, LM Studio and Apple MLX, found and running or not; MLX only on a Mac with
 Apple silicon), `GET` and `PUT /models` (the
 pick, `{ "source": "codex" }` or `{ "source": "ollama", "model": "gemma4:12b" }`, and which keys are stored), `POST /models/test`, `POST
-/keys/<provider>` (tests a key and keeps it when it works), for a server `GET /servers/<id>` (what it
+/keys/<provider>` (tests a key and keeps it when it works; with `?add`, as the settings send it, it
+joins what is picked), for a server `GET /servers/<id>` (what it
 holds and what to download; loads nothing), `POST /servers/<id>/pull`, `DELETE
 /servers/<id>/models?model=…` (not LM Studio), `POST /servers/<id>/start` (and installs Ollama on a
 Mac), `POST /servers/<id>/address`, and for a client

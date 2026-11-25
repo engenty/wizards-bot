@@ -8,8 +8,9 @@ import {
   PanelLeft,
   PanelLeftClose,
   Paperclip,
+  X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { withConsent } from "../lib/consent";
 import { applyEvent } from "../lib/events";
@@ -18,12 +19,14 @@ import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
 import { onlyCard, waitedFor } from "../lib/needs";
 import { loadEarlier, useThread } from "../lib/queries";
+import { answersOf, formOf, type Picked, questionsIn, targetOf } from "../lib/questions";
 import type { Link } from "../lib/stream";
 import { uuid } from "../lib/uuid";
 import { IconButton } from "../ui";
 import { Composer, type ComposerHandle } from "../ui/Composer";
 import { Face } from "./Face";
 import { Messages } from "./Messages";
+import { AnsweringContext } from "./QuestionView";
 
 /** How often the Bot Server hears that the person writes, so that a local model is ready. */
 const WARM_EVERY_MS = 60_000;
@@ -108,6 +111,29 @@ export function Chat({
   const [drag, setDrag] = useState(false);
   const depth = useRef(0);
   const only = onlyCard(items, agents);
+  // The question the next message answers.
+  const questions = questionsIn(items, agent.conversationId);
+  const [picked, setPicked] = useState<Picked>();
+  const last = thread.data?.messages.at(-1);
+  const target = targetOf(questions, picked, { working: agent.state === "working", last });
+  const newest = questions.at(-1)?.id;
+  const pick = useCallback(
+    (cardId: string | null) => {
+      if (newest) {
+        setPicked({ cardId, newest });
+        composer.current?.focus();
+      }
+    },
+    [newest],
+  );
+  const answering = useMemo(() => ({ target: target?.id, pick }), [target?.id, pick]);
+  // A chat opened at a question is ready for its answer.
+  const onFocused = (cardId: string) => {
+    const asked = questions.find((card) => card.id === cardId);
+    if (asked && !formOf(asked)) {
+      pick(asked.id);
+    }
+  };
   const takes = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
 
   const send = async (text: string, files: FileRef[], later = false) => {
@@ -119,6 +145,7 @@ export function Chat({
             text,
             ...(files.length ? { files: files.map((file) => file.id) } : {}),
             ...(later ? { later: true } : {}),
+            ...answersOf(questions, target),
             clientId,
           }),
         (models) => client.setQueryData(keys.models(), models),
@@ -236,12 +263,17 @@ export function Chat({
                 type="button"
                 // One card: its chat. Several: the list.
                 aria-haspopup={only ? undefined : "dialog"}
+                aria-label={t("needs.count", { n: items.length })}
                 title={only ? t("needs.agent", { name: only.agent.name }) : undefined}
                 onClick={() => (only ? onChat(only.agent, only.card.id) : onItems())}
                 className="enter-pop inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-primary px-3 font-semibold text-[0.8125rem] text-primary-foreground transition hover:brightness-[1.06] active:scale-95 coarse:h-11"
               >
                 <span className="size-1.5 rounded-full bg-current" />
-                {t("needs.count", { n: items.length })}
+                {/* Beside a long name a phone has room for the number only. */}
+                <span className="max-sm:hidden">{t("needs.count", { n: items.length })}</span>
+                <span className="sm:hidden" aria-hidden="true">
+                  {items.length}
+                </span>
               </button>
             ) : null}
           </div>
@@ -256,21 +288,24 @@ export function Chat({
           </p>
         ) : null}
       </div>
-      <Messages
-        thread={thread.data}
-        agent={agent}
-        onEarlier={() =>
-          void loadEarlier(client, agent.conversationId).catch((err: Error) => flash(err.message))
-        }
-        onDocument={onDocument}
-        onArtifact={onArtifact}
-        onProblem={flash}
-        onStart={(text) => void send(text, [])}
-        waited={waitedFor(agent, agents)}
-        onChat={({ agent: other, cardId }) => onChat(other, cardId)}
-        focus={focus}
-        onMissing={onItems}
-      />
+      <AnsweringContext value={answering}>
+        <Messages
+          thread={thread.data}
+          agent={agent}
+          onEarlier={() =>
+            void loadEarlier(client, agent.conversationId).catch((err: Error) => flash(err.message))
+          }
+          onDocument={onDocument}
+          onArtifact={onArtifact}
+          onProblem={flash}
+          onStart={(text) => void send(text, [])}
+          waited={waitedFor(agent, agents)}
+          onChat={({ agent: other, cardId }) => onChat(other, cardId)}
+          focus={focus}
+          onFocused={onFocused}
+          onMissing={onItems}
+        />
+      </AnsweringContext>
       <div className="mx-auto w-full max-w-[46rem] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
         {problem ? (
           <p
@@ -280,9 +315,24 @@ export function Chat({
             {problem}
           </p>
         ) : null}
+        {target && (questions.length > 1 || last?.id !== target.messageId) ? (
+          // The question is not the last thing in the chat, or not the only one: it is named.
+          <p className="mb-1.5 flex items-center gap-1 pl-4 text-[0.8125rem] text-ink-3">
+            <span className="min-w-0 flex-1 truncate">
+              {t("question.to", { title: target.title })}
+            </span>
+            <IconButton
+              label={t("question.other")}
+              onClick={() => pick(null)}
+              className="size-8 coarse:size-11"
+            >
+              <X className="size-4" />
+            </IconButton>
+          </p>
+        ) : null}
         <Composer
           ref={composer}
-          placeholder={t("composer.message")}
+          placeholder={target?.reply?.placeholder ?? t("composer.message")}
           busy={agent.state === "working"}
           onStop={() =>
             void api.post(`/v1/conversations/${agent.conversationId}/stop`).catch(() => undefined)

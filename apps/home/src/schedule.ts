@@ -57,6 +57,9 @@ export const When = z.object({
 
 /** The rule an agent's input means, or what is missing, in words for the agent. */
 export function ruleOf(input: z.infer<typeof When>): Rule | string {
+  if (input.at && input.every) {
+    return "Give `at` for once or `every` for a repeating task, not both. “Every Friday” is `every`: “week” with `weekday`: 5 and a `time`, without `at`.";
+  }
   if (input.at) return { at: new Date(input.at).toISOString() };
   if (input.every === "hour") return { every: "hour" };
   if (!input.every) return "Give `at` for once or `every` for a repeating task.";
