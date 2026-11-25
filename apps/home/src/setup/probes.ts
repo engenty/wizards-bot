@@ -94,7 +94,12 @@ function signedOut(client: Client): Finding {
 }
 
 /** A test call to an installed client on this computer. */
-export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Promise<Probe> {
+export async function probeClient(
+  client: Client,
+  timeout = CLIENT_TIMEOUT,
+  /** The model the person named; `default` and none: the client picks. */
+  named?: string,
+): Promise<Probe> {
   const { name } = client;
   const install = clientMissing(client);
   const notInstalled = w(
@@ -102,14 +107,17 @@ export async function probeClient(client: Client, timeout = CLIENT_TIMEOUT): Pro
     `${name} ist auf diesem Computer nicht installiert.`,
   );
   const codex = client.id === "codex" ? codexSetting() : undefined;
-  const result = await probe({ kind: "client", client, timeoutMs: timeout });
+  const model = named && named !== "default" ? { model: named } : {};
+  const result = await probe({ kind: "client", client, ...model, timeoutMs: timeout });
   if (result.state === "ok") {
     return client.tools
       ? {
+          ...model,
           state: "ok",
           said: w(`${name} answers on your subscription.`, `${name} antwortet über dein Abo.`),
         }
       : {
+          ...model,
           state: "warning",
           said: w(
             `${name} answers on your subscription, but takes no tools: an agent with it can talk, not act.`,
@@ -379,8 +387,10 @@ export async function probeGateway(
   key: string | undefined,
   timeout = GATEWAY_TIMEOUT,
   doFetch?: typeof fetch,
+  /** The model the person named; the gateway's first otherwise. */
+  named?: string,
 ): Promise<Probe> {
-  const model = gateway.models[0];
+  const model = named ?? gateway.models[0];
   if (!key) {
     return {
       state: "problem",
@@ -420,8 +430,9 @@ export async function probeAccount(
   key: string | undefined,
   timeout = GATEWAY_TIMEOUT,
   doFetch?: typeof fetch,
+  /** The class the person named; the first otherwise. */
+  model: string = ACCOUNT.models[0],
 ): Promise<Probe> {
-  const model = ACCOUNT.models[0];
   if (!key) {
     return {
       state: "problem",

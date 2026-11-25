@@ -1145,10 +1145,25 @@ export const Models = z.object({
   order: z.array(z.string()),
   /** The model the next message would use. */
   current: z.string().optional(),
+  /**
+   * Every model ref the next message would try, in that order: a source's first one is its model
+   * in use. An older home sends none.
+   */
+  answers: z.array(z.string()).default([]),
   /** The services in use and those the person said yes to. An older home sends none. */
   services: z.array(ModelService).default([]),
 });
 export type Models = z.infer<typeof Models>;
+
+/**
+ * The model of a source, chosen by the person. A gateway also takes one it has not used yet: the
+ * home asks it once and keeps it when it answers.
+ */
+export const ChooseModel = z.object({
+  source: z.string().min(1).max(80),
+  model: z.string().trim().min(1).max(120),
+});
+export type ChooseModel = z.infer<typeof ChooseModel>;
 
 /** The services in use that wait for the person's yes. */
 export const waitingForYes = (models: Pick<Models, "services">): ModelService[] =>

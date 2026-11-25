@@ -123,6 +123,9 @@ export function accountModel(
 /** The sources the person picked in the setup. */
 const PICKED = "models.picked";
 
+/** The sources whose model the person chose: of them that model answers, and no other. */
+const CHOSEN = "models.chosen";
+
 /** Whether the person picked Ollama: "on" or "off". */
 const OLLAMA = "models.ollama";
 
@@ -136,6 +139,9 @@ const CONTEXT = Number(process.env.WIZARDS_BOT_OLLAMA_CONTEXT ?? 16_384);
  * order, on every home: found alone they answer nowhere.
  */
 const ON_PICK = new Set<string>(["antigravity", "cursor", "lmstudio", "mlx"]);
+
+/** A model its source does not have. */
+export class ModelRefused extends Error {}
 
 export class Models {
   private held: Record<ServerId, InstalledModel[]> = { ollama: [], lmstudio: [], mlx: [] };
@@ -337,10 +343,50 @@ export class Models {
     }
   }
 
-  /** The model of a server the person put first; the home's own choice when they named none. */
-  serverModel(id: ServerId): string | undefined {
-    const ref = this.order().find((entry) => splitRef(entry).sourceId === id);
+  /** The model of a source the person named first; the home's own choice when they named none. */
+  namedModel(id: string): string | undefined {
+    const ref = this.order().find((entry) => sourceOf(entry) === id);
     return ref && splitRef(ref).model;
+  }
+
+  /**
+   * The person chooses the model of a source. The source keeps its place among those that answer,
+   * one that did not answer comes last; the others keep theirs.
+   */
+  chooseModel(sourceId: string, model: string): void {
+    const source = this.sources().find((candidate) => candidate.id === sourceId);
+    if (!source?.models.some((offered) => offered.id === model)) {
+      throw new ModelRefused(`${source?.label ?? sourceId} does not have ${model}.`);
+    }
+    this.db.setMeta(CHOSEN, JSON.stringify([...new Set([...this.chosen(), sourceId])]));
+    const ref = `${sourceId}:${model}`;
+    const order = this.order();
+    const at = order.findIndex((entry) => sourceOf(entry) === sourceId);
+    if (at >= 0) {
+      const others = (entry: string) => sourceOf(entry) !== sourceId;
+      this.setOrder([...order.slice(0, at), ref, ...order.slice(at + 1).filter(others)]);
+      return;
+    }
+    // Those that answer before it are named too: a named source answers before one that is not.
+    const named = new Set(order.map(sourceOf));
+    const unnamed = this.candidates().filter((entry) => !named.has(sourceOf(entry)));
+    const place = unnamed.findIndex((entry) => sourceOf(entry) === sourceId);
+    this.setOrder([...order, ...(place < 0 ? unnamed : unnamed.slice(0, place)), ref]);
+  }
+
+  /** The sources whose model the person chose. */
+  private chosen(): string[] {
+    return JSON.parse(this.db.meta(CHOSEN) ?? "[]") as string[];
+  }
+
+  /** A model the person named for a gateway that had others. */
+  addGatewayModel(id: string, model: string): void {
+    const gateways = this.gateways().map((gateway) =>
+      gateway.id === id && !gateway.models.includes(model)
+        ? { ...gateway, models: [...gateway.models, model] }
+        : gateway,
+    );
+    this.db.setMeta("models.gateways", JSON.stringify(gateways));
   }
 
   /** Whether the person picked a source, in the setup or by naming one of its models in the order. */
@@ -384,6 +430,7 @@ export class Models {
       sources,
       order: this.order(),
       current: candidates[0],
+      answers: candidates,
       services: services(sources, used, agreed(this.db)),
     };
   }
@@ -411,6 +458,7 @@ export class Models {
       if (ON_PICK.has(own) && !this.isPicked(source.id)) continue;
       if (source.online && (ollama || source.id !== "ollama")) available.set(source.id, source);
     }
+    const chosen = new Set(this.chosen());
     const refs: string[] = [];
     const add = (ref: string) => {
       const { sourceId, model } = splitRef(ref);
@@ -423,7 +471,8 @@ export class Models {
       for (const source of available.values()) {
         const first = source.models[0];
         // Of a source the person picked, the model they named is the one: no other is loaded.
-        if (picked && refs.some((ref) => splitRef(ref).sourceId === source.id)) continue;
+        const one = picked || chosen.has(source.id);
+        if (one && refs.some((ref) => sourceOf(ref) === source.id)) continue;
         if (source.kind === kind && first) add(`${source.id}:${first.id}`);
       }
     }
@@ -539,6 +588,8 @@ export class Models {
     return (turn, onEvent) => runTurn(subscription, turn, this.mcpUrl, onEvent);
   }
 }
+
+const sourceOf = (ref: string): string => splitRef(ref).sourceId;
 
 export function splitRef(ref: string): { sourceId: string; model: string } {
   const colon = ref.indexOf(":");

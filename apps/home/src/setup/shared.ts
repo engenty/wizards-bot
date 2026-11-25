@@ -10,7 +10,7 @@ import {
   Terminals,
   Tested,
 } from "@engenty/model-setup/server";
-import type { Hono } from "hono";
+import { Hono } from "hono";
 import { z } from "zod";
 import type { Home } from "../home.ts";
 import { GATEWAY_PRESETS, type Gateway } from "../models/models.ts";
@@ -62,10 +62,10 @@ export function sharedSetup(home: Home): Hono {
   /** The model of the server the person picked. */
   const pickedModel = () => {
     const source = models.picked()?.[0] ?? "";
-    return isServer(source) ? (models.serverModel(source) ?? null) : null;
+    return isServer(source) ? (models.namedModel(source) ?? null) : null;
   };
 
-  return setupRoutes({
+  const routes = setupRoutes({
     clients: new ClientSetup({
       // The home's own list, read at each use.
       get clients() {
@@ -129,13 +129,21 @@ export function sharedSetup(home: Home): Hono {
         return { ref: check.model ?? check.label, text: "OK" };
       },
       providers: PROVIDERS,
-      async key(_c, provider, key) {
+      // `?add`: the settings', where a key joins what is picked; in the setup the first one is the pick.
+      async key(c, provider, key) {
         const preset = GATEWAY_PRESETS[provider];
         const model = GATEWAY_MODELS[provider];
         if (!preset || !model) return { ok: false, message: null, text: null };
-        const gateway: Gateway = { ...preset, models: [model] };
+        const kept = models.gateways().find((gateway) => gateway.id === provider);
+        const gateway: Gateway = kept ?? { ...preset, models: [model] };
         const value = key?.trim() || home.secrets.get(`gateway.${provider}`);
-        const found = await probeGateway(gateway, value, undefined, setup.gatewayFetch);
+        const found = await probeGateway(
+          gateway,
+          value,
+          undefined,
+          setup.gatewayFetch,
+          models.namedModel(provider),
+        );
         if (found.state !== "ok" && found.state !== "warning") {
           return { ok: false, message: say(found.said, langOf(db)), text: null };
         }
@@ -143,10 +151,13 @@ export function sharedSetup(home: Home): Hono {
         const picked = models.picked();
         const own = picked?.some((id) => stored(id));
         models.setGateway(gateway, value ?? "");
-        if (!own) models.pickSource(provider);
+        const adds = c.req.query("add") !== undefined;
+        if (!(own || adds)) models.pickSource(provider);
         await setup.tested(provider, found);
         await told();
-        return { ok: true, message: null, text: `${provider}:${model}` };
+        const answers = models.candidates();
+        const text = adds ? (answers[0] ?? null) : `${provider}:${found.model ?? model}`;
+        return { ok: true, message: null, text };
       },
       async server(_c, id) {
         models.pickSource(id);
@@ -161,4 +172,12 @@ export function sharedSetup(home: Home): Hono {
       },
     },
   });
+  // A client that was installed or signed in is a source right away.
+  return new Hono()
+    .use("/harness/:id/detect", async (_c, next) => {
+      await next();
+      await models.refresh(true);
+      await told();
+    })
+    .route("/", routes);
 }
