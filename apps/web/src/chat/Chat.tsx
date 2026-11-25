@@ -16,6 +16,7 @@ import { applyEvent } from "../lib/events";
 import { pastedName } from "../lib/files";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
+import { onlyCard, waitedFor } from "../lib/needs";
 import { loadEarlier, useThread } from "../lib/queries";
 import type { Link } from "../lib/stream";
 import { uuid } from "../lib/uuid";
@@ -46,6 +47,7 @@ function useFlash(): [string | null, (text: string) => void] {
  */
 export function Chat({
   agent,
+  agents,
   items,
   link,
   onAgents,
@@ -54,12 +56,15 @@ export function Chat({
   onAgent,
   unread,
   onItems,
+  onChat,
+  focus,
   onDocument,
   onArtifact,
   onFolder,
   reference,
 }: {
   agent: Agent;
+  agents: Agent[];
   /** What needs the person, across all agents. */
   items: Card[];
   link: Link;
@@ -73,7 +78,12 @@ export function Chat({
   onAgent: () => void;
   /** Whether another agent wrote something the person has not read. */
   unread: boolean;
+  /** Opens the list of what needs the person. */
   onItems: () => void;
+  /** Shows an agent's chat, at a card that needs the person. */
+  onChat: (agent: Agent, cardId?: string) => void;
+  /** A card to show in this chat. */
+  focus?: { cardId: string; at: number };
   onDocument: (id: string) => void;
   onArtifact: (id: string) => void;
   onFolder: () => void;
@@ -97,6 +107,7 @@ export function Chat({
   // Entering and leaving the children is counted, so the drop sign does not flicker.
   const [drag, setDrag] = useState(false);
   const depth = useRef(0);
+  const only = onlyCard(items, agents);
   const takes = (e: React.DragEvent) => e.dataTransfer.types.includes("Files");
 
   const send = async (text: string, files: FileRef[], later = false) => {
@@ -223,11 +234,13 @@ export function Chat({
             {items.length ? (
               <button
                 type="button"
-                aria-haspopup="dialog"
-                onClick={onItems}
-                className="enter-pop inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-ember-tint px-3 font-medium text-[0.8125rem] text-ember-strong transition hover:brightness-[0.97] active:scale-95 coarse:h-11"
+                // One card: its chat. Several: the list.
+                aria-haspopup={only ? undefined : "dialog"}
+                title={only ? t("needs.agent", { name: only.agent.name }) : undefined}
+                onClick={() => (only ? onChat(only.agent, only.card.id) : onItems())}
+                className="enter-pop inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-primary px-3 font-semibold text-[0.8125rem] text-primary-foreground transition hover:brightness-[1.06] active:scale-95 coarse:h-11"
               >
-                <span className="size-1.5 rounded-full bg-ember" />
+                <span className="size-1.5 rounded-full bg-current" />
                 {t("needs.count", { n: items.length })}
               </button>
             ) : null}
@@ -253,6 +266,10 @@ export function Chat({
         onArtifact={onArtifact}
         onProblem={flash}
         onStart={(text) => void send(text, [])}
+        waited={waitedFor(agent, agents)}
+        onChat={({ agent: other, cardId }) => onChat(other, cardId)}
+        focus={focus}
+        onMissing={onItems}
       />
       <div className="mx-auto w-full max-w-[46rem] px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4">
         {problem ? (

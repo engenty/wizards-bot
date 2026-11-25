@@ -3,6 +3,7 @@ import type { Agent, Avatar } from "@wizards-bot/protocol";
 import { LogOut, Plus, Search, Settings, Smile } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { lang, t } from "../lib/i18n";
+import { type Waited, waitedFor } from "../lib/needs";
 import { useHome, useThisDevice } from "../lib/queries";
 import { when } from "../lib/time";
 import { LangSwitch, ThemeSwitch } from "../setup/Frame";
@@ -28,9 +29,12 @@ function inOrder(agents: Agent[]): Agent[] {
 }
 
 /** What an agent's line says below its name. */
-function lineOf(agent: Agent): string {
+function lineOf(agent: Agent, waited: Waited | undefined): string {
   if (agent.state === "working") {
     return `${t("agents.working")}…`;
+  }
+  if (waited) {
+    return t(waited.cardId ? "needs.agent" : "agents.waits", { name: waited.agent.name });
   }
   if (agent.preview) {
     return agent.preview;
@@ -57,8 +61,10 @@ function Count({ n, label, needs }: { n: number; label: string; needs: boolean }
     <span
       title={label}
       className={cn(
-        "enter-pop grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 font-medium text-[0.6875rem] tabular-nums",
-        needs ? "bg-ember-tint text-ember-strong" : "bg-ember text-white",
+        "enter-pop grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[0.6875rem] tabular-nums",
+        needs
+          ? "bg-primary font-semibold text-primary-foreground"
+          : "bg-ink-3 font-medium text-paper",
       )}
     >
       {n > 99 ? "99+" : n}
@@ -67,8 +73,19 @@ function Count({ n, label, needs }: { n: number; label: string; needs: boolean }
 }
 
 /** An agent in the open list: figure, name and time, and one line of what was said last. */
-function Row({ agent, current, onPick }: { agent: Agent; current: boolean; onPick: () => void }) {
+function Row({
+  agent,
+  agents,
+  current,
+  onPick,
+}: {
+  agent: Agent;
+  agents: Agent[];
+  current: boolean;
+  onPick: () => void;
+}) {
   const waiting = waitingAt(agent, current);
+  const [waited] = waitedFor(agent, agents);
   const now = useMinute();
   const time = agent.preview ? when(agent.updatedAt, now, lang) : "";
   return (
@@ -96,13 +113,22 @@ function Row({ agent, current, onPick }: { agent: Agent; current: boolean; onPic
             {time ? <span className="shrink-0 text-[0.75rem] text-ink-3">{time}</span> : null}
           </span>
           <span className="flex items-center gap-2">
+            {agent.state !== "working" && waited?.cardId ? (
+              <span className="-mr-0.5 size-1.5 shrink-0 rounded-full bg-primary" />
+            ) : null}
             <span
               className={cn(
                 "min-w-0 flex-1 truncate text-[0.8125rem]",
-                agent.state === "working" ? "text-moss" : waiting.n ? "text-ink-2" : "text-ink-3",
+                agent.state === "working"
+                  ? "text-moss"
+                  : waited?.cardId
+                    ? "font-medium text-ink"
+                    : waiting.n
+                      ? "text-ink-2"
+                      : "text-ink-3",
               )}
             >
-              {lineOf(agent)}
+              {lineOf(agent, waited)}
             </span>
             {waiting.n ? <Count {...waiting} /> : null}
           </span>
@@ -115,15 +141,24 @@ function Row({ agent, current, onPick }: { agent: Agent; current: boolean; onPic
 /** An agent in the narrow column: its figure, with a dot when something waits there. */
 function Figure({
   agent,
+  agents,
   current,
   onPick,
 }: {
   agent: Agent;
+  agents: Agent[];
   current: boolean;
   onPick: () => void;
 }) {
   const waiting = waitingAt(agent, current);
-  const label = [agent.name, waiting.label].filter(Boolean).join(", ");
+  const [waited] = waitedFor(agent, agents);
+  const label = [
+    agent.name,
+    waiting.label,
+    waited ? t(waited.cardId ? "needs.agent" : "agents.waits", { name: waited.agent.name }) : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <li>
       <button
@@ -142,7 +177,7 @@ function Figure({
           <span
             className={cn(
               "enter-pop absolute top-1.5 right-1.5 size-2.5 rounded-full ring-2 ring-paper",
-              waiting.n ? "bg-ember" : "bg-moss",
+              waiting.needs ? "bg-primary" : waiting.n ? "bg-ink-3" : "bg-moss",
             )}
           />
         ) : null}
@@ -246,6 +281,7 @@ export function Sidebar({
             <Figure
               key={agent.id}
               agent={agent}
+              agents={agents}
               current={agent.id === current.id}
               onPick={() => onPick(agent)}
             />
@@ -286,6 +322,7 @@ export function Sidebar({
           <Row
             key={agent.id}
             agent={agent}
+            agents={agents}
             current={agent.id === current.id}
             onPick={() => onPick(agent)}
           />

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
 import type { Thread, Waiting } from "../lib/events";
 import { t } from "../lib/i18n";
+import type { Waited } from "../lib/needs";
 import { askToNotify, canAskToNotify, notifyLater } from "../lib/notify";
 import { useThisDevice } from "../lib/queries";
 import { elapsed } from "../lib/time";
@@ -121,7 +122,17 @@ function Parts({
       case "source":
         return i === firstSource ? <Sources key={key} sources={sources} /> : null;
       case "card":
-        return <CardView key={part.card.id} card={part.card} />;
+        // Where the list scrolls to for a card that needs the person, clear of the bar at the top.
+        return (
+          <div
+            key={part.card.id}
+            data-card={part.card.id}
+            tabIndex={-1}
+            className="scroll-mt-16 outline-none"
+          >
+            <CardView card={part.card} />
+          </div>
+        );
       case "file":
         return i === firstFile ? (
           <MessageFiles key={key} files={files} mine={mine} onProblem={onProblem} />
@@ -301,6 +312,35 @@ function MessageView({
 }
 
 /**
+ * Another agent whose answer this one waits for, as the way to its chat. Where that agent waits
+ * for the person, the line says so and leads to its card.
+ */
+function WaitsFor({ waited, onChat }: { waited: Waited; onChat: () => void }) {
+  const { agent, cardId } = waited;
+  return (
+    <button
+      type="button"
+      onClick={onChat}
+      className={cn(
+        "enter-rise flex min-h-11 w-fit max-w-full items-center gap-2.5 rounded-xl py-1.5 pr-2.5 pl-2 text-left text-[0.875rem] transition active:scale-[0.985]",
+        cardId
+          ? "bg-primary text-primary-foreground hover:brightness-[1.06]"
+          : "bg-paper-2 text-ink-2 hover:bg-accent hover:text-ink",
+      )}
+    >
+      <Face agent={agent} size={28} animated={false} className="shrink-0" />
+      <span className="min-w-0">
+        {t("chat.waits", { name: agent.name })}
+        {cardId ? (
+          <span className="block font-semibold">{t("needs.agent", { name: agent.name })}</span>
+        ) : null}
+      </span>
+      <ChevronRight className="size-4 shrink-0" />
+    </button>
+  );
+}
+
+/**
  * A conversation: the person's messages on the right, the agent's with its figure. The list
  * stays at its end while it grows, unless the person has scrolled up to read; earlier messages
  * come in above without moving what is read.
@@ -313,6 +353,10 @@ export function Messages({
   onArtifact,
   onProblem,
   onStart,
+  waited,
+  onChat,
+  focus,
+  onMissing,
 }: {
   /** Undefined while the conversation loads. */
   thread: Thread | undefined;
@@ -323,6 +367,13 @@ export function Messages({
   onProblem: (text: string) => void;
   /** Sends one of the first ideas of an empty conversation. */
   onStart?: (text: string) => void;
+  /** The agents whose answer this one waits for. */
+  waited: Waited[];
+  onChat: (waited: Waited) => void;
+  /** A card to show in this conversation, once each time it is asked for. */
+  focus?: { cardId: string; at: number };
+  /** The conversation does not hold that card. */
+  onMissing: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -347,6 +398,31 @@ export function Messages({
       el.scrollTop = el.scrollHeight - fromEnd.current;
     }
   }, [first]);
+
+  // The card that was asked for: earlier messages are loaded until it is there. This comes after
+  // the two above, so its place is the one that counts.
+  const focused = useRef<number>(undefined);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the request and what is loaded say when
+  useLayoutEffect(() => {
+    if (!focus || !thread || focused.current === focus.at) {
+      return;
+    }
+    const card = content.current?.querySelector<HTMLElement>(
+      `[data-card="${CSS.escape(focus.cardId)}"]`,
+    );
+    if (!card && thread.more) {
+      onEarlier();
+      return;
+    }
+    focused.current = focus.at;
+    if (!card) {
+      onMissing();
+      return;
+    }
+    atEnd.current = false;
+    card.scrollIntoView({ block: "start" });
+    card.focus({ preventScroll: true });
+  }, [focus, agent.conversationId, first, Boolean(thread)]);
 
   // Whatever makes the list taller (text being written, a picture that has loaded) keeps it
   // at its end.
@@ -413,6 +489,13 @@ export function Messages({
             onProblem={onProblem}
           />
         ))}
+        {waited.length ? (
+          <div className="flex flex-col gap-2 pl-10">
+            {waited.map((each) => (
+              <WaitsFor key={each.agent.id} waited={each} onChat={() => onChat(each)} />
+            ))}
+          </div>
+        ) : null}
         {agent.main && onStart && thread && !spoke(thread) ? <Starts onStart={onStart} /> : null}
         {answered(thread) ? <NotifyOffer /> : null}
       </div>

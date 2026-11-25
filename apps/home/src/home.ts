@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { hostname, networkInterfaces, userInfo } from "node:os";
 import type { Admin, Card, HomeInfo, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
+import { Handed } from "./agent/handed.ts";
 import { McpTurns } from "./agent/mcp.ts";
 import type { Tool } from "./agent/tool.ts";
 import { buildTools, registerCardHandlers } from "./agent/tools.ts";
@@ -69,6 +70,8 @@ export class Home {
   readonly avatars: Avatars;
   readonly models: Models;
   readonly turns: Turns;
+  /** Tasks agents handed to other agents, until their answer comes. */
+  readonly handed: Handed;
   readonly mcp = new McpTurns();
   readonly notifier: Notifier;
   readonly connections: Connections;
@@ -104,6 +107,7 @@ export class Home {
     this.files = new Files(this);
     this.models = new Models(config, this.db, this.secrets, computerName());
     this.turns = new Turns(this);
+    this.handed = new Handed(this);
     registerCardHandlers(this);
     this.notifier = new Notifier(this);
     this.connections = new Connections(this);
@@ -263,18 +267,23 @@ export class Home {
     });
     if (!card) return undefined;
     this.notifier.resolved([card.id]);
+    this.handed.answering(card);
     const payload = this.store.cardPayload<Record<string, unknown>>(cardId) ?? { type: "ask" };
     const handler = this.cardHandlers.get(String(payload.type));
     // The device gets its answer at once; what the card sets off runs after it.
     const work = Promise.resolve()
       .then(() => handler?.({ card, action: input.action, values, payload }))
+      .then(() => this.handed.afterCard(card))
       .catch((error) => {
         this.tell(
           card.conversationId,
           `Acting on the card "${card.title}" failed: ${(error as Error).message}`,
         );
       })
-      .finally(() => this.handling.delete(work));
+      .finally(() => {
+        this.handed.handled(card.id);
+        this.handling.delete(work);
+      });
     this.handling.add(work);
     return card;
   }
