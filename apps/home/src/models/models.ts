@@ -6,13 +6,15 @@ import { lmStudioFetch } from "@engenty/local-models/lmstudio";
 import { mlxModel, type Waiting } from "@engenty/local-models/mlx";
 import { type ChatModel, ollamaModel } from "@engenty/local-models/ollama";
 import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
+import { defineEmbedder, type SearchEmbedder } from "@engenty/search-index";
+import { type Level, levelOf } from "@engenty/tool-harness";
 import {
   type ModelService,
   type ModelSource,
   type Models as ModelsView,
   waitingForYes,
 } from "@wizards-bot/protocol";
-import type { LanguageModel } from "ai";
+import { embedMany, type LanguageModel } from "ai";
 import type { Config } from "../config.ts";
 import type { Secrets } from "../identity.ts";
 import type { Db } from "../store/db.ts";
@@ -37,6 +39,10 @@ const SERVERS_HERE: readonly ServerId[] = ["ollama", "lmstudio", "mlx"];
 /** What answers a turn: a model Mastra asks. A subscription's model needs the turn's MCP token. */
 export interface Engine {
   ref: string;
+  /** What the model can be trusted with. */
+  level: Level;
+  /** A client that steps by itself and reaches the tools over MCP. */
+  steps?: true;
   model(turn: {
     mcpToken: string;
     conversationId: string;
@@ -101,6 +107,8 @@ export interface Account {
 }
 
 const ACCOUNT_KEY = "account.gateway";
+/** Names the space of the account's vectors; their own length is what the search compares. */
+const ACCOUNT_DIMENSIONS = 1536;
 
 /**
  * A model of the account's gateway: the AI SDK's gateway client, as engenty wizards' runtime
@@ -120,8 +128,23 @@ export function accountModel(
   })(model);
 }
 
+/** The account's embedding model, for the search over tools. */
+export function accountEmbedder(account: Account, key: string): SearchEmbedder {
+  const model = createGateway({
+    baseURL: `${account.gatewayUrl}/v4/ai`,
+    apiKey: key,
+  }).embeddingModel("wizards/embedding");
+  return defineEmbedder(async (texts) => (await embedMany({ model, values: texts })).embeddings, {
+    dimensions: ACCOUNT_DIMENSIONS,
+    modelId: "wizards/embedding",
+  });
+}
+
 /** The sources the person picked in the setup. */
 const PICKED = "models.picked";
+
+/** The sources whose model the person chose: of them that model answers, and no other. */
+const CHOSEN = "models.chosen";
 
 /** Whether the person picked Ollama: "on" or "off". */
 const OLLAMA = "models.ollama";
@@ -136,6 +159,9 @@ const CONTEXT = Number(process.env.WIZARDS_BOT_OLLAMA_CONTEXT ?? 16_384);
  * order, on every home: found alone they answer nowhere.
  */
 const ON_PICK = new Set<string>(["antigravity", "cursor", "lmstudio", "mlx"]);
+
+/** A model its source does not have. */
+export class ModelRefused extends Error {}
 
 export class Models {
   private held: Record<ServerId, InstalledModel[]> = { ollama: [], lmstudio: [], mlx: [] };
@@ -337,10 +363,50 @@ export class Models {
     }
   }
 
-  /** The model of a server the person put first; the home's own choice when they named none. */
-  serverModel(id: ServerId): string | undefined {
-    const ref = this.order().find((entry) => splitRef(entry).sourceId === id);
+  /** The model of a source the person named first; the home's own choice when they named none. */
+  namedModel(id: string): string | undefined {
+    const ref = this.order().find((entry) => sourceOf(entry) === id);
     return ref && splitRef(ref).model;
+  }
+
+  /**
+   * The person chooses the model of a source. The source keeps its place among those that answer,
+   * one that did not answer comes last; the others keep theirs.
+   */
+  chooseModel(sourceId: string, model: string): void {
+    const source = this.sources().find((candidate) => candidate.id === sourceId);
+    if (!source?.models.some((offered) => offered.id === model)) {
+      throw new ModelRefused(`${source?.label ?? sourceId} does not have ${model}.`);
+    }
+    this.db.setMeta(CHOSEN, JSON.stringify([...new Set([...this.chosen(), sourceId])]));
+    const ref = `${sourceId}:${model}`;
+    const order = this.order();
+    const at = order.findIndex((entry) => sourceOf(entry) === sourceId);
+    if (at >= 0) {
+      const others = (entry: string) => sourceOf(entry) !== sourceId;
+      this.setOrder([...order.slice(0, at), ref, ...order.slice(at + 1).filter(others)]);
+      return;
+    }
+    // Those that answer before it are named too: a named source answers before one that is not.
+    const named = new Set(order.map(sourceOf));
+    const unnamed = this.candidates().filter((entry) => !named.has(sourceOf(entry)));
+    const place = unnamed.findIndex((entry) => sourceOf(entry) === sourceId);
+    this.setOrder([...order, ...(place < 0 ? unnamed : unnamed.slice(0, place)), ref]);
+  }
+
+  /** The sources whose model the person chose. */
+  private chosen(): string[] {
+    return JSON.parse(this.db.meta(CHOSEN) ?? "[]") as string[];
+  }
+
+  /** A model the person named for a gateway that had others. */
+  addGatewayModel(id: string, model: string): void {
+    const gateways = this.gateways().map((gateway) =>
+      gateway.id === id && !gateway.models.includes(model)
+        ? { ...gateway, models: [...gateway.models, model] }
+        : gateway,
+    );
+    this.db.setMeta("models.gateways", JSON.stringify(gateways));
   }
 
   /** Whether the person picked a source, in the setup or by naming one of its models in the order. */
@@ -384,6 +450,7 @@ export class Models {
       sources,
       order: this.order(),
       current: candidates[0],
+      answers: candidates,
       services: services(sources, used, agreed(this.db)),
     };
   }
@@ -411,6 +478,7 @@ export class Models {
       if (ON_PICK.has(own) && !this.isPicked(source.id)) continue;
       if (source.online && (ollama || source.id !== "ollama")) available.set(source.id, source);
     }
+    const chosen = new Set(this.chosen());
     const refs: string[] = [];
     const add = (ref: string) => {
       const { sourceId, model } = splitRef(ref);
@@ -423,7 +491,8 @@ export class Models {
       for (const source of available.values()) {
         const first = source.models[0];
         // Of a source the person picked, the model they named is the one: no other is loaded.
-        if (picked && refs.some((ref) => splitRef(ref).sourceId === source.id)) continue;
+        const one = picked || chosen.has(source.id);
+        if (one && refs.some((ref) => sourceOf(ref) === source.id)) continue;
         if (source.kind === kind && first) add(`${source.id}:${first.id}`);
       }
     }
@@ -458,7 +527,7 @@ export class Models {
   localEngine(sourceId: string, model: string, ref = `${sourceId}:${model}`): Engine | undefined {
     if (sourceId === "ollama") {
       const chat = this.localChat(model);
-      return chat && { ref, model: () => chat };
+      return chat && { ref, level: this.localLevel(sourceId, model), model: () => chat };
     }
     if (sourceId === "lmstudio") {
       if (!this.held.lmstudio.some((held) => held.name === model)) return undefined;
@@ -468,7 +537,7 @@ export class Models {
         baseURL: `${url}/v1`,
         fetch: lmStudioFetch(url, { context: CONTEXT }),
       })(model);
-      return { ref, model: () => chat };
+      return { ref, level: this.localLevel(sourceId, model), model: () => chat };
     }
     if (sourceId === "mlx") {
       const found = this.held.mlx.find((held) => held.name === model);
@@ -481,6 +550,7 @@ export class Models {
       };
       return {
         ref,
+        level: this.localLevel(sourceId, model),
         model: ({ onWaiting }) => mlxModel({ ...chat, onWaiting }),
         ahead: () => mlxModel({ ...chat, warm: true }),
       };
@@ -489,6 +559,8 @@ export class Models {
     if (run) {
       return {
         ref,
+        level: "high",
+        steps: true,
         model: ({ mcpToken, conversationId }) =>
           clientModel({
             provider: sourceId,
@@ -506,7 +578,8 @@ export class Models {
       const key = this.accountKey();
       if (!key) return undefined;
       const chat = accountModel(account, key, model);
-      return { ref, model: () => chat };
+      const level = model === ACCOUNT.models[0] ? "standard" : "high";
+      return { ref, level, model: () => chat };
     }
     const gateway = this.gateways().find((g) => g.id === sourceId);
     const key = this.secrets.get(`gateway.${sourceId}`);
@@ -516,7 +589,13 @@ export class Models {
       baseURL: gateway.baseUrl,
       apiKey: key,
     })(model);
-    return { ref, model: () => chat };
+    return { ref, level: levelOf({ model }), model: () => chat };
+  }
+
+  /** What an open model on this computer can be trusted with, by its name and its size. */
+  private localLevel(id: ServerId, model: string): Level {
+    const size = this.held[id].find((held) => held.name === model)?.size;
+    return levelOf({ model, local: true, ...(size ? { size } : {}) });
   }
 
   /** An Ollama model of this computer. A linked computer serves it to its home through this. */
@@ -539,6 +618,8 @@ export class Models {
     return (turn, onEvent) => runTurn(subscription, turn, this.mcpUrl, onEvent);
   }
 }
+
+const sourceOf = (ref: string): string => splitRef(ref).sourceId;
 
 export function splitRef(ref: string): { sourceId: string; model: string } {
   const colon = ref.indexOf(":");

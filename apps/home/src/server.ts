@@ -21,6 +21,7 @@ import {
   AnswerHandoff,
   Avatar,
   ChangeSetup,
+  ChooseModel,
   ConnectFolder,
   DeviceResources,
   FILE_LIMIT,
@@ -53,6 +54,7 @@ import { FileRefused, isText, sniff } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
 import { PassRefused } from "./group.ts";
 import type { Home } from "./home.ts";
+import { ModelRefused } from "./models/models.ts";
 import { agree, takeBack } from "./models/services.ts";
 import { secretEntries } from "./secrets.ts";
 import { OllamaRefused, PullRefused } from "./setup/setup.ts";
@@ -1048,6 +1050,18 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const view = home.models.view();
     home.events.emit({ type: "models.updated", models: view });
     return c.json(view);
+  });
+
+  // The model of one source: the source and the others keep their places.
+  app.put("/v1/models/source", async (c) => {
+    const { source, model } = ChooseModel.parse(await c.req.json());
+    try {
+      await home.setup.choose(source, model);
+    } catch (error) {
+      if (error instanceof ModelRefused) return fail(c, 400, "refused", error.message);
+      throw error;
+    }
+    return c.json(home.models.view());
   });
 
   // ── Setup ─────────────────────────────────────────────────────────────────

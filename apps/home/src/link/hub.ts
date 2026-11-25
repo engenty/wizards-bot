@@ -8,6 +8,7 @@ import {
   type StreamPart,
   type StreamResult,
 } from "@engenty/local-models/ollama";
+import { levelOf } from "@engenty/tool-harness";
 import type { ModelSource } from "@wizards-bot/protocol";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { Home } from "../home.ts";
@@ -86,7 +87,7 @@ export class LinkHub implements RemoteSources {
     const ref = `${sourceId}:${model}`;
     if (found.kind !== "subscription") {
       const chat = this.model(key, source, model);
-      return { ref, model: () => chat };
+      return { ref, level: levelOf({ model, local: true }), model: () => chat };
     }
     const run: ClientRun = (turn, onEvent) =>
       new Promise<void>((resolve, reject) => {
@@ -98,6 +99,8 @@ export class LinkHub implements RemoteSources {
       });
     return {
       ref,
+      level: "high",
+      steps: true,
       model: ({ mcpToken, conversationId }) =>
         clientModel({
           provider: sourceId,

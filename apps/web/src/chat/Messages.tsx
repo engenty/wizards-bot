@@ -306,6 +306,11 @@ function MessageView({
         {message.model === "apple:on-device" ? (
           <p className="text-[0.75rem] text-ink-4">{t("chat.onDevice")}</p>
         ) : null}
+        {message.unsourced && message.state === "done" ? (
+          <p className="text-[0.75rem] text-ink-4">
+            {t("chat.unsourced", { model: message.model?.split(/[:/]/).at(-1) ?? "" })}
+          </p>
+        ) : null}
       </div>
     </div>
   );

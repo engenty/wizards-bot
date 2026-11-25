@@ -395,7 +395,9 @@ describe("skills", () => {
     assert.match(system(request), /^Loaded skill "google-workspace":/m);
     assert.match(system(request), /`connection_tools`/);
     assert.match(system(request), /https:\/\/docsmcp\.googleapis\.com\/mcp\/v1/);
-    assert.ok(offered(request).includes("connection_add"));
+    // Not in the prompt: the skill names it, the harness finds and runs it.
+    assert.ok(offered(request).includes("tool_call"));
+    assert.ok(JSON.stringify(request?.tools).includes("connection_add"));
   });
 
   test("a link, a call and a message are cards the person taps; nothing opens by itself", async () => {

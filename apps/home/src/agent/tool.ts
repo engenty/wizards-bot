@@ -1,3 +1,4 @@
+import { TOOL_CALL } from "@engenty/tool-harness";
 import { createTool } from "@mastra/core/tools";
 import type { FileRef } from "@wizards-bot/protocol";
 import { z } from "zod";
@@ -16,6 +17,10 @@ export interface Tool<I = any> {
   input: z.ZodType<I>;
   /** What the person sees while it runs, e.g. "Writing “Packing list”". */
   label?(input: Record<string, unknown>): string;
+  /** What is wrong with an input, for the model, before the person is asked about it. */
+  wrong?(input: Record<string, unknown>): string | undefined;
+  /** What a call does, in the person's words, for a card that asks before it runs. Markdown. */
+  says?(input: Record<string, unknown>): string;
   /** Set on a tool that asks the person with `call.ask`: it runs again with the answer. */
   asks?: true;
   /** Set on a tool that leaves no line in the message: what it shows says it all. */
@@ -169,6 +174,8 @@ export function mastraTools(
   asking: Asking,
   /** The answer to the card a suspended call waits on. */
   answerOf: (cardId: string) => Answer | undefined,
+  /** What a `tool_call` means: the tool and its input, or what the model reads instead. */
+  resolve?: (input: unknown) => { tool: Tool; input: unknown } | string,
 ): Record<string, ReturnType<typeof createTool>> {
   const byName: Record<string, ReturnType<typeof createTool>> = {};
   for (const tool of [...tools].sort((a, b) => a.name.localeCompare(b.name))) {
@@ -180,7 +187,9 @@ export function mastraTools(
       ...(tool.asks ? { suspendSchema: SUSPENDED, resumeSchema: RESUMED } : {}),
       execute: async (input: unknown, context?: MastraCall) => {
         const run = tool.asks ? context?.agent : undefined;
-        const { text, pictures } = await runTool(tool, input, draft, {
+        const meant = tool.name === TOOL_CALL ? resolve?.(input) : { tool, input };
+        if (typeof meant !== "object") return meant ?? "Nothing was done.";
+        const { text, pictures } = await runTool(meant.tool, meant.input, draft, {
           ...asking,
           suspend: run?.suspend,
           // The answer itself travels beside Mastra, so nothing typed enters its store.

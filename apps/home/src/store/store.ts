@@ -61,6 +61,7 @@ interface MessageRow {
   client_id: string | null;
   sender: string | null;
   queued: number;
+  unsourced: number;
   created_at: string;
 }
 
@@ -660,17 +661,19 @@ export class Store {
       model?: string;
       role?: "agent" | "note";
       queued?: boolean;
+      unsourced?: boolean;
     },
   ): Message | undefined {
     const current = this.db.get<MessageRow>("select * from message where id = ?", id);
     if (!current) return undefined;
     this.db.run(
-      "update message set parts = ?, state = ?, model = ?, role = ?, queued = ? where id = ?",
+      "update message set parts = ?, state = ?, model = ?, role = ?, queued = ?, unsourced = ? where id = ?",
       patch.parts ? JSON.stringify(patch.parts.map(toStored)) : current.parts,
       patch.state ?? current.state,
       patch.model ?? current.model,
       patch.role ?? current.role,
       patch.queued === undefined ? current.queued : patch.queued ? 1 : 0,
+      patch.unsourced === undefined ? current.unsourced : patch.unsourced ? 1 : 0,
       id,
     );
     const message = this.message(id) as Message;
@@ -757,6 +760,7 @@ export class Store {
       state: row.state as Message["state"],
       model: row.model ?? undefined,
       ...(row.queued ? { queued: true } : {}),
+      ...(row.unsourced ? { unsourced: true } : {}),
       from: row.sender ? (JSON.parse(row.sender) as Message["from"]) : undefined,
       createdAt: row.created_at,
     };

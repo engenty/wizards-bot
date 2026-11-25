@@ -1,3 +1,4 @@
+import { type Level, reaches, throughHarness } from "@engenty/tool-harness";
 import { Agent } from "@mastra/core/agent";
 import {
   MASTRA_RESOURCE_ID_KEY,
@@ -11,9 +12,11 @@ import { newToken } from "../ids.ts";
 import { LAST_MESSAGES } from "../mastra.ts";
 import { ASKED_OPTION } from "../models/client-model.ts";
 import { ACCOUNT, type Engine, splitRef } from "../models/models.ts";
+import { langOf, say, w } from "../setup/words.ts";
 import type { AgentRecord } from "../store/store.ts";
 import { cacheProcessor, markedInstructions } from "./cache.ts";
 import { Draft } from "./draft.ts";
+import { guarded, isSource, metaTools, turnHarness } from "./harness.ts";
 import { type Prompt, systemPrompt } from "./prompt.ts";
 import { type Answer, type Asking, mastraTools, runTool, type Tool } from "./tool.ts";
 
@@ -68,6 +71,8 @@ export interface Trigger {
   done?: (message: Message) => void;
   /** Tasks other agents handed over that this is about (`agent/handed.ts`). */
   handed?: string[];
+  /** The model the person let take over: it is tried first in this turn. */
+  engine?: string;
 }
 
 /** A run Mastra suspended: a tool in it asked the person with a card. */
@@ -127,6 +132,8 @@ export const WORK_TURNS = 8;
 const TURN = "turn";
 /** How long the home keeps reading a conversation's thread after its last turn. */
 const IDLE_MS = 60_000;
+/** How much of a message the search for tools reads. */
+const HINT_CHARS = 1200;
 /** How long, and how much of, a run's output is kept before its turn is known. */
 const EARLY_MS = 30_000;
 const EARLY_CHUNKS = 5_000;
@@ -158,6 +165,8 @@ interface Following {
 }
 
 /** One run of an agent: the message it writes and everything that was said to it meanwhile. */
+type Harness = ReturnType<typeof turnHarness>;
+
 class Turn {
   readonly controller = new AbortController();
   readonly mcpToken = newToken();
@@ -166,13 +175,19 @@ class Turn {
   readonly finished: Promise<Message | undefined>;
   private finish: (message: Message | undefined) => void = () => {};
   private started:
-    | { draft: Draft; context: TurnContext; tools: Tool[]; asking: Asking }
+    | { draft: Draft; context: TurnContext; tools: Tool[]; asking: Asking; harness: Harness }
     | undefined;
   /** The line a quiet task's run leaves instead of an answer. */
   note: string | undefined;
   /** What the agent said is done and what is next, when it asked for another turn. */
   next: { done: string; next: string } | undefined;
-  private changing: string | undefined;
+  private changing: Promise<string> | undefined;
+  /** The engine that answers now: a fallback may be a weaker one. */
+  private answering: Engine | undefined;
+  /** The person was asked whether a more capable model takes over. */
+  private offered = false;
+  /** The tools that ran through. */
+  private readonly ran = new Set<string>();
   /** Tool rounds the run took, and whether the last one still called tools. */
   steps = 0;
   open = false;
@@ -216,7 +231,13 @@ class Turn {
   }
 
   /** The run's message and tools, made when the run really starts. */
-  get parts(): { draft: Draft; context: TurnContext; tools: Tool[]; asking: Asking } {
+  get parts(): {
+    draft: Draft;
+    context: TurnContext;
+    tools: Tool[];
+    asking: Asking;
+    harness: Harness;
+  } {
     if (this.started) return this.started;
     const { home, agent, trigger } = this;
     const message = {
@@ -251,11 +272,30 @@ class Turn {
         return true;
       },
     };
-    const tools = trigger.room
+    const all = trigger.room
       ? home.peers.rooms.tools(context)
       : trigger.guest
         ? home.peers.guestTools(context)
         : home.tools(context);
+    const tools = all.map((tool) =>
+      guarded(
+        tool,
+        () => this.level,
+        home,
+        (name) => this.ran.add(name),
+        (tool, needs) => this.offer(tool, needs),
+      ),
+    );
+    // A client that steps by itself reaches all tools over MCP.
+    const first = this.engines[0];
+    const source = splitRef(first?.ref ?? "").sourceId;
+    const harness = turnHarness(
+      tools,
+      this.level,
+      home.toolSearch.for(source),
+      (name) => first?.steps === true || home.skills.owned(name),
+      this.level === "basic" && this.stronger("standard") !== undefined,
+    );
     // The card of a tool that asks: it names the tool and its input, to run it again.
     const asking: Asking = {
       card: (tool, input, { private: hidden, ...card }, kept) => {
@@ -278,7 +318,7 @@ class Turn {
     };
     // A subscription's client reaches these tools over MCP with the turn's token.
     if (!this.ahead) home.mcp.open(this.mcpToken, { tools, draft, asking });
-    this.started = { draft, context, tools, asking };
+    this.started = { draft, context, tools, asking, harness };
     return this.started;
   }
 
@@ -319,9 +359,113 @@ class Turn {
    * What changes from turn to turn, made once per turn: the same in every step of the run, so
    * each step reads the steps before it from the provider's cache.
    */
-  context(): string {
-    this.changing ??= this.prompt().context;
+  context(): Promise<string> {
+    this.changing ??= this.looked().then((found) =>
+      [this.prompt().context, found].filter(Boolean).join("\n\n"),
+    );
     return this.changing;
+  }
+
+  /** The tools that may fit the message: a model that does not think of searching reads them. */
+  private async looked(): Promise<string> {
+    const { harness } = this.parts;
+    const text = this.trigger.text.trim().slice(0, HINT_CHARS);
+    if (!text) return "";
+    return harness.hint(text, { signal: this.controller.signal }).catch((error) => {
+      console.error("[turn] looking for tools:", error);
+      return "";
+    });
+  }
+
+  /** A small model wrote the answer out of itself: the person is told. */
+  get unsourced(): boolean {
+    if (this.level !== "basic" || this.shared) return false;
+    if (this.triggers.some((trigger) => trigger.files?.length)) return false;
+    return ![...this.ran].some(isSource);
+  }
+
+  /** What the model that answers can be trusted with. */
+  get level(): Level {
+    return (this.answering ?? this.engines[0])?.level ?? "basic";
+  }
+
+  /** What a `tool_call` of the model means. */
+  resolve(raw: unknown): { tool: Tool; input: unknown } | string {
+    const meant = this.parts.harness.resolve(raw);
+    if (meant.ok) return { tool: meant.tool.tool, input: meant.input };
+    // A tool beyond the model asks the person whether a more capable one takes over.
+    const offered = meant.beyond && this.offer(meant.beyond.tool, meant.beyond.needs ?? "basic");
+    return offered ?? meant.say;
+  }
+
+  /** The next model that may do what needs this much, where the person can be asked. */
+  private stronger(needs: Level): string | undefined {
+    const { models } = this.home;
+    if (this.trigger.guest || this.trigger.room || this.trigger.engine) return undefined;
+    return models
+      .candidates()
+      .find((ref) => reaches(models.engine(ref)?.level ?? "basic", needs) && ref !== this.using);
+  }
+
+  /** The model that answers now. */
+  private get using(): string | undefined {
+    return (this.answering ?? this.engines[0])?.ref;
+  }
+
+  /** Asks the person, once in a turn, whether a more capable model takes over. */
+  private offer(tool: Tool, needs: Level): string | undefined {
+    const ref = this.stronger(needs);
+    if (!ref) return undefined;
+    const said = `Nothing was done. The person was asked on a card whether a more capable model takes over. Say in one sentence that you cannot do it yourself, and end your turn.`;
+    if (this.offered) return said;
+    this.offered = true;
+    const { home, agent, trigger } = this;
+    const { draft } = this.parts;
+    const { sourceId, model } = splitRef(ref);
+    const source = home.models.sources().find(({ id }) => id === sourceId);
+    const name = [source?.label ?? sourceId, model === "default" ? "" : model]
+      .filter(Boolean)
+      .join(" · ");
+    const lang = langOf(home.db);
+    const leaves = source?.service
+      ? w(
+          `${source.label} then reads this conversation, outside your computer.`,
+          `${source.label} liest dann dieses Gespräch, außerhalb deines Computers.`,
+        )
+      : w("It runs on your own computer.", "Es läuft auf deinem eigenen Computer.");
+    const card = home.store.createCard(
+      {
+        kind: "approval",
+        level: "needs_you",
+        title: say(w(`Let ${name} take over?`, `Soll ${name} übernehmen?`), lang),
+        body: `${say(
+          w(
+            `The model that answers now is too small for this (${tool.name}): it gets such things wrong without noticing.`,
+            `Das Modell, das gerade antwortet, ist dafür zu klein (${tool.name}): Es macht so etwas falsch und merkt es nicht.`,
+          ),
+          lang,
+        )} ${say(leaves, lang)}`,
+        actions: [
+          {
+            id: "take_over",
+            label: say(w("Let it take over", "Übernehmen lassen"), lang),
+            style: "primary",
+          },
+          { id: "leave", label: say(w("No", "Nein"), lang), style: "plain" },
+        ],
+        payload: {
+          type: "stronger",
+          engine: ref,
+          text: trigger.text,
+          files: trigger.files,
+          outside: this.outside || undefined,
+          task: trigger.task,
+        },
+      },
+      { agentId: agent.id, conversationId: trigger.conversationId, messageId: draft.id },
+    );
+    draft.add({ type: "card", card });
+    return said;
   }
 
   private prompt(): Prompt {
@@ -360,26 +504,45 @@ class Turn {
    * skill is loaded, so they cost nothing before.
    */
   shownTools(): string[] {
-    return this.parts.tools
-      .filter((tool) => this.home.skills.shows(this.trigger.conversationId, tool.name))
-      .map((tool) => tool.name);
+    const { harness } = this.parts;
+    return [...harness.shown, ...harness.meta]
+      .map((tool) => tool.name)
+      .filter((name) => this.home.skills.shows(this.trigger.conversationId, name));
   }
 
   /** The engines in the order Mastra tries them: when one fails, it asks the next. */
   models(): unknown {
     const models = this.engines.map((engine) => ({
-      model: engine.model({
-        mcpToken: this.mcpToken,
-        conversationId: this.trigger.conversationId,
-        onWaiting: (waiting) =>
-          this.parts.draft.waiting(
-            waiting?.state ?? "none",
-            waiting?.total ? (waiting.done ?? 0) / waiting.total : undefined,
-          ),
-      }),
+      model: this.told(
+        engine,
+        engine.model({
+          mcpToken: this.mcpToken,
+          conversationId: this.trigger.conversationId,
+          onWaiting: (waiting) =>
+            this.parts.draft.waiting(
+              waiting?.state ?? "none",
+              waiting?.total ? (waiting.done ?? 0) / waiting.total : undefined,
+            ),
+        }),
+      ),
       maxRetries: 0,
     }));
     return models.length === 1 ? models[0]?.model : models;
+  }
+
+  /** The engine's model, which says that it answers now when it is asked. */
+  private told(engine: Engine, model: unknown): unknown {
+    if (typeof model !== "object" || model === null) return model;
+    return new Proxy(throughHarness(model), {
+      get: (target, key) => {
+        const value = Reflect.get(target, key, target);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          if (key === "doStream" || key === "doGenerate") this.answering = engine;
+          return value.apply(target, args);
+        };
+      },
+    });
   }
 
   /** The ref of the engine a step ran on, from the provider and model id Mastra reports. */
@@ -438,6 +601,7 @@ function nextTurn(turn: Turn, message: Message): Trigger {
         }
       : undefined,
     handed: handed.length ? handed : undefined,
+    engine: first.engine,
   };
 }
 
@@ -502,6 +666,18 @@ export class Turns {
 
   constructor(home: Home) {
     this.home = home;
+    home.onCard("stronger", ({ card, action, payload }) => {
+      if (action !== "take_over") return;
+      void this.enqueue({
+        conversationId: card.conversationId,
+        text: `[home] The person lets you take over from a smaller model. Do what they asked for:\n${String(payload.text ?? "")}`,
+        channel: "home",
+        files: payload.files as Trigger["files"],
+        task: payload.task as Trigger["task"],
+        outside: payload.outside === true || undefined,
+        engine: String(payload.engine),
+      });
+    });
     home.onCard("tool", ({ card, action, values, payload, said }) =>
       this.answered(
         card,
@@ -631,7 +807,8 @@ export class Turns {
       if (!(engine && model)) return;
       const trigger: Trigger = { conversationId, text: "", channel: "home" };
       const turn = new Turn(this.home, agent, trigger, [engine], { ahead: true });
-      const { tools, draft, asking } = turn.parts;
+      const { tools, draft, asking, harness } = turn.parts;
+      void harness.prepare().catch(() => undefined);
       const { messages } = await mastra.memory
         .recall({
           threadId: conversationId,
@@ -645,7 +822,12 @@ export class Turns {
         name: agent.name,
         instructions: markedInstructions(turn.instructions()),
         model: model as never,
-        tools: mastraTools(tools, draft, asking, () => undefined) as never,
+        tools: mastraTools(
+          [...tools, ...metaTools(harness)],
+          draft,
+          asking,
+          () => undefined,
+        ) as never,
       });
       // The last message stands for what the person writes next. It is not read.
       await reader.generate([...messages, { role: "user", content: "." }] as never, {
@@ -795,8 +977,9 @@ export class Turns {
     if (agent.origin === "room") return this.home.peers.rooms.said(agent, trigger.text);
 
     await this.home.models.refresh();
-    const engines = this.home.models
-      .candidates()
+    const candidates = this.home.models.candidates();
+    const refs = trigger.engine ? [trigger.engine, ...candidates] : candidates;
+    const engines = [...new Set(refs)]
       .map((ref) => this.home.models.engine(ref))
       .filter((engine) => engine !== undefined);
     const turn = new Turn(this.home, agent, trigger, engines);
@@ -1079,6 +1262,18 @@ export class Turns {
     let problem = turn.problem || (status === "failed" ? "it stopped with an error" : "");
     // A later engine may have answered after an earlier one failed.
     if (turn.model && !draft.empty) problem = "";
+    // A model that ends without a word: the person is told, and not left with an empty message.
+    if (!(problem || stopped || turn.quiet || turn.next) && draft.empty && !draft.asks) {
+      draft.write(
+        say(
+          w(
+            "The model ended without an answer. Try again, or choose a more capable one.",
+            "Das Modell hat ohne Antwort aufgehört. Versuche es noch einmal oder wähle ein stärkeres.",
+          ),
+          langOf(this.home.db),
+        ),
+      );
+    }
     if (problem && !stopped) {
       draft.write(`${draft.empty ? "" : "\n\n"}The model did not answer: ${problem}`);
     }
@@ -1109,7 +1304,7 @@ export class Turns {
     const quietly = note || (turn.quiet && (goesOn || state === "failed"));
     const message = note
       ? draft.finishAsNote(turn.note ?? "", model)
-      : draft.finish(state, model, quietly ? "note" : "agent");
+      : draft.finish(state, model, quietly ? "note" : "agent", !asked && turn.unsourced);
     if (this.runs.get(conversationId) === turn) this.runs.delete(conversationId);
     if (goesOn) {
       this.between.add(conversationId);
@@ -1191,8 +1386,15 @@ export class Turns {
       model: (({ requestContext }: { requestContext: RequestContext }) =>
         turnOf(requestContext).models()) as never,
       tools: (({ requestContext }: { requestContext: RequestContext }) => {
-        const { tools, draft, asking } = turnOf(requestContext).parts;
-        return mastraTools(tools, draft, asking, (cardId) => this.answers.get(cardId));
+        const turn = turnOf(requestContext);
+        const { tools, draft, asking, harness } = turn.parts;
+        return mastraTools(
+          [...tools, ...metaTools(harness)],
+          draft,
+          asking,
+          (cardId) => this.answers.get(cardId),
+          (raw) => turn.resolve(raw),
+        );
       }) as never,
       memory: this.home.mastra.memory,
       // Marks the request for the provider's prompt cache and adds the turn's changing context.

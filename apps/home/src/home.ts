@@ -4,6 +4,7 @@ import type { Admin, Card, HomeInfo, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
 import { REPLY_ACTION } from "@wizards-bot/protocol/limits";
 import { Handed } from "./agent/handed.ts";
+import { ToolSearch } from "./agent/harness.ts";
 import { McpTurns } from "./agent/mcp.ts";
 import type { Tool } from "./agent/tool.ts";
 import { buildTools, registerCardHandlers } from "./agent/tools.ts";
@@ -75,6 +76,7 @@ export class Home {
   readonly turns: Turns;
   /** Tasks agents handed to other agents, until their answer comes. */
   readonly handed: Handed;
+  readonly toolSearch: ToolSearch;
   readonly mcp = new McpTurns();
   readonly notifier: Notifier;
   readonly connections: Connections;
@@ -109,6 +111,7 @@ export class Home {
     this.mastra = new HomeMastra(config.dataDir);
     this.files = new Files(this);
     this.models = new Models(config, this.db, this.secrets, computerName());
+    this.toolSearch = new ToolSearch(this);
     this.turns = new Turns(this);
     this.handed = new Handed(this);
     registerCardHandlers(this);
