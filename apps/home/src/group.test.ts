@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import type {
   Agent,
@@ -13,6 +16,7 @@ import type {
   Setup,
 } from "@wizards-bot/protocol";
 import { PassRefused } from "./group.ts";
+import { createServer as createApp } from "./server.ts";
 import { type TestHome, testHome, textOf } from "./test/fakes.ts";
 
 const KEY = "wbk_group_home";
@@ -27,6 +31,7 @@ class FakeManage {
     { id: "usr_cleo", name: "Cleo", role: "member" },
     { id: "usr_dora", name: "Dora", role: "client" },
   ];
+  studio: { mcp: string } | null = null;
   pulls = 0;
   readonly keys = generateKeyPairSync("ed25519");
   readonly kid = "key-1";
@@ -42,7 +47,7 @@ class FakeManage {
         }
         this.pulls++;
         return response.end(
-          JSON.stringify({ group: this.group, people: this.people, studio: null }),
+          JSON.stringify({ group: this.group, people: this.people, studio: this.studio }),
         );
       }
       if (request.url === "/api/auth/jwks") {
@@ -341,6 +346,23 @@ describe("a group home", () => {
         await pair(manage.pass("usr_dora", t.url, { origin: STUDIO }), "Portal", STUDIO)
       ).json()) as PairResponse
     ).token;
+  });
+
+  test("only the studio the team works in shows the home's page inside its own", async () => {
+    const webDir = mkdtempSync(join(tmpdir(), "wizards-web-"));
+    writeFileSync(join(webDir, "index.html"), "<!doctype html>");
+    const app = createApp(t.home, { webDir });
+    const frames = async () =>
+      /frame-ancestors ([^;]+)/.exec(
+        (await app.request("/")).headers.get("content-security-policy") ?? "",
+      )?.[1];
+    assert.equal(await frames(), "'none'");
+    manage.studio = { mcp: `${STUDIO}/api/mcp` };
+    await t.home.group.pull();
+    assert.equal(await frames(), STUDIO);
+    manage.studio = null;
+    await t.home.group.pull();
+    assert.equal(await frames(), "'none'");
   });
 
   test("answers another site's page only when a device was paired from it", async () => {

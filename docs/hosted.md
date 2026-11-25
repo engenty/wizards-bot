@@ -191,7 +191,8 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
     longer listed are removed, and so are those of someone who became an admin, a member or a
     client since: they pair again as who they are now. A group home takes no setup code (3):
     every device of it is someone's. `studio` (`{ "mcp" }` or null) is the MCP endpoint of the
-    runtime the team works in; the home does not read it yet.
+    runtime the team works in. The studio at that origin shows the home's page inside its own
+    (Work's chats): it is the one other site the page allows as `frame-ancestors`.
 11. **The pass.** Someone's first device pairs with a pass. From its own pages the Manage-App
     sends an admin to `https://<address>.wizards.bot/#admin=<pass>`; a page of another site, the
     studio's, gets a pass for the person who uses it. Either page sends it to
