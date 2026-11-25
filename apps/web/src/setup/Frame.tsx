@@ -2,7 +2,7 @@
 // switch and legal links of its account pages (engenty-wizards-manage, apps/web/src/brand.tsx and
 // pages/legal.tsx).
 import { Check, ChevronDown, Droplet, Moon, Sun } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { PrivacyDialog } from "../chat/ConsentDialog";
 import { Engenty } from "../engenty/Engenty";
 import { type Key, type Lang, lang, setLang, t } from "../lib/i18n";
@@ -10,10 +10,10 @@ import { useHome } from "../lib/queries";
 import {
   BRANDED_GROUNDS,
   type BrandedGround,
-  setBrandedGround,
+  setGround,
   setTheme,
   type ThemeMode,
-  useBrandedGround,
+  useGround,
   useThemeMode,
 } from "../lib/theme";
 import { cn } from "../ui";
@@ -36,47 +36,57 @@ const GROUND_NAME: Record<BrandedGround, Key> = {
 };
 
 /**
- * The colours of the branded theme as round swatches: each its ground with the accent of its
- * buttons, and its name on hover. Picking one also picks the branded theme.
+ * The base colours as round swatches: in the branded theme each its ground with the accent of its
+ * buttons, in the light and the dark one the colour the buttons take there. The name on hover.
  */
 export function GroundPick({ onPick }: { onPick?: () => void }) {
-  const picked = useBrandedGround();
+  const picked = useGround();
+  const mode = useThemeMode();
+  const name = useId();
   return (
     <fieldset className="flex flex-wrap items-center gap-1.5 border-0 p-0">
       <legend className="sr-only">{t("theme.ground")}</legend>
-      {BRANDED_GROUNDS.map(({ ground, stage, accent }) => (
-        <button
-          key={ground}
-          type="button"
-          aria-label={t(GROUND_NAME[ground])}
-          aria-pressed={ground === picked}
-          title={t(GROUND_NAME[ground])}
-          onClick={() => {
-            setBrandedGround(ground);
-            onPick?.();
-          }}
-          style={{ background: stage }}
-          className={cn(
-            "grid size-7 cursor-pointer place-items-center rounded-full ring-1 ring-border transition-transform hover:scale-110 motion-reduce:transition-none",
-            ground === picked && "ring-2 ring-ink",
-          )}
-        >
-          {ground === picked ? (
-            <Check className="size-3.5" style={{ color: accent }} strokeWidth={3} />
-          ) : (
-            <span className="size-2 rounded-full" style={{ background: accent }} />
-          )}
-        </button>
-      ))}
+      {BRANDED_GROUNDS.map(({ ground, stage, accent, light, dark }) => {
+        const fill = mode === "branded" ? stage : mode === "light" ? light : dark;
+        const mark = mode === "branded" ? accent : mode === "light" ? "white" : "oklch(16% 0.01 0)";
+        return (
+          <label
+            key={ground}
+            title={t(GROUND_NAME[ground])}
+            style={{ background: fill }}
+            className="relative grid size-7 cursor-pointer place-items-center rounded-full ring-1 ring-border transition-transform hover:scale-110 has-checked:ring-2 has-checked:ring-ink has-focus-visible:outline-2 has-focus-visible:outline-ink has-focus-visible:outline-offset-3 motion-reduce:transition-none coarse:size-9"
+          >
+            <input
+              type="radio"
+              name={name}
+              value={ground}
+              checked={ground === picked}
+              aria-label={t(GROUND_NAME[ground])}
+              onChange={() => setGround(ground)}
+              // A click picks and is done; the arrow keys go on to the next one.
+              onClick={(e) => {
+                if (e.detail) onPick?.();
+              }}
+              className="absolute inset-0 cursor-pointer appearance-none rounded-full outline-none"
+            />
+            {ground === picked ? (
+              <Check className="size-3.5" style={{ color: mark }} strokeWidth={3} />
+            ) : mode === "branded" ? (
+              <span className="size-2 rounded-full" style={{ background: mark }} />
+            ) : null}
+          </label>
+        );
+      })}
     </fieldset>
   );
 }
 
 /**
  * Light · branded · dark: a thumb slides to the pick. The branded button opens a small menu of
- * its colours, and picks the branded theme as well.
+ * its colours, and picks the branded theme as well; where the colours stand beside the switch
+ * (`plain`) it has no menu.
  */
-export function ThemeSwitch() {
+export function ThemeSwitch({ plain = false }: { plain?: boolean }) {
   const shown = useThemeMode();
   const index = THEMES.findIndex((option) => option.mode === shown);
   const [colours, setColours] = useState(false);
@@ -111,11 +121,11 @@ export function ThemeSwitch() {
             type="button"
             aria-label={t(label)}
             aria-pressed={mode === shown}
-            aria-haspopup={mode === "branded" ? "true" : undefined}
-            aria-expanded={mode === "branded" ? colours : undefined}
-            title={mode === "branded" ? t("theme.groundOpen") : t(label)}
+            aria-haspopup={mode === "branded" && !plain ? "true" : undefined}
+            aria-expanded={mode === "branded" && !plain ? colours : undefined}
+            title={mode === "branded" && !plain ? t("theme.groundOpen") : t(label)}
             onClick={() => {
-              if (mode === "branded") {
+              if (mode === "branded" && !plain) {
                 if (shown !== "branded") setTheme(mode);
                 setColours((open) => !open);
                 return;
@@ -128,7 +138,7 @@ export function ThemeSwitch() {
               mode === shown ? "text-ink" : "text-ink-3 hover:text-ink-2",
             )}
           >
-            {mode === "branded" ? (
+            {mode === "branded" && !plain ? (
               <span className="flex items-center gap-px">
                 <Icon className="size-3.5" />
                 <ChevronDown className="size-2.5" strokeWidth={2.5} />

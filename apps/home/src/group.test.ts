@@ -3,7 +3,15 @@ import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, test } from "node:test";
-import type { Agent, Card, HomeInfo, Message, PairResponse } from "@wizards-bot/protocol";
+import type {
+  Agent,
+  Card,
+  ChatLook,
+  HomeInfo,
+  Message,
+  PairResponse,
+  Setup,
+} from "@wizards-bot/protocol";
 import { PassRefused } from "./group.ts";
 import { type TestHome, testHome, textOf } from "./test/fakes.ts";
 
@@ -186,6 +194,38 @@ describe("a group home", () => {
     await t.request(`/v1/conversations/${conversationId}/read`, { token: ben, body: {} });
     assert.equal(await unread(ben), 0);
     assert.equal(await unread(ada), 1);
+  });
+
+  test("each admin has their own look of the chat, told to their devices only", async () => {
+    const look = async (token: string) =>
+      (await (await t.request("/v1/look", { token })).json()) as ChatLook;
+    const stream = async (token: string) => {
+      const response = await fetch(`${t.url}/v1/events`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+      let said = "";
+      const done = (async () => {
+        while (!said.includes("setup.updated")) {
+          const { value } = await reader.read();
+          said += new TextDecoder().decode(value);
+        }
+        await reader.cancel();
+        return said;
+      })();
+      return done;
+    };
+    const heard = Promise.all([stream(ada), stream(ben)]);
+    while (t.home.events.listenerCount < 2) await new Promise((r) => setTimeout(r, 5));
+    const picked = { view: "bubbles", tools: "none" } as const;
+    await t.request("/v1/look", { method: "PUT", token: ben, body: picked });
+    // What every device hears of ends the two streams.
+    t.home.events.emit({ type: "setup.updated", setup: {} as Setup });
+    const [adas, bens] = await heard;
+    assert.ok(bens.includes("look.updated"));
+    assert.ok(!adas.includes("look.updated"));
+    assert.deepEqual(await look(ben), picked);
+    assert.deepEqual(await look(ada), { view: "canvas", tools: "summary" });
   });
 
   test("a card waits for every admin; the first answer counts and names who gave it", async () => {

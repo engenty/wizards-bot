@@ -121,6 +121,13 @@
   --moss: oklch(80% 0.13 var(--hue-success));
 }
 
+/* Cobalt's and petrol's accent as type and marks: light enough to read on their cards. */
+.dark.branded[data-ground="cobalt"],
+.dark.branded[data-ground="petrol"] {
+  --ember-mark: oklch(from var(--ember) 0.76 min(c, 0.13) h);
+  --ember-strong-mark: oklch(from var(--ember) 0.83 min(c, 0.1) h);
+}
+
 /* The other grounds the person can pick for the branded theme (lib/theme.ts, BRANDED_GROUNDS),
    as in engenty wizards: each its deep colour and the accent the buttons take on it. */
 .dark.branded[data-ground="violet"] {
@@ -169,6 +176,52 @@
   --accent: color-mix(in oklch, var(--ink) 8%, var(--card));
   --border: color-mix(in oklch, var(--ink) 16%, var(--card));
   --input: color-mix(in oklch, var(--ink) 22%, var(--card));
+}
+
+/* The base colour in the light and the dark theme (lib/theme.ts): the accent, in a tone that white
+   type stands on in light and dark type in dark, at 4.5:1 or more (theme.test.ts). Citron is an
+   olive in light. The wizards' own ember is what stands here without a base colour. */
+:root[data-ground="cobalt"]:not(.branded) {
+  --raw-primary: oklch(58% 0.2 264);
+}
+:root[data-ground="violet"]:not(.branded) {
+  --raw-primary: oklch(58% 0.22 292);
+}
+:root[data-ground="berry"]:not(.branded) {
+  --raw-primary: oklch(58% 0.19 352);
+}
+:root[data-ground="petrol"]:not(.branded) {
+  --raw-primary: oklch(58% 0.086 214);
+}
+:root[data-ground="emerald"]:not(.branded) {
+  --raw-primary: oklch(58% 0.115 158);
+}
+:root[data-ground="brick"]:not(.branded) {
+  --raw-primary: oklch(58% 0.168 36);
+}
+:root[data-ground="citron"]:not(.branded) {
+  --raw-primary: oklch(58% 0.112 116);
+}
+:root.dark[data-ground="cobalt"]:not(.branded) {
+  --raw-primary: oklch(66% 0.13 264);
+}
+:root.dark[data-ground="violet"]:not(.branded) {
+  --raw-primary: oklch(66% 0.14 292);
+}
+:root.dark[data-ground="berry"]:not(.branded) {
+  --raw-primary: oklch(66% 0.17 352);
+}
+:root.dark[data-ground="petrol"]:not(.branded) {
+  --raw-primary: oklch(66% 0.115 214);
+}
+:root.dark[data-ground="emerald"]:not(.branded) {
+  --raw-primary: oklch(66% 0.15 158);
+}
+:root.dark[data-ground="brick"]:not(.branded) {
+  --raw-primary: oklch(66% 0.155 36);
+}
+:root.dark[data-ground="citron"]:not(.branded) {
+  --raw-primary: oklch(82% 0.18 116);
 }
 
 /* The system asks for more contrast: the grey steps, inks and lines move apart. */

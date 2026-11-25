@@ -21,6 +21,7 @@ import {
   AnswerHandoff,
   Avatar,
   ChangeSetup,
+  ChatLook,
   ChooseModel,
   ConnectFolder,
   DeviceResources,
@@ -959,6 +960,16 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     }
   });
 
+  // ── How the chat looks ────────────────────────────────────────────────────
+
+  app.get("/v1/look", (c) => c.json(home.looks.get(c.get("device").admin?.id)));
+
+  app.put("/v1/look", async (c) => {
+    const look = ChatLook.parse(await c.req.json());
+    home.looks.set(look, c.get("device").admin?.id);
+    return c.json(look);
+  });
+
   // ── The person's avatar ───────────────────────────────────────────────────
 
   app.get("/v1/avatar", (c) => c.json({ avatar: home.avatars.get() }));
@@ -1142,7 +1153,10 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       const device = c.get("device");
       const deviceId = device.id;
       const forThis = (event: Event) =>
-        event.type !== "handoff.updated" || event.handoff.deviceId === deviceId;
+        event.type === "handoff.updated"
+          ? event.handoff.deviceId === deviceId
+          : // How the chat looks is each admin's own.
+            event.type !== "look.updated" || event.admin === device.admin?.id;
       // An agent's line carries what this device's admin has not read.
       const asSeen = (event: Event): Event =>
         event.type === "agent.updated" ? { ...event, agent: seenBy(event.agent, device) } : event;

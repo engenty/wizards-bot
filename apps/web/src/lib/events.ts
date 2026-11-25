@@ -11,6 +11,7 @@ import type {
   Setup,
 } from "@wizards-bot/protocol";
 import { keys } from "./keys";
+import { lookFrom, showLook } from "./look";
 
 /** A conversation as far as it is loaded: its messages, oldest first, and whether older ones exist. */
 export interface Thread {
@@ -179,6 +180,9 @@ export function applyEvent(client: QueryClient, event: Event) {
       return;
     case "avatar.updated":
       client.setQueryData<Avatar | null>(keys.avatar(), event.avatar);
+      return;
+    case "look.updated":
+      showLook(lookFrom(event.look));
       return;
     case "setup.updated":
       client.setQueryData<Setup>(keys.setup(), event.setup);

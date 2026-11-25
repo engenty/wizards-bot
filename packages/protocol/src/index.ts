@@ -1091,6 +1091,20 @@ export const AvatarFromSelfie = z.object({
 });
 export type AvatarFromSelfie = z.infer<typeof AvatarFromSelfie>;
 
+// ── How the chat looks ──────────────────────────────────────────────────────
+
+/**
+ * How the chat looks to the person, on all their devices. A value a home or a device does not
+ * know is the plain one's.
+ */
+export const ChatLook = z.object({
+  /** An agent's words on the page, or in a bubble beside its figure. */
+  view: z.enum(["canvas", "bubbles"]).catch("canvas"),
+  /** How much of an agent's tool calls is shown: what runs and what failed, one line, every step. */
+  tools: z.enum(["none", "summary", "all"]).catch("summary"),
+});
+export type ChatLook = z.infer<typeof ChatLook>;
+
 // ── Home, devices, models ───────────────────────────────────────────────────
 
 export const HomeInfo = z.object({
@@ -1449,6 +1463,8 @@ export const Event = z.discriminatedUnion("type", [
   /** An agent or the person read or changed something in a connected folder. */
   z.object({ type: z.literal("folder.activity"), folderId: z.string() }),
   z.object({ type: z.literal("avatar.updated"), avatar: Avatar.nullable() }),
+  /** In a group home, sent only to the devices of the admin whose look it is. */
+  z.object({ type: z.literal("look.updated"), look: ChatLook, admin: z.string().optional() }),
   /** The person's devices with what each offers, after a device said what it offers. */
   z.object({ type: z.literal("devices.updated"), devices: z.array(Device) }),
   /** Sent only to the device the hand-off is for. */
