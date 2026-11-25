@@ -117,6 +117,7 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
         publicUrl: undefined,
         ollamaUrl: url,
         lmstudioUrl: "http://127.0.0.1:9",
+        mlxFolder: "/nonexistent",
         subscriptions: [],
       },
       db,

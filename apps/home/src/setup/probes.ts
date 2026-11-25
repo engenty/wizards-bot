@@ -5,7 +5,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { Client } from "@engenty/local-models/clients";
 import { installedModels } from "@engenty/local-models/ollama";
 import { CLIENT_TIMEOUT, PROMPT, probe, SERVER_TIMEOUT } from "@engenty/local-models/probe";
-import { fits, SERVERS } from "@engenty/local-models/servers";
+import { fits, SERVERS, type ServerId } from "@engenty/local-models/servers";
 import type { LanguageModel } from "ai";
 import { generateText } from "ai";
 import type { Account, Gateway } from "../models/models.ts";
@@ -262,18 +262,20 @@ export async function probeOllama(
   };
 }
 
-/** A test call to a model of this computer's LM Studio, which loads it. */
-export async function probeLmStudio(
+/** A test call to a model of this computer's LM Studio or MLX, which loads it. */
+export async function probeServer(
+  server: Exclude<ServerId, "ollama">,
   baseUrl: string,
   memory: number,
   named?: string,
   doFetch: typeof fetch = fetch,
   timeout = SERVER_TIMEOUT,
 ): Promise<Probe> {
-  const local = onThisComputer(baseUrl);
+  const local = server === "mlx" || onThisComputer(baseUrl);
+  const { name } = SERVERS[server];
   const result = await probe({
     kind: "server",
-    server: "lmstudio",
+    server,
     url: baseUrl,
     ...(named ? { model: named } : {}),
     fetch: doFetch,
@@ -290,16 +292,13 @@ export async function probeLmStudio(
   if (result.state === "absent") {
     return {
       state: "absent",
-      said: w(
-        `LM Studio does not answer at ${baseUrl}.`,
-        `LM Studio antwortet nicht unter ${baseUrl}.`,
-      ),
-      todo: w("Start its server in the setup.", "Starte seinen Server in der Einrichtung."),
+      said: w(`${name} does not answer.`, `${name} antwortet nicht.`),
+      todo: w("Start it in the setup.", "Starte es in der Einrichtung."),
     };
   }
   if (result.trouble === "locked") {
     return problem(
-      w("LM Studio asks for an API token.", "LM Studio verlangt ein API-Token."),
+      w(`${name} asks for an API token.`, `${name} verlangt ein API-Token.`),
       w(
         "Switch that off in its server settings.",
         "Schalte das in seinen Server-Einstellungen ab.",
@@ -308,16 +307,13 @@ export async function probeLmStudio(
   }
   if (result.trouble === "old") {
     return problem(
-      w("This LM Studio is too old.", "Dieses LM Studio ist zu alt."),
-      w("Update LM Studio.", "Aktualisiere LM Studio."),
+      w(`This ${name} is too old.`, `Dieses ${name} ist zu alt.`),
+      w(`Update ${name}.`, `Aktualisiere ${name}.`),
     );
   }
   if (result.state === "no_model") {
     return problem(
-      w(
-        "LM Studio runs, but it has no model to talk with.",
-        "LM Studio läuft, hat aber kein Modell zum Sprechen.",
-      ),
+      w(`${name} has no model to talk with yet.`, `${name} hat noch kein Modell zum Sprechen.`),
       w("Download one in the setup.", "Lade eines in der Einrichtung."),
     );
   }
@@ -344,7 +340,7 @@ export async function probeLmStudio(
         )
       : { state: "problem", model, said: silent(model, result.detail ?? "") };
   }
-  const held = await SERVERS.lmstudio.models(baseUrl, { fetch: doFetch });
+  const held = await SERVERS[server].models(baseUrl, { fetch: doFetch });
   return held.find((entry) => entry.name === model)?.tools
     ? {
         state: "ok",

@@ -1105,8 +1105,8 @@ export type UpdateDevice = z.infer<typeof UpdateDevice>;
 export const ModelSource = z.object({
   id: z.string(),
   /** `subscription` is a signed-in app on a computer (Claude Code, Codex, Cursor, Antigravity). */
-  /** `ollama` and `lmstudio` are servers on a computer that run open models. */
-  kind: z.enum(["ollama", "lmstudio", "subscription", "gateway"]),
+  /** `ollama`, `lmstudio` and `mlx` run open models on a computer. */
+  kind: z.enum(["ollama", "lmstudio", "mlx", "subscription", "gateway"]),
   label: z.string(),
   /** Device name of the computer it runs on, or "the cloud" for a gateway. */
   where: z.string(),

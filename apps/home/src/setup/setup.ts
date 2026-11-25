@@ -2,6 +2,7 @@ import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { type Client, detectClient } from "@engenty/local-models/clients";
 import { pullModel } from "@engenty/local-models/ollama";
+import { SERVERS } from "@engenty/local-models/servers";
 import type { Card, SetupCheck, SetupPulling, Setup as SetupView } from "@wizards-bot/protocol";
 import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
@@ -16,8 +17,8 @@ import {
   probeAccount,
   probeClient,
   probeGateway,
-  probeLmStudio,
   probeOllama,
+  probeServer,
 } from "./probes.ts";
 import {
   greeting,
@@ -274,9 +275,10 @@ export class Setup {
             )
           : lookAtOllama(config.ollamaUrl, models.memory),
       );
-      if (models.serverPicked("lmstudio")) {
-        probes.set("lmstudio", () =>
-          probeLmStudio(config.lmstudioUrl, models.memory, models.serverModel("lmstudio")),
+      for (const id of ["lmstudio", "mlx"] as const) {
+        if (!models.serverPicked(id)) continue;
+        probes.set(id, () =>
+          probeServer(id, models.serverUrl(id), models.memory, models.serverModel(id)),
         );
       }
     }
@@ -563,13 +565,11 @@ export class Setup {
         ),
       });
     }
-    if (!hosted && models.serverPicked("lmstudio")) {
+    for (const id of ["lmstudio", "mlx"] as const) {
+      if (hosted || !models.serverPicked(id)) continue;
+      const { name } = SERVERS[id];
       checks.push(
-        row(
-          "lmstudio",
-          "LM Studio",
-          w("LM Studio has not been tested yet.", "LM Studio ist noch nicht getestet."),
-        ),
+        row(id, name, w(`${name} has not been tested yet.`, `${name} ist noch nicht getestet.`)),
       );
     }
     for (const gateway of models.gateways()) {

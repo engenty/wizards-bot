@@ -47,6 +47,7 @@ const FIGURES: Record<string, EngentyKind> = {
   cursor: "sprout",
   ollama: "pebble",
   lmstudio: "round",
+  mlx: "sprout",
   own: "bean",
 };
 
