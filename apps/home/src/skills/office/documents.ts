@@ -197,6 +197,10 @@ export function readingTools(context: TurnContext): Tool[] {
         from: z.number().int().min(0).optional().describe("The character to read on from."),
       }),
       label: (input) => `Reading ${String(input.file ?? "a file")}`,
+      object: (input) => {
+        const file = context.home.files.get(String(input.file));
+        return file && { name: file.name };
+      },
       run: async (input) => {
         const source = openSource(context, { file: input.file });
         const text =

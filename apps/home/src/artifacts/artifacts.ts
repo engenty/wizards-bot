@@ -302,6 +302,13 @@ export class Artifacts {
             ),
         }),
         label: (input) => `Making "${String(input.title ?? "")}"`,
+        object: (input, answer) => {
+          const id = /^Saved as (\S+),/.exec(answer ?? "")?.[1] ?? input.id;
+          return {
+            name: String(input.title ?? ""),
+            ...(typeof id === "string" ? { artifactId: id } : {}),
+          };
+        },
         run: async (input) => {
           const artifact = this.write({
             id: input.id,
@@ -322,6 +329,12 @@ export class Artifacts {
         description: "Read the page of an artifact as you wrote it, before you change it.",
         input: z.object({ id: z.string() }),
         label: () => "Reading an artifact",
+        object: (input) => {
+          const artifact = this.get(String(input.id));
+          return artifact?.conversationId === conversationId
+            ? { name: artifact.title, artifactId: artifact.id }
+            : undefined;
+        },
         run: async (input) => {
           const artifact = this.get(input.id);
           if (artifact?.conversationId !== conversationId) {

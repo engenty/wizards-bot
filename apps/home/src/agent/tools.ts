@@ -78,6 +78,13 @@ export function buildTools(context: TurnContext): Tool[] {
         content: z.string().describe("The full text, Markdown."),
       }),
       label: (input) => `Writing "${String(input.title ?? "")}"`,
+      object: (input, answer) => {
+        const id = /^Saved as (\S+),/.exec(answer ?? "")?.[1] ?? input.id;
+        return {
+          name: String(input.title ?? ""),
+          ...(typeof id === "string" ? { documentId: id } : {}),
+        };
+      },
       run: async (input) => {
         const document = input.id
           ? store.saveDocument(input.id, {
@@ -96,6 +103,10 @@ export function buildTools(context: TurnContext): Tool[] {
       description: "Read a document, with the person's own edits and the passages they marked.",
       input: z.object({ id: z.string() }),
       label: () => "Reading a document",
+      object: (input) => {
+        const document = store.document(String(input.id));
+        return document && { name: document.title, documentId: document.id };
+      },
       run: async (input) => {
         const document = store.document(input.id);
         if (!document) return `There is no document ${input.id}.`;
@@ -304,6 +315,10 @@ export function buildTools(context: TurnContext): Tool[] {
         "Give another agent a task. It works in its own conversation; its answer comes back to you as a [home] message. An agent that is not on this Bot Server gets your text as you wrote it, after the person said yes to a card: write it so that it stands on its own, with nothing about the person the task does not need. That ends your turn.",
       input: z.object({ id: z.string(), text: z.string() }),
       label: () => "Handing a task to an agent",
+      object: (input) => {
+        const target = store.agent(String(input.id));
+        return target && { name: target.name, agentId: target.id };
+      },
       run: async (input) => {
         const target = store.agent(input.id);
         if (!target || target.id === agent.id) return `There is no other agent ${input.id}.`;
