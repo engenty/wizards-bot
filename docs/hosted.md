@@ -18,7 +18,8 @@ gateway, a bill, and someone who starts, updates and backs it up.
 Hosted homes are level 3: one container and one volume per home. A team's home (the group home
 of [network.md](network.md)) is level 2 on the same machinery: one container for one team. Its
 people are the team's members in the Manage-App, and its admins are the owners and admins among
-them (Contracts 10 and 11).
+them (Contracts 10 and 11). A member of the team chats with its agents, each in a conversation
+of their own; a client has no chat ([network.md](network.md) §5).
 
 - The home's data, its key and the key of its secrets stay in its volume.
 - The Manage-App starts, stops, updates and deletes a home. It reads nothing in it.
@@ -189,7 +190,8 @@ What the home, the Manage-App and the `wizards` command agree on. A change here 
     owners and admins run the home and are its admins; a role the home does not know counts as
     `client`. The home asks after its claim and every 60 seconds. The devices of someone no
     longer listed are removed, and so are those of someone who became an admin, a member or a
-    client since: they pair again as who they are now. A group home takes no setup code (3):
+    client since: they pair again as who they are now. The conversations a member had with the
+    agents go when they are no longer listed. A group home takes no setup code (3):
     every device of it is someone's. `studio` (`{ "mcp" }` or null) is the MCP endpoint of the
     runtime the team works in. The home keeps it as a connection named `studio`, which nobody
     adds and no agent removes: made when the address arrives, moved with it, gone with it, and

@@ -6,10 +6,11 @@ import { now } from "./ids.ts";
 
 // A group home belongs to a team, not to one person (docs/network.md, "Group homes"). The
 // Manage-App keeps who is in the team. The home asks it every minute with its gateway key, keeps
-// them in `person`, and removes the devices of someone who is gone. The team's owners and admins
-// run the home; its members and clients reach what is theirs. Someone's first device pairs with
-// a pass: a short token the Manage-App signs with its own key for one person and this home
-// (docs/hosted.md, Contracts 10 and 11).
+// them in `person`, and removes the devices of someone who is gone, and with them the
+// conversations a member had with the agents. The team's owners and admins run the home; a
+// member chats with its agents, each in a conversation of their own; a client reaches their
+// device and their look. Someone's first device pairs with a pass: a short token the Manage-App
+// signs with its own key for one person and this home (docs/hosted.md, Contracts 10 and 11).
 
 /** What the Manage-App answers for this home's people. `group` is null for a personal team. */
 const People = z.object({
@@ -173,6 +174,13 @@ export class Group {
     const { db, store } = this.home;
     const known = new Map(this.people().map((person) => [person.id, person]));
     const gone: string[] = [];
+    // Someone who left takes their own conversations with them. No turn goes on in one.
+    const listed = new Set(people.map((person) => person.id));
+    const left = [...known.keys()].filter((id) => !listed.has(id));
+    for (const id of left)
+      for (const conversation of store.memberConversations({ person: id }))
+        this.home.turns.stop(conversation);
+    const forgotten: { conversations: string[]; files: string[] }[] = [];
     db.transaction(() => {
       db.setMeta("group.name", group.name);
       // The agents speak of the group where a home of one person names that person.
@@ -194,9 +202,14 @@ export class Group {
       }
       for (const id of known.keys()) {
         gone.push(...store.removeDevicesOf(id));
+        forgotten.push(store.removeMemberConversations(id));
         db.run("delete from person where id = ?", id);
       }
     });
+    for (const { conversations, files } of forgotten) {
+      for (const id of conversations) void this.home.mastra.forget(id);
+      for (const id of files) this.home.files.remove(id);
+    }
     this.tell(gone);
   }
 

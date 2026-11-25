@@ -25,7 +25,7 @@ import {
   Role,
   type SearchHit,
 } from "@wizards-bot/protocol";
-import type { Events } from "../events.ts";
+import type { Audience, Events } from "../events.ts";
 import { sha256 } from "../identity.ts";
 import { newId, newPairingCode, newToken, now } from "../ids.ts";
 import { langOf, MAIN_ABOUT, say } from "../setup/words.ts";
@@ -187,6 +187,8 @@ const PAIRING_MINUTES = 10;
 export class Store {
   /** Which conversations are someone else's with an agent, as far as looked up. */
   private readonly guests = new Map<string, boolean>();
+  /** Whose own conversation each one is, as far as looked up: a member's id, null for any other. */
+  private readonly members = new Map<string, string | null>();
   /** Conversations in which an agent writes right now. */
   private readonly working = new Set<string>();
   readonly db: Db;
@@ -195,6 +197,12 @@ export class Store {
   constructor(db: Db, events: Events) {
     this.db = db;
     this.events = events;
+    // What happens in a member's own conversation is told to that member's devices alone.
+    events.audience = (event) => {
+      const conversationId = conversationOf(event);
+      const person = conversationId ? this.memberOf(conversationId) : undefined;
+      return person ? { person } : undefined;
+    };
   }
 
   // ── Agents ────────────────────────────────────────────────────────────────
@@ -260,7 +268,7 @@ export class Store {
   /**
    * What the person finds in their Bot Server: Wizards by name and about, the text of messages in
    * their own conversations, documents and artifacts by title and content. A conversation
-   * someone else has with an agent (a guest's) is never searched.
+   * someone else has with an agent (a guest's, a member's own) is never searched.
    */
   search(query: string, limit = 20): SearchHit[] {
     const q = query.trim().toLowerCase();
@@ -301,7 +309,7 @@ export class Store {
     }>(
       `select m.id, m.parts, m.created_at, c.agent_id as agent, a.name
          from message m join conversation c on c.id = m.conversation_id join agent a on a.id = c.agent_id
-        where c.guest is null and instr(lower(m.parts), ?) > 0
+        where c.guest is null and c.person_id is null and instr(lower(m.parts), ?) > 0
         order by m.seq desc limit ?`,
       q,
       limit * 3,
@@ -328,7 +336,8 @@ export class Store {
       }>(
         `select d.id, d.title, d.content, d.updated_at, c.agent_id as agent
            from ${kind} d join conversation c on c.id = d.conversation_id
-          where c.guest is null and (instr(lower(d.title), ?) > 0 or instr(lower(d.content), ?) > 0)
+          where c.guest is null and c.person_id is null
+            and (instr(lower(d.title), ?) > 0 or instr(lower(d.content), ?) > 0)
           order by d.updated_at desc limit ?`,
         q,
         q,
@@ -384,7 +393,7 @@ export class Store {
     this.db.run("delete from card where agent_id = ?", id);
     this.db.run("delete from agent where id = ?", id);
     this.events.emit({ type: "agent.removed", agentId: id });
-    for (const other of waiting) this.touchAgent(other);
+    for (const other of waiting) this.touchAgent(other, "admins");
     return true;
   }
 
@@ -392,26 +401,38 @@ export class Store {
     if (working) this.working.add(conversationId);
     else this.working.delete(conversationId);
     const conversation = this.conversation(conversationId);
-    if (conversation) this.touchAgent(conversation.agentId);
+    if (conversation) this.touchAgent(conversation.agentId, this.readers(conversationId));
   }
 
   isWorking(conversationId: string): boolean {
     return this.working.has(conversationId);
   }
 
-  /** Tells the devices that an agent's line in the list changed: its newest message or what is unread. */
+  /**
+   * Tells the devices that an agent's line in the list changed: its newest message or what is
+   * unread. Those who read the conversation hear it, and nobody of a guest's.
+   */
   private touchConversation(conversationId: string): void {
     const row = this.db.get<{ agent_id: string }>(
       "select agent_id from conversation where id = ? and guest is null",
       conversationId,
     );
-    if (row) this.touchAgent(row.agent_id);
+    if (row) this.touchAgent(row.agent_id, this.readers(conversationId));
   }
 
-  /** Tells the devices that an agent's line in the list changed. */
-  touchAgent(id: string): void {
+  /**
+   * Tells the devices that an agent's line in the list changed. `to`: only those who read the
+   * conversation it changed in; without it, every device that lists the agent.
+   */
+  touchAgent(id: string, to?: Audience): void {
     const agent = this.agent(id);
-    if (agent) this.events.emit({ type: "agent.updated", agent: publicAgent(agent) });
+    if (agent) this.events.emit({ type: "agent.updated", agent: publicAgent(agent) }, to);
+  }
+
+  /** Who reads a conversation: the member whose own it is, or the people who run the home. */
+  private readers(conversationId: string): Audience {
+    const person = this.memberOf(conversationId);
+    return person ? { person } : "admins";
   }
 
   /** The agents that handed this one a task and wait for its answer. */
@@ -439,12 +460,13 @@ export class Store {
   private toAgent(row: AgentRow): AgentRecord {
     const conversationId =
       this.db.get<{ id: string }>(
-        "select id from conversation where agent_id = ? and guest is null",
+        "select id from conversation where agent_id = ? and guest is null and person_id is null",
         row.id,
       )?.id ?? "";
+    // A card in a member's own conversation waits for that member, not for the team.
     const open =
       this.db.get<{ n: number }>(
-        "select count(*) as n from card where agent_id = ? and state = 'open' and level = 'needs_you'",
+        "select count(*) as n from card where agent_id = ? and state = 'open' and level = 'needs_you' and conversation_id not in (select id from conversation where person_id is not null)",
         row.id,
       )?.n ?? 0;
     const conversation = this.conversation(conversationId);
@@ -512,6 +534,112 @@ export class Store {
     if (!row) return false;
     this.guests.set(conversationId, row.guest !== null);
     return row.guest !== null;
+  }
+
+  /**
+   * The member of a group whose own conversation with an agent this is: nobody else reads it,
+   * also not the people who run the home. Undefined for the team's conversation and a guest's.
+   */
+  memberOf(conversationId: string): string | undefined {
+    const known = this.members.get(conversationId);
+    if (known !== undefined) return known ?? undefined;
+    const row = this.db.get<{ person_id: string | null }>(
+      "select person_id from conversation where id = ?",
+      conversationId,
+    );
+    if (!row) return undefined;
+    this.members.set(conversationId, row.person_id);
+    return row.person_id ?? undefined;
+  }
+
+  /** The conversation a member of the group has with an agent, made the first time it is asked for. */
+  memberConversation(agentId: string, personId: string): string {
+    const existing = this.db.get<{ id: string }>(
+      "select id from conversation where agent_id = ? and person_id = ?",
+      agentId,
+      personId,
+    );
+    if (existing) return existing.id;
+    const id = newId("cnv");
+    const at = now();
+    this.db.run(
+      "insert into conversation (id, agent_id, updated_at, read_at, person_id) values (?, ?, ?, ?, ?)",
+      id,
+      agentId,
+      at,
+      at,
+      personId,
+    );
+    this.members.set(id, personId);
+    return id;
+  }
+
+  /** The members' own conversations: those of one person, or those with one agent. */
+  memberConversations(of: { person: string } | { agent: string }): string[] {
+    return this.db
+      .all<{ id: string }>(
+        "person" in of
+          ? "select id from conversation where person_id = ?"
+          : "select id from conversation where agent_id = ? and person_id is not null",
+        "person" in of ? of.person : of.agent,
+      )
+      .map((row) => row.id);
+  }
+
+  /**
+   * Removes the conversations a member had with the agents, with the cards, documents and
+   * artifacts made in them. Returns their ids and the files that were sent and made in them.
+   * Whose they were stays known, so that what a turn still says there is told to no one else.
+   */
+  removeMemberConversations(personId: string): { conversations: string[]; files: string[] } {
+    const conversations = this.memberConversations({ person: personId });
+    const files = new Set<string>();
+    for (const id of conversations) {
+      for (const row of this.db.all<{ parts: string }>(
+        'select parts from message where conversation_id = ? and parts like \'%"type":"file"%\'',
+        id,
+      )) {
+        for (const part of JSON.parse(row.parts) as StoredPart[])
+          if (part.type === "file") files.add(part.file.id);
+      }
+      this.db.run("delete from card where conversation_id = ?", id);
+      this.db.run(
+        "delete from document_version where document_id in (select id from document where conversation_id = ?)",
+        id,
+      );
+      this.db.run("delete from document where conversation_id = ?", id);
+      this.db.run(
+        "delete from artifact_version where artifact_id in (select id from artifact where conversation_id = ?)",
+        id,
+      );
+      this.db.run("delete from artifact where conversation_id = ?", id);
+      this.db.run("delete from conversation where id = ?", id);
+    }
+    return { conversations, files: [...files] };
+  }
+
+  /**
+   * An agent's line as a member of the group sees it: their own conversation with it, its newest
+   * message, what they have not read and the cards that wait for them there.
+   */
+  agentFor(agent: Agent, personId: string): Agent {
+    const conversationId = this.memberConversation(agent.id, personId);
+    const conversation = this.conversation(conversationId);
+    const open =
+      this.db.get<{ n: number }>(
+        "select count(*) as n from card where conversation_id = ? and state = 'open' and level = 'needs_you'",
+        conversationId,
+      )?.n ?? 0;
+    const { waitsFor: _waitsFor, ...line } = agent;
+    return {
+      ...line,
+      state: this.working.has(conversationId) ? "working" : open > 0 ? "needs_you" : "idle",
+      open,
+      conversationId,
+      preview: conversation?.preview ?? "",
+      unread: this.unread(conversationId, personId),
+      updatedAt: conversation?.updatedAt ?? "",
+    };
   }
 
   /**
@@ -799,7 +927,7 @@ export class Store {
       now(),
     );
     const card = this.card(id) as Card;
-    this.touchAgent(where.agentId);
+    this.touchAgent(where.agentId, this.readers(where.conversationId));
     return card;
   }
 
@@ -816,11 +944,24 @@ export class Store {
     return row?.payload ? (JSON.parse(row.payload) as T) : undefined;
   }
 
-  /** Every open card that waits for the person, oldest first. */
+  /** Every open card that waits for someone, oldest first. */
   items(): Card[] {
     return this.db
       .all<CardRow>(
         "select * from card where state = 'open' and level = 'needs_you' order by created_at",
+      )
+      .map(toCard);
+  }
+
+  /**
+   * The open cards that wait for the people who run the home, oldest first. With `member`: those
+   * that wait for that member of a group, in their own conversations, which are no one else's.
+   */
+  itemsFor(member?: string): Card[] {
+    return this.db
+      .all<CardRow>(
+        "select card.* from card left join conversation on conversation.id = card.conversation_id where card.state = 'open' and card.level = 'needs_you' and conversation.person_id is ? order by card.created_at",
+        member ?? null,
       )
       .map(toCard);
   }
@@ -853,8 +994,8 @@ export class Store {
     const after = this.card(id) as Card;
     if (after.answer?.at !== stored.at) throw new AlreadyAnswered(after);
     this.events.emit({ type: "card.updated", card: after });
-    this.touchAgent(after.agentId);
-    for (const other of this.waitingFor(after.agentId)) this.touchAgent(other);
+    this.touchAgent(after.agentId, this.readers(after.conversationId));
+    for (const other of this.waitingFor(after.agentId)) this.touchAgent(other, "admins");
     return after;
   }
 
@@ -863,8 +1004,8 @@ export class Store {
     const card = this.card(id);
     if (!card) return;
     this.events.emit({ type: "card.updated", card });
-    this.touchAgent(card.agentId);
-    for (const other of this.waitingFor(card.agentId)) this.touchAgent(other);
+    this.touchAgent(card.agentId, this.readers(card.conversationId));
+    for (const other of this.waitingFor(card.agentId)) this.touchAgent(other, "admins");
   }
 
   updateCard(id: string, patch: { url?: string; body?: string; title?: string }): Card | undefined {
@@ -1142,6 +1283,26 @@ export class Store {
 export function publicAgent(agent: AgentRecord): Agent {
   const { instructions: _instructions, memory: _memory, remote: _remote, ...rest } = agent;
   return rest;
+}
+
+/** The conversation an event happened in, for the kinds that happen in one. */
+function conversationOf(event: Event): string | undefined {
+  switch (event.type) {
+    case "message.created":
+    case "message.updated":
+      return event.message.conversationId;
+    case "message.delta":
+    case "message.waiting":
+      return event.conversationId;
+    case "card.updated":
+      return event.card.conversationId;
+    case "document.updated":
+      return event.document.conversationId;
+    case "artifact.updated":
+      return event.artifact.conversationId;
+    default:
+      return undefined;
+  }
 }
 
 const toStored = (part: Part): StoredPart =>

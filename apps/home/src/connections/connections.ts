@@ -12,6 +12,7 @@ import {
 import { z } from "zod";
 import { type Call, defineTool, ENDS_TURN, type Looked, type Tool } from "../agent/tool.ts";
 import type { TurnContext } from "../agent/turns.ts";
+import { runsHome } from "../group.ts";
 import type { Home } from "../home.ts";
 import { newId, now } from "../ids.ts";
 import {
@@ -737,6 +738,15 @@ export class Connections {
     const where = { agentId: agent.id, conversationId, messageId: draft.id };
     // In a group home: who the turn is for. The studio is used as them.
     const person = context.trigger.writer?.id;
+    // Who does not run the group home has the studio alone: what its admins connected is theirs.
+    const runs = runsHome(context.trigger.writer);
+    const admins = (name: string): string | undefined => {
+      const connection = this.byName(name);
+      if (runs || (connection && this.isStudio(connection))) return undefined;
+      return `That is for the team's admins. Here you reach ${STUDIO} only, the studio the team works in. Nothing was called.`;
+    };
+    // Without a studio a member's turn has no connection at all.
+    if (!runs && !this.hasStudio()) return [];
     const use: Tool[] = [
       defineTool({
         name: "connection_tools",
@@ -748,6 +758,8 @@ export class Connections {
         }),
         label: (input) => `Looking at ${String(input.tool ?? input.name ?? "a connection")}`,
         run: async (input) => {
+          const refused = admins(input.name);
+          if (refused) return refused;
           const connection = await this.asked(input.name, person);
           if (!connection)
             return `There is no connection ${input.name}. Connected: ${this.names().join(", ") || "none"}.`;
@@ -780,6 +792,8 @@ export class Connections {
         label: (input) => `${String(input.name ?? "")}: ${String(input.tool ?? "")}`,
         asks: true,
         run: async (input, call) => {
+          const refused = admins(input.name);
+          if (refused) return refused;
           const connection = await this.asked(input.name, person);
           if (connection?.state !== "connected") return `${input.name} is not connected.`;
           const tool = connection.tools.find(
@@ -811,9 +825,12 @@ export class Connections {
                 level: "needs_you",
                 title: input.why,
                 body: `**${connection.name}** · \`${tool.name}\`\n\n\`\`\`json\n${JSON.stringify(args, null, 2).slice(0, 1500)}\n\`\`\``,
+                // "Always" changes the home for everyone: it is for who runs it.
                 actions: [
                   { id: "once", label: "Allow once", style: "primary" },
-                  { id: "always", label: "Always allow", style: "plain" },
+                  ...(runs
+                    ? [{ id: "always", label: "Always allow", style: "plain" } as const]
+                    : []),
                   { id: "deny", label: "Don't", style: "plain" },
                 ],
               },
@@ -824,7 +841,7 @@ export class Connections {
           if (kept.stage === "approval") {
             if (action === "deny")
               return `The person said no to "${card.title}". Do not try it another way.`;
-            if (action === "always") this.setPolicy(connection, tool.name, "always");
+            if (action === "always" && runs) this.setPolicy(connection, tool.name, "always");
             return go();
           }
 

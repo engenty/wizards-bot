@@ -28,6 +28,7 @@ import { api } from "./api";
 import type { Thread } from "./events";
 import { keys } from "./keys";
 import { chatLook, lookFrom, showLook } from "./look";
+import { runsHome } from "./member";
 
 /** How many messages one page of a conversation holds. */
 const PAGE = 50;
@@ -240,10 +241,20 @@ export function useThisDevice() {
   });
 }
 
+/**
+ * Whether this device's person runs the home; undefined until the home said whose device it is.
+ * What is the home's own (its settings, its search, its avatar) is asked for and shown only then.
+ */
+export function useRunsHome(): boolean | undefined {
+  const device = useThisDevice().data;
+  return device && runsHome(device);
+}
+
 /** The person's avatar; null while they have made none. */
-export function useAvatar() {
+export function useAvatar(enabled = true) {
   return useQuery({
     queryKey: keys.avatar(),
+    enabled,
     queryFn: ({ signal }) =>
       api.get<{ avatar: Avatar | null }>("/v1/avatar", signal).then((r) => r.avatar),
   });
@@ -278,9 +289,10 @@ export async function pickLook(change: Partial<ChatLook>) {
 }
 
 /** The checks of the first start: each model's last test call and what the home has around it. */
-export function useSetup() {
+export function useSetup(enabled = true) {
   return useQuery({
     queryKey: keys.setup(),
+    enabled,
     queryFn: ({ signal }) => api.get<Setup>("/v1/setup", signal),
   });
 }

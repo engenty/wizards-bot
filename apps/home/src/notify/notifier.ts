@@ -39,6 +39,8 @@ export class Notifier {
   async replied(message: Message, trigger: Trigger): Promise<void> {
     const agent = message.agentId ? this.home.store.agent(message.agentId) : undefined;
     if (!agent) return;
+    // A push goes to who runs the home, and a member's own conversation is not theirs to read.
+    if (this.home.store.memberOf(message.conversationId)) return;
     const cards = message.parts
       .filter((part) => part.type === "card")
       .map((part) => part.card)
@@ -60,6 +62,7 @@ export class Notifier {
   }
 
   async card(card: Card, agentName: string): Promise<void> {
+    if (this.home.store.memberOf(card.conversationId)) return;
     const quick = card.actions.length <= 2 && !card.fields?.length;
     await this.alert({
       title: agentName,
@@ -81,7 +84,7 @@ export class Notifier {
 
   /** Takes answered cards off every device's notifications. */
   resolved(cardIds: string[]): void {
-    const badge = this.home.store.items().length;
+    const badge = this.home.store.itemsFor().length;
     void this.each(
       () => true,
       (device) => ({
@@ -142,7 +145,7 @@ export class Notifier {
     collapseId: string;
     data: Record<string, unknown>;
   }): Promise<void> {
-    const badge = this.home.store.items().length;
+    const badge = this.home.store.itemsFor().length;
     await this.each(
       (device) => input.level === "time-sensitive" || !isQuiet(device),
       () => ({

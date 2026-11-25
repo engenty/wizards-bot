@@ -237,7 +237,10 @@ export class Home {
     // A room that goes from the list is left, or closed when this home keeps it.
     const left = this.peers.rooms.leaving(agent);
     if (agent.origin === "own") this.peers.rooms.agentRemoved(agentId);
+    // The members' own conversations with it go with it.
+    const members = this.store.memberConversations({ agent: agentId });
     if (!this.store.removeAgent(agentId)) return false;
+    for (const id of members) void this.mastra.forget(id);
     left?.();
     this.peers.left(agent);
     this.peers.outside.forget(agentId);
@@ -288,7 +291,8 @@ export class Home {
       ...(input.person ? { person: { id: input.person.id, name: input.person.name } } : {}),
     });
     if (!card) return undefined;
-    this.notifier.resolved([card.id]);
+    // A member's card was on no admin's device.
+    if (!this.store.memberOf(card.conversationId)) this.notifier.resolved([card.id]);
     this.handed.answering(card);
     const payload = this.store.cardPayload<Record<string, unknown>>(cardId) ?? { type: "ask" };
     const handler = this.cardHandlers.get(String(payload.type));

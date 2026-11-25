@@ -8,7 +8,7 @@ import { draftReducer, saveDue, startDraft, unsaved } from "../lib/draft";
 import { applyEvent } from "../lib/events";
 import { t } from "../lib/i18n";
 import { keys } from "../lib/keys";
-import { useAgents, useDocument, useMarks } from "../lib/queries";
+import { useAgents, useDocument, useMarks, useRunsHome } from "../lib/queries";
 import { inOpenSpace } from "../lib/studio";
 import { uuid } from "../lib/uuid";
 import { Button, cn, IconButton, Spinner } from "../ui";
@@ -72,6 +72,8 @@ function Editing({
   const [editing, setEditing] = useState(false);
   const marks = useMarks(document.id);
   const agents = useAgents();
+  // Publishing and sending are for who runs the home.
+  const runs = useRunsHome() === true;
   const agentName =
     agents.data?.find((a) => a.conversationId === document.conversationId)?.name ?? "";
   const [draft, dispatch] = useReducer(draftReducer, document, startDraft);
@@ -209,13 +211,15 @@ function Editing({
             <Pencil className="size-4" />
           </IconButton>
         )}
-        <ShareButton
-          kind="document"
-          id={id}
-          title={document.title}
-          version={document.version}
-          content={document.content}
-        />
+        {runs ? (
+          <ShareButton
+            kind="document"
+            id={id}
+            title={document.title}
+            version={document.version}
+            content={document.content}
+          />
+        ) : null}
       </Header>
       {conflict ? (
         <div

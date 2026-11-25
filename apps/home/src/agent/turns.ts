@@ -13,6 +13,7 @@ import {
   type Message,
   Space,
 } from "@wizards-bot/protocol";
+import { STUDIO } from "../connections/studio.ts";
 import type { Picture } from "../files/pictures.ts";
 import { runsHome } from "../group.ts";
 import type { Home } from "../home.ts";
@@ -235,6 +236,11 @@ class Turn {
     this.home = home;
     this.agent = agent;
     this.engines = engines;
+    // A member's own conversation is theirs alone: whatever starts a turn in it (their message,
+    // a card's answer, the home itself), the turn is for them and has a member's tools.
+    const member = home.store.memberOf(trigger.conversationId);
+    if (member)
+      trigger.writer = { id: member, name: home.group.person(member)?.name ?? "", role: "member" };
     this.triggers = [trigger];
     this.finished = new Promise((resolve) => {
       this.finish = resolve;
@@ -419,6 +425,8 @@ class Turn {
   private stronger(needs: Level): string | undefined {
     const { models } = this.home;
     if (this.trigger.guest || this.trigger.room || this.trigger.engine) return undefined;
+    // Which model answers, and what it costs, is for who runs the home.
+    if (!runsHome(this.trigger.writer)) return undefined;
     return models
       .candidates()
       .find((ref) => reaches(models.engine(ref)?.level ?? "basic", needs) && ref !== this.using);
@@ -491,8 +499,11 @@ class Turn {
     const { home, agent, trigger } = this;
     // In a room the agent reads what is beside its own conversation with the person.
     const beside = trigger.room ? agent.conversationId : trigger.conversationId;
-    // Who does not run the group home reads nothing here of what its admins connected.
+    // Who does not run the group home reads nothing here of what its admins connected. A
+    // member reaches the studio the team works in, as themselves.
     const runs = runsHome(trigger.writer);
+    const member = trigger.writer?.role === "member" ? trigger.writer : undefined;
+    const studio = (runs || member !== undefined) && home.connections.hasStudio();
     return systemPrompt({
       // What an agent remembers is not for a team's clients.
       agent: trigger.writer?.role === "client" ? { ...agent, memory: "" } : agent,
@@ -500,9 +511,10 @@ class Turn {
       group: home.group.isGroup()
         ? { admins: home.group.admins().map((admin) => admin.name) }
         : undefined,
-      agents: home.store.agents(),
-      connections: runs ? home.connections.names() : [],
-      studio: runs && home.connections.hasStudio() ? { space: trigger.space } : undefined,
+      member: member && { name: member.name || "a member" },
+      agents: runs ? home.store.agents() : [],
+      connections: runs ? home.connections.names() : studio ? [STUDIO] : [],
+      studio: studio ? { space: trigger.space } : undefined,
       documents: home.store.documents(beside).slice(0, 12),
       artifacts: home.artifacts.list(beside).slice(0, 12),
       files: trigger.room ? home.store.sentFiles(beside, 20) : undefined,
