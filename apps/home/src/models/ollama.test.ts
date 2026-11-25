@@ -190,7 +190,7 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
     models.pickOllama(true);
   });
 
-  test("a step sends the tools and the picture and keeps what it thinks out of the answer", async () => {
+  test("a step sends the tools and the picture, and what the model thinks stands beside the answer", async () => {
     const chat = models.localChat(INKLING);
     assert.ok(chat);
     const answer = await chat.doGenerate(CALL);
@@ -213,9 +213,15 @@ describe("an Ollama with Inkling 2 Mini pulled", () => {
           ? part.text
           : part.type === "tool-call"
             ? [part.toolName, part.input]
-            : part.type,
+            : part.type === "reasoning"
+              ? { thinks: part.text }
+              : part.type,
       ),
-      ["Looking it up.", ["weather", '{"city":"Kraków"}']],
+      [
+        { thinks: "The person asks for the weather." },
+        "Looking it up.",
+        ["weather", '{"city":"Kraków"}'],
+      ],
     );
     assert.equal(answer.finishReason.unified, "tool-calls");
     assert.equal(answer.usage.inputTokens.total, 120);
