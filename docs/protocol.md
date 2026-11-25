@@ -1429,8 +1429,18 @@ The event `avatar.updated` carries the avatar after each change, or `null`.
 
 ## Models
 
-`GET /v1/models` → `Models`. The person changes them by conversation; this route only shows
-them.
+`GET /v1/models` → `Models`. `answers` are the model refs the next message would try, in order;
+the first one of a source is its model in use. The person changes them by conversation or in the
+settings:
+
+- `PUT /v1/models/order` (`{ "order": ["claude:opus", "ollama:qwen3:8b"] }`) → `Models`: the named
+  refs come first, the other sources behind them.
+- `PUT /v1/models/source` with `ChooseModel` (`{ "source": "claude", "model": "opus" }`) →
+  `Models`: the model of one source. The source keeps its place among those that answer, one that
+  did not answer comes last, and the others keep theirs; nothing is loaded or asked by it. A
+  gateway also takes a model it has not used yet: the home asks it once and keeps it when it
+  answers. 400 `refused` when the source has no such model. A source's last test call is put away
+  when its model changes; the next one asks the chosen model.
 
 ### Where what the person writes goes
 
@@ -1558,7 +1568,8 @@ they picked. Its routes below `/v1/setup/local` are engenty wizards' (`@engenty/
 not, and the servers Ollama, LM Studio and Apple MLX, found and running or not; MLX only on a Mac with
 Apple silicon), `GET` and `PUT /models` (the
 pick, `{ "source": "codex" }` or `{ "source": "ollama", "model": "gemma4:12b" }`, and which keys are stored), `POST /models/test`, `POST
-/keys/<provider>` (tests a key and keeps it when it works), for a server `GET /servers/<id>` (what it
+/keys/<provider>` (tests a key and keeps it when it works; with `?add`, as the settings send it, it
+joins what is picked), for a server `GET /servers/<id>` (what it
 holds and what to download; loads nothing), `POST /servers/<id>/pull`, `DELETE
 /servers/<id>/models?model=…` (not LM Studio), `POST /servers/<id>/start` (and installs Ollama on a
 Mac), `POST /servers/<id>/address`, and for a client
