@@ -28,6 +28,7 @@ import { guarded, isSource, metaTools, turnHarness } from "./harness.ts";
 import { type Prompt, systemPrompt } from "./prompt.ts";
 import { toolsFor } from "./roles.ts";
 import { type Answer, type Asking, mastraTools, runTool, type Tool } from "./tool.ts";
+import { viewRules } from "./view.ts";
 
 export interface Trigger {
   conversationId: string;
@@ -511,10 +512,13 @@ class Turn {
       skills: trigger.guest ? undefined : home.skills.prompt(trigger.conversationId),
       devices: trigger.guest || !runs ? undefined : home.handoffs.prompt(agent, home.person()),
       shell: trigger.guest || trigger.room || !runs ? undefined : home.shell.prompt(home.person()),
+      views: trigger.guest || trigger.room || !runs ? undefined : viewRules(home.person()),
       // A card without a button only shows something: a pairing code, a task's address.
       waiting: home.store
         .openCards(trigger.conversationId)
-        .filter((card) => card.reply || card.actions.length)
+        .filter(
+          (card) => card.reply || card.actions.length || (card.view && card.level === "needs_you"),
+        )
         .map((card) => card.title),
       spoken: trigger.spoken === true,
       guest: trigger.guest,

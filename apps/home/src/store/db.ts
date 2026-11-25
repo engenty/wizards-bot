@@ -169,6 +169,7 @@ const ADDED: [string, string, string][] = [
   ["pairing", "person_id", "text"],
   ["artifact", "summary", "text"],
   ["card", "reply", "text"],
+  ["card", "view", "text"],
 ];
 
 export type Row = Record<string, SQLInputValue>;

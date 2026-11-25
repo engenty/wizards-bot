@@ -103,6 +103,9 @@ const manifest = {
   dependencies: pin(home.dependencies, "packages/"),
 };
 writeFileSync(join(dir, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+// npm runs no package's own install script: the home needs none, and @openuidev/lang-core
+// (the parser of the views agents show) would report the install to its maker with one.
+writeFileSync(join(dir, ".npmrc"), "ignore-scripts=true\n");
 
 console.log("Resolving the packages for package-lock.json …");
 run(

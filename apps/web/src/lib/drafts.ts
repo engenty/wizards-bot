@@ -13,12 +13,14 @@ const listeners = new Set<() => void>();
  * memory only: a secret never reaches the browser's storage.
  */
 export function useDraft(cardId: string): [Draft, (next: Draft | null) => void] {
+  const read = () => drafts.get(cardId) ?? EMPTY;
   const draft = useSyncExternalStore(
     (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    () => drafts.get(cardId) ?? EMPTY,
+    read,
+    read,
   );
   const set = (next: Draft | null) => {
     if (next) {
@@ -32,3 +34,20 @@ export function useDraft(cardId: string): [Draft, (next: Draft | null) => void] 
   };
   return [draft, set];
 }
+
+const views = new Map<string, Record<string, unknown>>();
+
+/**
+ * The unsent form of a card's view, as its renderer keeps it. Kept beside the card like a
+ * draft, in memory only; the renderer holds it while it is shown, so nothing listens here.
+ */
+export const viewDraft = {
+  get: (cardId: string): Record<string, unknown> | undefined => views.get(cardId),
+  set(cardId: string, state: Record<string, unknown> | null): void {
+    if (state) {
+      views.set(cardId, state);
+    } else {
+      views.delete(cardId);
+    }
+  },
+};

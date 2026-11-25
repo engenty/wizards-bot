@@ -2,3 +2,7 @@ packages:
   - apps/home
   - apps/web
   - packages/*
+
+# Its install script builds nothing: it reports the install to its maker.
+ignoredBuiltDependencies:
+  - "@openuidev/lang-core"

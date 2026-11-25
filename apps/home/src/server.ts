@@ -43,6 +43,8 @@ import {
   UpdateDevice,
   UpdateFolder,
   VaultInput,
+  VIEW_ANSWER,
+  VIEW_STATE_LIMIT,
 } from "@wizards-bot/protocol";
 import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
@@ -71,6 +73,12 @@ type Env = { Variables: { device: DeviceRecord } };
 const AnswerCard = z.object({
   action: z.string(),
   values: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
+  /** Of a view's answer: what the person says with it, and its form's values by field name. */
+  message: z.string().max(2000).optional(),
+  state: z
+    .record(z.string(), z.unknown())
+    .refine((state) => Buffer.byteLength(JSON.stringify(state)) <= VIEW_STATE_LIMIT)
+    .optional(),
 });
 /** The fields whose value the person wrote, or gave as a file. */
 const TYPED = new Set<CardField["type"]>(["text", "long_text", "number", "date", "file"]);
@@ -687,8 +695,17 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const before = store.card(c.req.param("id"));
     if (!before) return notFound(c, "card");
     const actions = before.actions;
+    // A view's own buttons answer its card, and only where the view asks.
+    const fromView = body.action === VIEW_ANSWER;
+    if (fromView !== (before.view !== undefined && before.kind === "question")) {
+      return fail(c, 400, "invalid", "This card has no such answer.");
+    }
     // A question without any is answered by a message alone.
-    if ((actions.length || before.reply) && !actions.some((action) => action.id === body.action)) {
+    if (
+      !fromView &&
+      (actions.length || before.reply) &&
+      !actions.some((action) => action.id === body.action)
+    ) {
       return fail(c, 400, "invalid", "This card has no such answer.");
     }
     // Words the person typed into a card reach the model like a message; a choice, a yes and a
@@ -696,7 +713,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const typed = (before.fields ?? []).some(
       (field) => TYPED.has(field.type) && String(body.values?.[field.id] ?? "").trim(),
     );
-    if (typed) {
+    if (typed || fromView) {
       const refused = await waitsForYes(c);
       if (refused) return refused;
     }
@@ -722,7 +739,10 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     }
     try {
       const card = await home.answer(before.id, {
-        ...body,
+        action: body.action,
+        values: body.values,
+        // Only a view's answer says something with it; a question's message comes as a message.
+        ...(fromView ? { message: body.message, state: body.state } : {}),
         by: c.get("device").name,
         person: c.get("device").person,
       });

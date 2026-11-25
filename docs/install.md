@@ -26,6 +26,8 @@ node apps/home/src/cli.ts start
   only outside `node_modules`. `npm install -g` of the tarball does not work for that reason.
 - `npm install` takes the versions of `package-lock.json` in the tarball. The packages of this
   repository are folders in it (`packages/`), linked from `node_modules`.
+- npm runs no package's own install script (`.npmrc` in the tarball): the Bot Server needs none,
+  and one package would report the install to its maker with one.
 - The command is `bin.wizards-bot` of its `package.json`, `apps/home/src/cli.ts`. Make it a
   command with a small script that runs it with your Node:
 

@@ -5,6 +5,7 @@ import { langOf, pairingCard } from "../setup/words.ts";
 import { askTool } from "./ask.ts";
 import { defineTool, type Tool } from "./tool.ts";
 import type { TurnContext } from "./turns.ts";
+import { registerViewCards, viewTool } from "./view.ts";
 
 const MEMORY_LIMIT = 6000;
 const ENDS_TURN =
@@ -18,6 +19,7 @@ export function buildTools(context: TurnContext): Tool[] {
 
   const own: Tool[] = [
     askTool(context),
+    viewTool(context),
     defineTool({
       name: "remember",
       description:
@@ -333,6 +335,7 @@ export function buildTools(context: TurnContext): Tool[] {
 
 /** What the home does when the cards of these tools are answered. */
 export function registerCardHandlers(home: import("../home.ts").Home): void {
+  registerViewCards(home);
   home.onCard("ask", ({ card, action, values }) => {
     const label = card.actions.find((candidate) => candidate.id === action)?.label ?? action;
     const answer = typeof values.answer === "string" ? `: ${values.answer}` : "";

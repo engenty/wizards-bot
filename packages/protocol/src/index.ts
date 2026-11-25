@@ -13,6 +13,8 @@ export {
   ROOM_AGENT_TURNS,
   ROOM_AGENTS,
   ROOM_MESSAGE_LIMIT,
+  VIEW_ANSWER,
+  VIEW_STATE_LIMIT,
 } from "./limits.ts";
 
 export const PROTOCOL_VERSION = 1;
@@ -185,9 +187,6 @@ export const ViewProgram = z.object({
   library: z.string(),
 });
 export type ViewProgram = z.infer<typeof ViewProgram>;
-
-/** The `action` of an answer that comes from a card's view rather than one of its actions. */
-export const VIEW_ANSWER = "view";
 
 export const CardAnswer = z.object({
   action: z.string(),

@@ -55,6 +55,7 @@ const TRAITS: Record<string, Trait> = {
   agent_message: { core: true },
   connection_tools: { core: true },
   connection_call: { core: true },
+  show_view: { core: true },
 
   schedule_set: {
     changes: true,
@@ -170,7 +171,15 @@ export const traitOf = (name: string): Trait =>
 export const KNOWN_TOOLS = Object.keys(TRAITS);
 
 /** What these answer is no source: they ask, keep or look for something. */
-const NO_SOURCE = new Set(["ask", "go_on", "remember", "skill_load", TOOL_SEARCH, "agent_message"]);
+const NO_SOURCE = new Set([
+  "ask",
+  "go_on",
+  "remember",
+  "skill_load",
+  TOOL_SEARCH,
+  "agent_message",
+  "show_view",
+]);
 
 export const isSource = (tool: string): boolean => !NO_SOURCE.has(tool);
 
