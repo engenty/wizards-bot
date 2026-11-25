@@ -1,4 +1,4 @@
-import { type Level, throughHarness } from "@engenty/tool-harness";
+import { type Level, reaches, throughHarness } from "@engenty/tool-harness";
 import { Agent } from "@mastra/core/agent";
 import {
   MASTRA_RESOURCE_ID_KEY,
@@ -70,6 +70,8 @@ export interface Trigger {
   done?: (message: Message) => void;
   /** Tasks other agents handed over that this is about (`agent/handed.ts`). */
   handed?: string[];
+  /** The model the person let take over: it is tried first in this turn. */
+  engine?: string;
 }
 
 /** A run Mastra suspended: a tool in it asked the person with a card. */
@@ -181,6 +183,8 @@ class Turn {
   private changing: Promise<string> | undefined;
   /** The engine that answers now: a fallback may be a weaker one. */
   private answering: Engine | undefined;
+  /** The person was asked whether a more capable model takes over. */
+  private offered = false;
   /** The tools that ran through. */
   private readonly ran = new Set<string>();
   /** Tool rounds the run took, and whether the last one still called tools. */
@@ -273,6 +277,7 @@ class Turn {
         () => this.level,
         home,
         (name) => this.ran.add(name),
+        (tool, needs) => this.offer(tool, needs),
       ),
     );
     // A client that steps by itself reaches all tools over MCP.
@@ -283,6 +288,7 @@ class Turn {
       this.level,
       home.toolSearch.for(source),
       (name) => first?.steps === true || home.skills.owned(name),
+      this.stronger("high") !== undefined || this.stronger("standard") !== undefined,
     );
     // The card of a tool that asks: it names the tool and its input, to run it again.
     const asking: Asking = {
@@ -380,7 +386,80 @@ class Turn {
   /** What a `tool_call` of the model means. */
   resolve(raw: unknown): { tool: Tool; input: unknown } | string {
     const meant = this.parts.harness.resolve(raw);
-    return meant.ok ? { tool: meant.tool.tool, input: meant.input } : meant.say;
+    if (meant.ok) return { tool: meant.tool.tool, input: meant.input };
+    // A tool beyond the model asks the person whether a more capable one takes over.
+    const offered = meant.beyond && this.offer(meant.beyond.tool, meant.beyond.needs ?? "basic");
+    return offered ?? meant.say;
+  }
+
+  /** The next model that may do what needs this much, where the person can be asked. */
+  private stronger(needs: Level): string | undefined {
+    const { models } = this.home;
+    if (this.trigger.guest || this.trigger.room || this.trigger.engine) return undefined;
+    return models
+      .candidates()
+      .find((ref) => reaches(models.engine(ref)?.level ?? "basic", needs) && ref !== this.using);
+  }
+
+  /** The model that answers now. */
+  private get using(): string | undefined {
+    return (this.answering ?? this.engines[0])?.ref;
+  }
+
+  /** Asks the person, once in a turn, whether a more capable model takes over. */
+  private offer(tool: Tool, needs: Level): string | undefined {
+    const ref = this.stronger(needs);
+    if (!ref) return undefined;
+    const said = `Nothing was done. The person was asked on a card whether a more capable model takes over. Say in one sentence that you cannot do it yourself, and end your turn.`;
+    if (this.offered) return said;
+    this.offered = true;
+    const { home, agent, trigger } = this;
+    const { draft } = this.parts;
+    const { sourceId, model } = splitRef(ref);
+    const source = home.models.sources().find(({ id }) => id === sourceId);
+    const name = [source?.label ?? sourceId, model === "default" ? "" : model]
+      .filter(Boolean)
+      .join(" · ");
+    const lang = langOf(home.db);
+    const leaves = source?.service
+      ? w(
+          `${source.label} then reads this conversation, outside your computer.`,
+          `${source.label} liest dann dieses Gespräch, außerhalb deines Computers.`,
+        )
+      : w("It runs on your own computer.", "Es läuft auf deinem eigenen Computer.");
+    const card = home.store.createCard(
+      {
+        kind: "approval",
+        level: "needs_you",
+        title: say(w(`Let ${name} take over?`, `Soll ${name} übernehmen?`), lang),
+        body: `${say(
+          w(
+            `The model that answers now is too small for this (${tool.name}): it gets such things wrong without noticing.`,
+            `Das Modell, das gerade antwortet, ist dafür zu klein (${tool.name}): Es macht so etwas falsch und merkt es nicht.`,
+          ),
+          lang,
+        )} ${say(leaves, lang)}`,
+        actions: [
+          {
+            id: "take_over",
+            label: say(w("Let it take over", "Übernehmen lassen"), lang),
+            style: "primary",
+          },
+          { id: "leave", label: say(w("No", "Nein"), lang), style: "plain" },
+        ],
+        payload: {
+          type: "stronger",
+          engine: ref,
+          text: trigger.text,
+          files: trigger.files,
+          outside: this.outside || undefined,
+          task: trigger.task,
+        },
+      },
+      { agentId: agent.id, conversationId: trigger.conversationId, messageId: draft.id },
+    );
+    draft.add({ type: "card", card });
+    return said;
   }
 
   private prompt(): Prompt {
@@ -516,6 +595,7 @@ function nextTurn(turn: Turn, message: Message): Trigger {
         }
       : undefined,
     handed: handed.length ? handed : undefined,
+    engine: first.engine,
   };
 }
 
@@ -566,6 +646,18 @@ export class Turns {
 
   constructor(home: Home) {
     this.home = home;
+    home.onCard("stronger", ({ card, action, payload }) => {
+      if (action !== "take_over") return;
+      void this.enqueue({
+        conversationId: card.conversationId,
+        text: `[home] The person lets you take over from a smaller model. Do what they asked for:\n${String(payload.text ?? "")}`,
+        channel: "home",
+        files: payload.files as Trigger["files"],
+        task: payload.task as Trigger["task"],
+        outside: payload.outside === true || undefined,
+        engine: String(payload.engine),
+      });
+    });
     home.onCard("tool", ({ card, action, values, payload }) =>
       this.answered(card, payload, {
         action,
@@ -852,8 +944,9 @@ export class Turns {
     if (agent.origin === "room") return this.home.peers.rooms.said(agent, trigger.text);
 
     await this.home.models.refresh();
-    const engines = this.home.models
-      .candidates()
+    const candidates = this.home.models.candidates();
+    const refs = trigger.engine ? [trigger.engine, ...candidates] : candidates;
+    const engines = [...new Set(refs)]
       .map((ref) => this.home.models.engine(ref))
       .filter((engine) => engine !== undefined);
     const turn = new Turn(this.home, agent, trigger, engines);

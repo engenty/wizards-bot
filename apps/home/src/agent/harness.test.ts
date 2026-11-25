@@ -138,6 +138,61 @@ describe("a small model", () => {
     }
   });
 
+  test("asks whether a more capable model takes over, once, and lets it", async () => {
+    const t = await testHome("Ada", undefined, { level: "basic" });
+    try {
+      const { models } = t.home;
+      const engine = models.engine.bind(models);
+      const sources = models.sources.bind(models);
+      const own = models.candidates()[0] ?? "";
+      models.candidates = () => [own, "big:one"];
+      models.engine = (ref) => {
+        const found = engine(own);
+        return found && (ref === own ? found : { ...found, ref, level: "high" });
+      };
+      // The person said yes to the service before: no turn sends to another one.
+      models.waitingForYes = () => [];
+      models.sources = () => [
+        ...sources(),
+        {
+          id: "big",
+          kind: "gateway",
+          label: "Big",
+          where: "the cloud",
+          online: true,
+          models: [{ id: "one", label: "one" }],
+          service: "big",
+        },
+      ];
+      const call = (name: string) => ({
+        name: "tool_call",
+        arguments: {
+          name,
+          input: { name: "Tax", about: "Taxes", instructions: "Help with taxes" },
+        },
+      });
+      t.model.script.push(
+        { calls: [call("agent_create"), call("agent_create")] },
+        { text: "I cannot do that myself." },
+      );
+      await t.say("Make a bot for my taxes");
+      assert.match(heard(t), /Nothing was done[\s\S]*asked on a card/);
+      const cards = t.home.store.items();
+      assert.equal(cards.length, 1);
+      assert.equal(cards[0]?.title, "Let Big · one take over?");
+      assert.match(cards[0]?.body ?? "", /outside your computer/);
+      assert.equal(t.home.store.agents().length, 1);
+
+      t.model.script.push({ calls: [call("agent_create")] }, { text: "Made it." });
+      await t.answer(cards[0]?.id ?? "", "take_over");
+      await t.home.turns.idle();
+      assert.equal(t.home.store.agents().length, 2);
+      assert.match(JSON.stringify(t.model.requests.at(-1)?.messages), /take over[\s\S]*Make a bot/);
+    } finally {
+      t.stop();
+    }
+  });
+
   test("an answer without a source says so, one that read something does not", async () => {
     const t = await testHome("Ada", undefined, { level: "basic" });
     try {
