@@ -168,7 +168,7 @@ describe("a small model", () => {
         name: "tool_call",
         arguments: {
           name,
-          input: { name: "Tax", about: "Taxes", instructions: "Help with taxes" },
+          input: { name: "Tax", kind: "drop", about: "Taxes", instructions: "Help with taxes" },
         },
       });
       t.model.script.push(
