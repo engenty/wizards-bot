@@ -60,14 +60,14 @@ function Sent({ card }: { card: Card }) {
 /** Who answered, where it was not this device. */
 function By({ card }: { card: Card }) {
   const me = useThisDevice();
-  const { by, admin } = card.answer ?? {};
+  const { by, person } = card.answer ?? {};
   if (!by) {
     return null;
   }
-  const other = admin && admin.id !== me.data?.admin?.id ? admin.name : undefined;
+  const other = person && person.id !== me.data?.person?.id ? person.name : undefined;
   return (
     <span className="text-ink-3">
-      · {other ? t("card.byAdmin", { name: other, by }) : t("card.by", { by })}
+      · {other ? t("card.byPerson", { name: other, by }) : t("card.by", { by })}
     </span>
   );
 }

@@ -1,5 +1,6 @@
 import type { Card, Message } from "@wizards-bot/protocol";
 import type { Trigger } from "../agent/turns.ts";
+import { runsHome } from "../group.ts";
 import type { Home } from "../home.ts";
 import { type DeviceRecord, preview } from "../store/store.ts";
 import { Apns, type ApnsKey, type PushSender } from "./apns.ts";
@@ -174,7 +175,8 @@ export class Notifier {
     const sender = this.sender();
     if (!sender) return;
     for (const device of this.home.store.devices()) {
-      if (!device.push || !wanted(device)) continue;
+      // What is said to the agents of a group home reaches only who runs it.
+      if (!device.push || !runsHome(device.person) || !wanted(device)) continue;
       const result = await sender.send({ ...build(device), ...device.push });
       if (result.ok) continue;
       if (

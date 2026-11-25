@@ -53,12 +53,16 @@ export type Channel = z.infer<typeof Channel>;
 export const DeviceKind = z.enum(["phone", "watch", "computer", "browser"]);
 export type DeviceKind = z.infer<typeof DeviceKind>;
 
+/** What someone of a team is in the Manage-App. Its owners and admins run the team's home. */
+export const Role = z.enum(["owner", "admin", "member", "client"]);
+export type Role = z.infer<typeof Role>;
+
 /**
- * One of the people who run a group home. `id` is theirs in the Manage-App; a device of the
- * group home belongs to one admin.
+ * Someone of the team a group home belongs to. `id` is theirs in the Manage-App; a device of the
+ * group home belongs to one of them.
  */
-export const Admin = z.object({ id: z.string(), name: z.string() });
-export type Admin = z.infer<typeof Admin>;
+export const HomePerson = z.object({ id: z.string(), name: z.string(), role: Role });
+export type HomePerson = z.infer<typeof HomePerson>;
 
 // ── The person's record ─────────────────────────────────────────────────────
 
@@ -198,8 +202,8 @@ export const CardAnswer = z.object({
   values: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
   /** Device name or channel the answer came from. */
   by: z.string(),
-  /** In a group home: the admin whose device answered. */
-  admin: Admin.optional(),
+  /** In a group home: whose device answered. */
+  person: HomePerson.pick({ id: true, name: true }).optional(),
   at: z.string(),
 });
 export type CardAnswer = z.infer<typeof CardAnswer>;
@@ -405,15 +409,15 @@ export const Message = z.object({
   queued: z.boolean().optional(),
   /**
    * Who wrote a message that is not the person's own: in a room, someone else (`kind` is set
-   * when it is an agent, `of` then names whose agent it is); in a group home, the admin who
-   * wrote a `you` message (`admin` is their id).
+   * when it is an agent, `of` then names whose agent it is); in a group home, who
+   * wrote a `you` message (`person` is their id).
    */
   from: z
     .object({
       name: z.string(),
       kind: EngentyKind.optional(),
       of: z.string().optional(),
-      admin: z.string().optional(),
+      person: z.string().optional(),
     })
     .optional(),
   createdAt: z.string(),
@@ -1120,7 +1124,7 @@ export const HomeInfo = z.object({
   hosted: z.boolean().optional(),
   /**
    * A group home: it belongs to a team, not to one person. `name` is the team's (and `name`
-   * above is the same). Its admins pair their own devices; a card waits for any of them.
+   * above is the same). Its people pair their own devices; a card waits for any of its admins.
    */
   group: z.object({ name: z.string() }).optional(),
 });
@@ -1143,16 +1147,16 @@ export const PairRequest = z.object({
 export type PairRequest = z.infer<typeof PairRequest>;
 
 /**
- * Pairs an admin's device with a group home: `pass` is the short signed link the Manage-App
- * gives an admin of the team (`#admin=<pass>`), in place of a pairing code.
+ * Pairs a device with a group home as someone of its team: `pass` is the short token the
+ * Manage-App signs for them, in place of a pairing code.
  */
-export const PairAdmin = z.object({
+export const PairPass = z.object({
   pass: z.string().min(1).max(4000),
   name: z.string(),
   kind: DeviceKind,
   push: Push.optional(),
 });
-export type PairAdmin = z.infer<typeof PairAdmin>;
+export type PairPass = z.infer<typeof PairPass>;
 
 /**
  * Something a device keeps and its own agent works on: a calendar, the reminders, the
@@ -1188,7 +1192,7 @@ export const Device = z.object({
   resources: z.array(DeviceResource).optional(),
   agents: DeviceAgents.optional(),
   /** In a group home: whose device it is. */
-  admin: Admin.optional(),
+  person: HomePerson.optional(),
 });
 export type Device = z.infer<typeof Device>;
 
@@ -1463,8 +1467,8 @@ export const Event = z.discriminatedUnion("type", [
   /** An agent or the person read or changed something in a connected folder. */
   z.object({ type: z.literal("folder.activity"), folderId: z.string() }),
   z.object({ type: z.literal("avatar.updated"), avatar: Avatar.nullable() }),
-  /** In a group home, sent only to the devices of the admin whose look it is. */
-  z.object({ type: z.literal("look.updated"), look: ChatLook, admin: z.string().optional() }),
+  /** In a group home, sent only to the devices of the person whose look it is. */
+  z.object({ type: z.literal("look.updated"), look: ChatLook, person: z.string().optional() }),
   /** The person's devices with what each offers, after a device said what it offers. */
   z.object({ type: z.literal("devices.updated"), devices: z.array(Device) }),
   /** Sent only to the device the hand-off is for. */

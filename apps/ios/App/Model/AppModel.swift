@@ -57,9 +57,9 @@ final class AppModel {
     private(set) var devices: [Device]?
     /// A group home's team, when the home belongs to one; nil for a person's own home.
     private(set) var group: HomeGroup?
-    /// In a group home: the admin this phone belongs to, as the home lists its devices.
-    var admin: Admin? {
-        devices?.first { $0.id == link?.deviceId }?.admin
+    /// In a group home: the person this phone belongs to, as the home lists its devices.
+    var person: HomePerson? {
+        devices?.first { $0.id == link?.deviceId }?.person
     }
     /// A change the phone's agent wants to make, or a file it wants to send, while the person is asked.
     private(set) var question: PhoneQuestion?
@@ -351,7 +351,7 @@ final class AppModel {
             notifier.setBadge(loadedItems.count)
             for card in loadedItems { noteCard(card) }
             models = try? await client.models()
-            // A group home names its admins: whose another's message and answer are.
+            // A group home names its people: whose another's message and answer are.
             group = (try? await client.home())?.group
             if group != nil { devices = try? await client.devices() }
             if let conversationId { await loadMessages(in: conversationId) }
@@ -953,7 +953,7 @@ final class AppModel {
     /// Tells the home what this phone offers, when it changed.
     func offer() async {
         // A phone whose model is not ready still offers what it keeps: it says why on each question.
-        // A group home takes nothing from a phone: what it keeps would reach the other admins' turns.
+        // A group home takes nothing from a phone: what it keeps would reach the others' turns.
         guard let client, group == nil else { return }
         let resources = DeviceResources(resources: phoneResources, agents: desk.agents)
         guard resources != offered else { return }

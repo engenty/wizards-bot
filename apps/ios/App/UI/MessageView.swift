@@ -7,8 +7,8 @@ struct MessageView: View {
 
     var body: some View {
         switch message.role {
-        case .you where isOtherAdmins:
-            // In a group home another admin's message stands on the other side, with their name.
+        case .you where isOtherPersons:
+            // In a group home someone else's message stands on the other side, with their name.
             theirs
         case .you:
             mine
@@ -24,10 +24,10 @@ struct MessageView: View {
         }
     }
 
-    /// A message another admin of a group home wrote.
-    private var isOtherAdmins: Bool {
-        guard let writer = message.from?.admin else { return false }
-        return writer != model.admin?.id
+    /// A message someone else of a group home wrote.
+    private var isOtherPersons: Bool {
+        guard let writer = message.from?.person else { return false }
+        return writer != model.person?.id
     }
 
     /// What the person said: a quiet bubble on the right, the files above it.

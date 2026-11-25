@@ -1,28 +1,29 @@
-import type {
-  AddMark,
-  Agent,
-  Card,
-  CardAction,
-  CardAnswer,
-  CardField,
-  CardKind,
-  Channel,
-  Conversation,
-  Device,
-  DeviceAgents,
-  DeviceKind,
-  DeviceResource,
-  Document,
-  DocumentMark,
-  DocumentMeta,
-  EngentyColor,
-  EngentyKind,
-  Event,
-  FileRef,
-  Message,
-  Part,
-  Push,
-  SearchHit,
+import {
+  type AddMark,
+  type Agent,
+  type Card,
+  type CardAction,
+  type CardAnswer,
+  type CardField,
+  type CardKind,
+  type Channel,
+  type Conversation,
+  type Device,
+  type DeviceAgents,
+  type DeviceKind,
+  type DeviceResource,
+  type Document,
+  type DocumentMark,
+  type DocumentMeta,
+  type EngentyColor,
+  type EngentyKind,
+  type Event,
+  type FileRef,
+  type Message,
+  type Part,
+  type Push,
+  Role,
+  type SearchHit,
 } from "@wizards-bot/protocol";
 import type { Events } from "../events.ts";
 import { sha256 } from "../identity.ts";
@@ -95,13 +96,15 @@ interface DeviceRow {
   agents: string | null;
   created_at: string;
   seen_at: string;
-  admin_id: string | null;
-  admin_name: string | null;
+  person_id: string | null;
+  person_name: string | null;
+  person_role: string | null;
+  origin: string | null;
 }
 
-/** A device's row with the name of the admin it belongs to, in a group home. */
+/** A device's row with the person it belongs to, in a group home. */
 const DEVICE_SELECT =
-  "select device.*, admin.name as admin_name from device left join admin on admin.id = device.admin_id";
+  "select device.*, person.name as person_name, person.role as person_role from device left join person on person.id = device.person_id";
 
 interface DocumentRow {
   id: string;
@@ -561,16 +564,16 @@ export class Store {
   }
 
   /**
-   * Marks a conversation read. In a group home each admin reads for themselves: `adminId`
+   * Marks a conversation read. In a group home each person reads for themselves: `personId`
    * keeps when they read it, and the others' unread stays.
    */
-  markRead(conversationId: string, adminId?: string): void {
-    const before = this.unread(conversationId, adminId);
-    if (adminId)
+  markRead(conversationId: string, personId?: string): void {
+    const before = this.unread(conversationId, personId);
+    if (personId)
       this.db.run(
-        "insert into conversation_read (conversation_id, admin_id, read_at) values (?, ?, ?) on conflict(conversation_id, admin_id) do update set read_at = excluded.read_at",
+        "insert into person_read (conversation_id, person_id, read_at) values (?, ?, ?) on conflict(conversation_id, person_id) do update set read_at = excluded.read_at",
         conversationId,
-        adminId,
+        personId,
         now(),
       );
     else this.db.run("update conversation set read_at = ? where id = ?", now(), conversationId);
@@ -578,15 +581,15 @@ export class Store {
   }
 
   /**
-   * Messages of the agent one admin has not read; without `adminId`, the home's own count. An
-   * admin who never read the conversation counts from when the home last did.
+   * Messages of the agent one person has not read; without `personId`, the home's own count.
+   * Someone who never read the conversation counts from when the home last did.
    */
-  unread(conversationId: string, adminId?: string): number {
-    if (!adminId) return this.conversation(conversationId)?.unread ?? 0;
+  unread(conversationId: string, personId?: string): number {
+    if (!personId) return this.conversation(conversationId)?.unread ?? 0;
     const row = this.db.get<{ read_at: string }>(
-      "select coalesce((select read_at from conversation_read where conversation_id = ? and admin_id = ?), read_at) as read_at from conversation where id = ?",
+      "select coalesce((select read_at from person_read where conversation_id = ? and person_id = ?), read_at) as read_at from conversation where id = ?",
       conversationId,
-      adminId,
+      personId,
       conversationId,
     );
     if (!row) return 0;
@@ -986,44 +989,48 @@ export class Store {
 
   // ── Devices ───────────────────────────────────────────────────────────────
 
-  /** A code that pairs one device. In a group home it pairs it as the admin who asked for it. */
-  newPairingCode(adminId?: string): string {
+  /** A code that pairs one device. In a group home it pairs it as the person who asked for it. */
+  newPairingCode(personId?: string): string {
     const code = newPairingCode();
     this.db.run("delete from pairing where expires_at < ?", now());
     this.db.run(
-      "insert into pairing (code, expires_at, admin_id) values (?, ?, ?)",
+      "insert into pairing (code, expires_at, person_id) values (?, ?, ?)",
       code,
       new Date(Date.now() + PAIRING_MINUTES * 60_000).toISOString(),
-      adminId ?? null,
+      personId ?? null,
     );
     return code;
   }
 
   /**
    * Uses up a pairing code: what it pairs as, or `undefined` when it is unknown or too old.
-   * `adminId` is set for a code an admin of a group home asked for.
+   * `personId` is set for a code someone of a group home asked for.
    */
-  redeemPairingCode(code: string): { adminId?: string } | undefined {
+  redeemPairingCode(code: string): { personId?: string } | undefined {
     const normal = code.trim().toUpperCase();
-    const row = this.db.get<{ expires_at: string; admin_id: string | null }>(
-      "select expires_at, admin_id from pairing where code = ?",
+    const row = this.db.get<{ expires_at: string; person_id: string | null }>(
+      "select expires_at, person_id from pairing where code = ?",
       normal,
     );
     if (!row) return undefined;
     this.db.run("delete from pairing where code = ?", normal);
     if (row.expires_at <= now()) return undefined;
-    return row.admin_id ? { adminId: row.admin_id } : {};
+    return row.person_id ? { personId: row.person_id } : {};
   }
 
-  addDevice(input: { name: string; kind: DeviceKind; push?: Push; adminId?: string }): {
-    token: string;
-    device: DeviceRecord;
-  } {
+  /** `origin`: the page of another site it was paired from, which may then reach the home. */
+  addDevice(input: {
+    name: string;
+    kind: DeviceKind;
+    push?: Push;
+    personId?: string;
+    origin?: string;
+  }): { token: string; device: DeviceRecord } {
     const id = newId("dev");
     const token = newToken();
     const at = now();
     this.db.run(
-      "insert into device (id, name, kind, token_hash, push, created_at, seen_at, admin_id) values (?, ?, ?, ?, ?, ?, ?, ?)",
+      "insert into device (id, name, kind, token_hash, push, created_at, seen_at, person_id, origin) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       id,
       input.name,
       input.kind,
@@ -1031,8 +1038,15 @@ export class Store {
       input.push ? JSON.stringify(input.push) : null,
       at,
       at,
-      input.adminId ?? null,
+      input.personId ?? null,
+      input.origin ?? null,
     );
+    if (input.origin)
+      this.db.run(
+        "insert or ignore into paired_origin (origin, paired_at) values (?, ?)",
+        input.origin,
+        at,
+      );
     return { token, device: this.device(id) as DeviceRecord };
   }
 
@@ -1094,12 +1108,29 @@ export class Store {
     this.db.run("delete from device where id = ?", id);
   }
 
-  /** Removes every device of an admin who is no admin any more. Returns their ids. */
-  removeDevicesOf(adminId: string): string[] {
+  /**
+   * Whether a device was ever paired from that page. It stays so without the device: the page
+   * reads that its token is not taken any more, and pairs again.
+   */
+  pairedFrom(origin: string): boolean {
+    return this.db.get("select origin from paired_origin where origin = ?", origin) !== undefined;
+  }
+
+  /** Removes the devices paired from another site's page and not seen since. Returns their ids. */
+  removeUnseen(since: string): string[] {
     const ids = this.db
-      .all<{ id: string }>("select id from device where admin_id = ?", adminId)
+      .all<{ id: string }>("select id from device where origin is not null and seen_at < ?", since)
       .map((row) => row.id);
-    this.db.run("delete from device where admin_id = ?", adminId);
+    for (const id of ids) this.removeDevice(id);
+    return ids;
+  }
+
+  /** Removes every device of a person. Returns their ids. */
+  removeDevicesOf(personId: string): string[] {
+    const ids = this.db
+      .all<{ id: string }>("select id from device where person_id = ?", personId)
+      .map((row) => row.id);
+    this.db.run("delete from device where person_id = ?", personId);
     return ids;
   }
 }
@@ -1159,7 +1190,14 @@ function toDevice(row: DeviceRow): DeviceRecord {
     quiet: row.quiet ? (JSON.parse(row.quiet) as DeviceRecord["quiet"]) : undefined,
     resources: row.resources ? (JSON.parse(row.resources) as DeviceResource[]) : undefined,
     agents: row.agents ? (JSON.parse(row.agents) as DeviceAgents) : undefined,
-    admin: row.admin_id ? { id: row.admin_id, name: row.admin_name ?? "" } : undefined,
+    person: row.person_id
+      ? {
+          id: row.person_id,
+          name: row.person_name ?? "",
+          // Someone the home does not know may do the least.
+          role: Role.catch("client").parse(row.person_role),
+        }
+      : undefined,
   };
 }
 

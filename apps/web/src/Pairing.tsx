@@ -9,7 +9,7 @@ import { Frame } from "./setup/Frame";
 import { Button, Input } from "./ui";
 
 /**
- * The code of a pairing link, or the pass an admin of a group home brings from their account,
+ * The code of a pairing link, or the pass someone of a group home brings from their account,
  * taken out of the address. It sits after the `#`, which a browser sends to no one.
  */
 function takeLinked(): { code: string } | { pass: string } | null {
@@ -35,7 +35,7 @@ export function Pairing() {
       const paired =
         typeof entered === "string"
           ? await api.post<PairResponse>("/v1/pair", { code: entered, name, kind: "browser" })
-          : await api.post<PairResponse>("/v1/pair/admin", {
+          : await api.post<PairResponse>("/v1/pair/pass", {
               pass: entered.pass,
               name,
               kind: "browser",
@@ -43,7 +43,7 @@ export function Pairing() {
       setDeviceToken(paired.token);
     } catch (err) {
       const status = err instanceof ApiError ? err.status : -1;
-      // A refused pass says why: used, too old, or for someone who is no admin.
+      // A refused pass says why: used, too old, or for someone who is not in the team.
       setProblem(
         status === 0
           ? t("pair.down")

@@ -100,7 +100,7 @@ One word per thing, in code, comments and everything a person reads.
 | a link, with its QR code, that lets someone in once       | invite; it is made, used and taken back                                     | invitation token, join link, share link                        |
 | the home that numbers a room's messages                   | the home that keeps the room                                                | hub, host, server                                              |
 | a home that belongs to a team, not one person             | group home; the people who run it are its admins                            | team server, organization, instance                            |
-| a signed link from the Manage-App that pairs an admin     | pass                                                                        | magic link, invite (that one is for other homes)               |
+| a signed token from the Manage-App that pairs someone     | pass                                                                        | magic link, invite (that one is for other homes)               |
 | an A2A agent that is not a wizards.bot home               | outside agent                                                               | external agent, remote agent, third-party agent                |
 | an outside agent let in to write to one of your agents    | caller; you let it in and shut it out                                       | client, consumer, guest (in code: whoever a turn answers)      |
 | another computer of yours that offers its models          | linked computer                                                             | worker, node                                                   |
@@ -193,10 +193,13 @@ no emoji, no "please".
 - The person's key is made on a device and never reaches a home: not in a request, a
   message or a file. A home keeps the signed versions of the record and nothing to sign with.
   A contact's new home key is taken only from a version signed with the key remembered.
-- A group home belongs to a team: every device of it is one admin's, and the Manage-App says who
-  the admins are. Every admin reads the conversations of the group's agents, a card waits for
-  any of them and the first answer counts. A device of it offers nothing to the agents: what one
-  admin's phone keeps would reach the turns of the others.
+- A group home belongs to a team: every device of it is one person's, and the Manage-App says who
+  is in the team and who runs it. Every admin reads the conversations of the group's agents, a
+  card waits for any of them and the first answer counts. A device of it offers nothing to the
+  agents: what one person's phone keeps would reach the turns of the others.
+- A member's or a client's device reaches only the routes named for it (`OWN_DEVICE` in
+  `server.ts`): a new route is the admins' until it is named there. Their turns have only the
+  tools named for them (`agent/roles.ts`).
 - What a device keeps stays on the device. Its own agent works on it and sends back only the
   answer; it asks the person on the device before every change and before a file leaves the
   device. Only the person's own agents hand a device anything, each only after the person

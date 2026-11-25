@@ -13,7 +13,7 @@ import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { TerminalError } from "@engenty/model-setup/server";
 import { CsvRefused, OriginRefused } from "@engenty/vault";
-import type { Admin, Agent, CardField, Event } from "@wizards-bot/protocol";
+import type { Agent, CardField, Event, HomePerson } from "@wizards-bot/protocol";
 import {
   AddMark,
   type AgentDetail,
@@ -29,7 +29,7 @@ import {
   FolderEdit,
   ImportMessages,
   MakeFolder,
-  PairAdmin,
+  PairPass,
   PairRequest,
   type PairResponse,
   PullSetup,
@@ -45,6 +45,7 @@ import {
   VaultInput,
 } from "@wizards-bot/protocol";
 import { type Context, Hono } from "hono";
+import { cors } from "hono/cors";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { formOf, readForm } from "./agent/ask.ts";
@@ -53,7 +54,7 @@ import { isHosted, tidyCode, VERSION } from "./config.ts";
 import { HandoffRefused, publicDevice } from "./devices/handoffs.ts";
 import { FileRefused, isText, sniff } from "./files/check.ts";
 import { FolderRefused } from "./folders/folders.ts";
-import { PassRefused } from "./group.ts";
+import { PassRefused, runsHome } from "./group.ts";
 import type { Home } from "./home.ts";
 import { ModelRefused } from "./models/models.ts";
 import { agree, takeBack } from "./models/services.ts";
@@ -119,7 +120,7 @@ function webPolicy(page: string): string {
 
 const fail = (
   c: Context,
-  status: 400 | 401 | 404 | 409 | 413 | 415 | 429,
+  status: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429,
   error: string,
   message: string,
   more = {},
@@ -134,6 +135,16 @@ const quote = (text: string) =>
     .split("\n")
     .map((line) => `> ${line}`)
     .join("\n");
+
+/** What a device of a group home may ask for when its person does not run the home. */
+const OWN_DEVICE = new Set([
+  "GET /v1/device",
+  "PATCH /v1/device",
+  "DELETE /v1/device",
+  "GET /v1/look",
+  "PUT /v1/look",
+  "GET /v1/events",
+]);
 
 /** The largest file the person drops into a connected folder in the file browser. */
 const DROPPED_BYTES = 200 * 1024 * 1024;
@@ -210,6 +221,20 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
   // version. It says nothing else, to anyone.
   app.get("/health", (c) => c.json({ ok: true, home: true, version: VERSION }));
 
+  // A page of another site reaches the home only when a device was paired from it. Whether it may
+  // be paired the pass decides, so that one route hears every page. No cookies are involved: what
+  // counts is the device's token.
+  const otherSite = cors({
+    origin: (origin) => origin,
+    allowHeaders: ["authorization", "content-type", "last-event-id"],
+    maxAge: 600,
+  });
+  app.use("/v1/*", (c, next) => {
+    const origin = c.req.header("origin");
+    const heard = origin && (c.req.path === "/v1/pair/pass" || store.pairedFrom(origin));
+    return heard ? otherSite(c, next) : next();
+  });
+
   app.get("/v1/home", (c) => c.json(home.info()));
 
   app.post("/v1/pair", async (c) => {
@@ -222,13 +247,13 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const demo = home.config.demoCode !== undefined && tidyCode(body.code) === home.config.demoCode;
     const redeemed =
       demo || home.hosted.redeemSetupCode(body.code) ? {} : store.redeemPairingCode(body.code);
-    // In a group home every device is an admin's: a code pairs only as the admin who asked for it.
-    const admin = redeemed?.adminId ? home.group.admin(redeemed.adminId) : undefined;
-    if (!redeemed || (home.group.isGroup() && !admin)) {
+    // In a group home every device is someone's: a code pairs only as the person who asked for it.
+    const person = redeemed?.personId ? home.group.person(redeemed.personId) : undefined;
+    if (!redeemed || (home.group.isGroup() && !person)) {
       wrongCodes.push(Date.now());
       return fail(c, 401, "unauthorized", "This code is not valid any more. Ask for a new one.");
     }
-    const { token, device } = store.addDevice({ ...body, adminId: admin?.id });
+    const { token, device } = store.addDevice({ ...body, personId: person?.id });
     return c.json({
       token,
       device: publicDevice(device),
@@ -236,23 +261,24 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     } satisfies PairResponse);
   });
 
-  // An admin of a group home pairs their first device with the pass the Manage-App gave them.
-  app.post("/v1/pair/admin", async (c) => {
-    const body = PairAdmin.parse(await c.req.json());
+  // Someone of a group home pairs their first device with the pass the Manage-App gave them.
+  app.post("/v1/pair/pass", async (c) => {
+    const body = PairPass.parse(await c.req.json());
     const minuteAgo = Date.now() - 60_000;
     while (wrongCodes.length && (wrongCodes[0] as number) < minuteAgo) wrongCodes.shift();
     if (wrongCodes.length >= 5) {
       return fail(c, 429, "too_many", "Too many wrong codes. Wait a minute, then try again.");
     }
-    let admin: Admin;
+    let admitted: { person: HomePerson; origin?: string };
     try {
-      admin = await home.group.admit(body.pass);
+      admitted = await home.group.admit(body.pass, c.req.header("origin"));
     } catch (error) {
       if (!(error instanceof PassRefused)) throw error;
       wrongCodes.push(Date.now());
       return fail(c, 401, "unauthorized", error.message);
     }
-    const { token, device } = store.addDevice({ ...body, adminId: admin.id });
+    const { person, origin } = admitted;
+    const { token, device } = store.addDevice({ ...body, personId: person.id, origin });
     return c.json({
       token,
       device: publicDevice(device),
@@ -325,6 +351,13 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         "This device is not paired with the Bot Server any more.",
       );
     c.set("device", device);
+    if (!runsHome(device.person) && !OWN_DEVICE.has(`${c.req.method} ${c.req.path}`))
+      return fail(
+        c,
+        403,
+        "admins_only",
+        "Only the people who run this team's Bot Server may do this.",
+      );
     await next();
   });
 
@@ -345,7 +378,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   app.put("/v1/device/resources", async (c) => {
     const body = DeviceResources.parse(await c.req.json());
-    // What one admin's phone keeps would reach the turns of the others.
+    // What one person's phone keeps would reach the turns of the others.
     if (home.group.isGroup())
       return fail(
         c,
@@ -381,8 +414,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   app.post("/v1/devices", async (c) => {
     const body = AddDevice.parse(await c.req.json());
-    // A watch is the admin's whose phone pairs it.
-    const { token, device } = store.addDevice({ ...body, adminId: c.get("device").admin?.id });
+    // A watch is the person's whose phone pairs it.
+    const { token, device } = store.addDevice({ ...body, personId: c.get("device").person?.id });
     return c.json({
       token,
       device: publicDevice(device),
@@ -392,10 +425,10 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   // ── Agents and conversations ──────────────────────────────────────────────
 
-  /** An agent's line as one device sees it: in a group home, with what its admin has not read. */
+  /** An agent's line as one device sees it: in a group home, with what its person has not read. */
   const seenBy = (agent: Agent, device: DeviceRecord): Agent =>
-    device.admin
-      ? { ...agent, unread: store.unread(agent.conversationId, device.admin.id) }
+    device.person
+      ? { ...agent, unread: store.unread(agent.conversationId, device.person.id) }
       : agent;
 
   app.get("/v1/agents", (c) =>
@@ -475,8 +508,8 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
     const passage = about && body.about ? quote(body.about.quote) : "";
     const shown = passage ? `${passage}\n\n${body.text}` : body.text;
     const channel = c.get("device").kind === "watch" ? "watch" : "app";
-    // In a group home a message says which admin wrote it, to the others and to the agent.
-    const writer = c.get("device").admin;
+    // In a group home a message says who wrote it, to the others and to the agent.
+    const writer = c.get("device").person;
     const message = store.addMessage({
       conversationId: conversation.id,
       role: "you",
@@ -487,7 +520,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         ...(body.text.trim() ? [{ type: "text" as const, text: shown }] : []),
       ],
       clientId: body.clientId,
-      from: writer ? { name: writer.name, admin: writer.id } : undefined,
+      from: writer ? { name: writer.name, person: writer.id } : undefined,
     });
     store.markRead(conversation.id, writer?.id);
     // Asking about a passage is no answer to what the agent asked.
@@ -511,13 +544,13 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         spoken: body.spoken,
         files: attached,
       },
-      { answers, words: body.text, by: c.get("device").name, admin: writer },
+      { answers, words: body.text, by: c.get("device").name, person: writer },
     );
     return c.json({ message }, 202);
   });
 
   app.post("/v1/conversations/:id/read", (c) => {
-    store.markRead(c.req.param("id"), c.get("device").admin?.id);
+    store.markRead(c.req.param("id"), c.get("device").person?.id);
     return c.body(null, 204);
   });
 
@@ -686,7 +719,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       const card = await home.answer(before.id, {
         ...body,
         by: c.get("device").name,
-        admin: c.get("device").admin,
+        person: c.get("device").person,
       });
       return c.json({ card });
     } catch (error) {
@@ -962,11 +995,11 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
 
   // ── How the chat looks ────────────────────────────────────────────────────
 
-  app.get("/v1/look", (c) => c.json(home.looks.get(c.get("device").admin?.id)));
+  app.get("/v1/look", (c) => c.json(home.looks.get(c.get("device").person?.id)));
 
   app.put("/v1/look", async (c) => {
     const look = ChatLook.parse(await c.req.json());
-    home.looks.set(look, c.get("device").admin?.id);
+    home.looks.set(look, c.get("device").person?.id);
     return c.json(look);
   });
 
@@ -1152,12 +1185,15 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       // A hand-off is for one device: no other device hears of it.
       const device = c.get("device");
       const deviceId = device.id;
+      const runs = runsHome(device.person);
       const forThis = (event: Event) =>
         event.type === "handoff.updated"
           ? event.handoff.deviceId === deviceId
-          : // How the chat looks is each admin's own.
-            event.type !== "look.updated" || event.admin === device.admin?.id;
-      // An agent's line carries what this device's admin has not read.
+          : // How the chat looks is each person's own. All else is for who runs the home.
+            event.type === "look.updated"
+            ? event.person === device.person?.id
+            : runs;
+      // An agent's line carries what this device's person has not read.
       const asSeen = (event: Event): Event =>
         event.type === "agent.updated" ? { ...event, agent: seenBy(event.agent, device) } : event;
       if (!Number.isNaN(lastId)) {
@@ -1172,18 +1208,19 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
       });
       const unlisten = home.handoffs.listen(deviceId);
       const ping = setInterval(() => {
-        // A device whose admin is gone is signed out; its stream ends with the next ping.
-        if (!store.device(deviceId)) {
-          open = false;
-          wake?.();
-          return;
-        }
+        // A device that signed out: its stream ends with the next ping.
+        if (!store.device(deviceId)) return close();
         void stream.write(": ping\n\n").catch(() => {});
       }, 20_000);
       let open = true;
-      stream.onAbort(() => {
+      const close = () => {
         open = false;
         wake?.();
+      };
+      stream.onAbort(close);
+      // A device that was removed hears nothing more, also not what waits for it.
+      const keeps = home.group.onRemoved((ids) => {
+        if (ids.includes(deviceId)) close();
       });
       try {
         while (open) {
@@ -1203,6 +1240,7 @@ export function createServer(home: Home, options: { webDir?: string } = {}): Hon
         clearInterval(ping);
         unsubscribe();
         unlisten();
+        keeps();
       }
     }),
   );

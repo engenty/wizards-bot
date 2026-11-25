@@ -1,28 +1,37 @@
 import { createPublicKey, type KeyObject, verify, type webcrypto } from "node:crypto";
-import type { Admin } from "@wizards-bot/protocol";
+import { type HomePerson, Role } from "@wizards-bot/protocol";
 import { z } from "zod";
 import type { Home } from "./home.ts";
 import { now } from "./ids.ts";
 
 // A group home belongs to a team, not to one person (docs/network.md, "Group homes"). The
-// Manage-App keeps who runs it: the team's owners and admins. The home asks it for them every
-// minute with its gateway key, keeps them in `admin`, and removes the devices of an admin who
-// is gone. An admin's first device pairs with a pass: a short token the Manage-App signs with
-// its own key for one admin and this home (docs/hosted.md, Contracts 10 and 11).
+// Manage-App keeps who is in the team. The home asks it every minute with its gateway key, keeps
+// them in `person`, and removes the devices of someone who is gone. The team's owners and admins
+// run the home; its members and clients reach what is theirs. Someone's first device pairs with
+// a pass: a short token the Manage-App signs with its own key for one person and this home
+// (docs/hosted.md, Contracts 10 and 11).
 
-/** What the Manage-App answers for this home's admins. `group` is null for a personal team. */
-const Admins = z.object({
+/** What the Manage-App answers for this home's people. `group` is null for a personal team. */
+const People = z.object({
   group: z.object({ name: z.string().trim().min(1).max(120) }).nullable(),
-  admins: z
+  people: z
     .array(
       z.object({
         id: z.string().min(1).max(200),
         name: z.string().trim().max(120),
-        role: z.string().max(40),
+        // A role this home does not know may do the least.
+        role: Role.catch("client"),
       }),
     )
-    .max(500),
+    .max(5000),
 });
+
+/** Whether someone runs the home. In a home of one person nobody is named, and they do. */
+export const runsHome = (person: Pick<HomePerson, "role"> | undefined): boolean =>
+  person === undefined || person.role === "owner" || person.role === "admin";
+
+/** What the home lets someone do: owners and admins the same. */
+const reach = (role: Role): string => (runsHome({ role }) ? "admin" : role);
 
 /** The parts of a pass the home reads. */
 const PassClaims = z.object({
@@ -31,6 +40,8 @@ const PassClaims = z.object({
   sub: z.string().min(1),
   exp: z.number(),
   jti: z.string().min(8).max(200),
+  /** The page of another site the pass is for: the studio's. Without it, the home's own. */
+  origin: z.string().max(300).optional(),
 });
 
 const JwkSet = z.object({
@@ -42,6 +53,8 @@ const PULL_MS = 60_000;
 const SKEW_S = 60;
 /** The keys are fetched again at most this often when a pass names one not known. */
 const JWKS_MS = 60_000;
+/** A browser paired from another site's page is forgotten when it was not seen this long. */
+const UNSEEN_MS = 30 * 24 * 60 * 60_000;
 
 /** A pass the home does not take. The message is for the person. */
 export class PassRefused extends Error {}
@@ -51,8 +64,8 @@ export class Group {
   private timer: NodeJS.Timeout | undefined;
   private keys = new Map<string, KeyObject>();
   private keysAt = 0;
-  /** Called with the ids of devices that were removed because their admin is gone. */
-  private readonly removed: ((deviceIds: string[]) => void)[] = [];
+  /** Called with the ids of devices that were removed. */
+  private readonly removed = new Set<(deviceIds: string[]) => void>();
 
   constructor(home: Home) {
     this.home = home;
@@ -67,25 +80,41 @@ export class Group {
     return this.name() !== undefined;
   }
 
-  admins(): Admin[] {
-    return this.home.db.all<Admin>("select id, name from admin order by created_at, name");
+  people(): HomePerson[] {
+    return this.home.db.all<HomePerson>(
+      "select id, name, role from person order by created_at, name",
+    );
   }
 
-  admin(id: string): Admin | undefined {
-    return this.home.db.get<Admin>("select id, name from admin where id = ?", id);
+  /** Who runs the home: the team's owners and admins. */
+  admins(): HomePerson[] {
+    return this.people().filter(runsHome);
   }
 
-  onRemoved(listener: (deviceIds: string[]) => void): void {
-    this.removed.push(listener);
+  person(id: string): HomePerson | undefined {
+    return this.home.db.get<HomePerson>("select id, name, role from person where id = ?", id);
   }
 
-  // ── Who the admins are ────────────────────────────────────────────────────
+  /** Who an id kept somewhere names, as they are now. Someone gone since may do the least. */
+  known(id: unknown): HomePerson | undefined {
+    if (typeof id !== "string") return undefined;
+    return this.person(id) ?? { id, name: "", role: "client" };
+  }
+
+  /** Hears which devices are removed. Returns how to stop hearing it. */
+  onRemoved(listener: (deviceIds: string[]) => void): () => void {
+    this.removed.add(listener);
+    return () => this.removed.delete(listener);
+  }
+
+  // ── Who is in the team ────────────────────────────────────────────────────
 
   /** Asks the Manage-App now and every minute from then on. */
   start(): void {
     if (this.timer) return;
     const tick = async () => {
       await this.pull().catch((error) => console.error("[group]", (error as Error).message));
+      this.tidy();
       this.timer = setTimeout(tick, PULL_MS);
       this.timer.unref?.();
     };
@@ -98,8 +127,8 @@ export class Group {
   }
 
   /**
-   * Asks the Manage-App who runs this home. `false` when it could not be asked: the home then
-   * keeps the admins it knew.
+   * Asks the Manage-App who is in this home's team. `false` when it could not be asked: the home
+   * then keeps the people it knew.
    */
   async pull(): Promise<boolean> {
     const { config, models } = this.home;
@@ -107,7 +136,7 @@ export class Group {
     if (!config.manageUrl || !key) return false;
     let response: Response;
     try {
-      response = await this.home.hosted.fetch(`${config.manageUrl}/v1/homes/admins`, {
+      response = await this.home.hosted.fetch(`${config.manageUrl}/v1/homes/people`, {
         headers: { authorization: `Bearer ${key}` },
         signal: AbortSignal.timeout(15_000),
       });
@@ -115,17 +144,17 @@ export class Group {
       return false;
     }
     if (!response.ok) return false;
-    const parsed = Admins.safeParse(await response.json().catch(() => undefined));
+    const parsed = People.safeParse(await response.json().catch(() => undefined));
     if (!parsed.success) return false;
     this.take(parsed.data);
     return true;
   }
 
-  private take({ group, admins }: z.infer<typeof Admins>): void {
+  private take({ group, people }: z.infer<typeof People>): void {
     // A personal team's home stays one person's.
     if (!group) return;
     const { db, store } = this.home;
-    const known = new Set(this.admins().map((admin) => admin.id));
+    const known = new Map(this.people().map((person) => [person.id, person]));
     const gone: string[] = [];
     db.transaction(() => {
       db.setMeta("group.name", group.name);
@@ -133,38 +162,49 @@ export class Group {
       db.setMeta("person.name", group.name);
       // The setup asks no one's name: the group's is the team's.
       db.setMeta("person.named", "1");
-      for (const admin of admins) {
+      for (const { id, name, role } of people) {
         db.run(
-          "insert into admin (id, name, role, created_at) values (?, ?, ?, ?) on conflict(id) do update set name = excluded.name, role = excluded.role",
-          admin.id,
-          admin.name || admin.id,
-          admin.role,
+          "insert into person (id, name, role, created_at) values (?, ?, ?, ?) on conflict(id) do update set name = excluded.name, role = excluded.role",
+          id,
+          name || id,
+          role,
           now(),
         );
-        known.delete(admin.id);
+        // Someone who may do more or less than before pairs again as who they are now.
+        const before = known.get(id);
+        if (before && reach(before.role) !== reach(role)) gone.push(...store.removeDevicesOf(id));
+        known.delete(id);
       }
-      for (const id of known) {
+      for (const id of known.keys()) {
         gone.push(...store.removeDevicesOf(id));
-        db.run("delete from admin where id = ?", id);
+        db.run("delete from person where id = ?", id);
       }
     });
-    if (gone.length) {
-      this.home.events.emit({
-        type: "devices.updated",
-        devices: this.home.handoffs.publicDevices(),
-      });
-      for (const listener of this.removed) listener(gone);
-    }
+    this.tell(gone);
+  }
+
+  /** Forgets the browsers that were paired from another site's page and not seen for a while. */
+  tidy(): void {
+    this.tell(this.home.store.removeUnseen(new Date(Date.now() - UNSEEN_MS).toISOString()));
+  }
+
+  private tell(gone: string[]): void {
+    if (!gone.length) return;
+    this.home.events.emit({
+      type: "devices.updated",
+      devices: this.home.handoffs.publicDevices(),
+    });
+    for (const listener of this.removed) listener(gone);
   }
 
   // ── The pass ──────────────────────────────────────────────────────────────
 
   /**
-   * Checks a pass and returns the admin it is for. The pass is a JWT the Manage-App signed
-   * (EdDSA): for this home's address, not expired, used once, and for someone who is an admin
-   * when the home asks the Manage-App right now.
+   * Checks a pass and returns who it is for. The pass is a JWT the Manage-App signed (EdDSA): for
+   * this home's address, not expired, used once, for someone who is in the team when the home
+   * asks the Manage-App right now, and brought by the page it names (`from`, a request's origin).
    */
-  async admit(pass: string): Promise<Admin> {
+  async admit(pass: string, from?: string): Promise<{ person: HomePerson; origin?: string }> {
     const { config } = this.home;
     if (!config.manageUrl || !config.publicUrl)
       throw new PassRefused("This Bot Server takes no pass.");
@@ -187,21 +227,25 @@ export class Group {
       throw new PassRefused("This link is for another Bot Server.");
     if (exp + SKEW_S < Date.now() / 1000)
       throw new PassRefused("This link is too old. Open the Bot Server again from your account.");
+    // The home's own page names no origin of another site.
+    const other = (page: string | undefined) => (page === origin ? undefined : page);
+    const page = other(claims.data.origin);
+    if (other(from) !== page) throw new PassRefused("This link is for another page.");
     const { db } = this.home;
-    db.run("delete from admin_pass where expires_at < ?", now());
-    if (db.get("select jti from admin_pass where jti = ?", jti))
+    db.run("delete from used_pass where expires_at < ?", now());
+    if (db.get("select jti from used_pass where jti = ?", jti))
       throw new PassRefused(
         "This link was used already. Open the Bot Server again from your account.",
       );
     db.run(
-      "insert into admin_pass (jti, expires_at) values (?, ?)",
+      "insert into used_pass (jti, expires_at) values (?, ?)",
       jti,
       new Date((exp + SKEW_S) * 1000).toISOString(),
     );
     await this.pull();
-    const admin = this.admin(sub);
-    if (!admin) throw new PassRefused("You are not an admin of this team's Bot Server.");
-    return admin;
+    const person = this.person(sub);
+    if (!person) throw new PassRefused("You are not in the team of this Bot Server.");
+    return { person, origin: page };
   }
 
   /** The Manage-App's key of that id, fetched again when it is not known yet. */

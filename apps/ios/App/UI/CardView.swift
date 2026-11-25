@@ -204,10 +204,10 @@ private struct PlainCard: View {
 
     // MARK: Answered or expired
 
-    /// The name of the admin who answered, when it was not this phone's admin.
-    private var otherAdmin: String? {
-        guard let admin = card.answer?.admin, admin.id != model.admin?.id else { return nil }
-        return admin.name
+    /// Who answered, when it was not this phone's person.
+    private var otherPerson: String? {
+        guard let person = card.answer?.person, person.id != model.person?.id else { return nil }
+        return person.name
     }
 
     @ViewBuilder
@@ -216,8 +216,8 @@ private struct PlainCard: View {
             if let chosen = card.chosen {
                 // A folder the person picked on the card is named beside the yes.
                 let picked = pickedFolder(chosen).map { "\(chosen.label) · \(FolderField.name(of: $0))" } ?? chosen.label
-                // In a group home: another admin answered, and the card says who.
-                let label = otherAdmin.map { "\(picked) · \($0)" } ?? picked
+                // In a group home: someone else answered, and the card says who.
+                let label = otherPerson.map { "\(picked) · \($0)" } ?? picked
                 QuietLine(symbol: "checkmark", text: Text(verbatim: label))
                     .accessibilityLabel(Text("Answered: \(label)"))
             } else if card.answer?.by == Card.signIn {

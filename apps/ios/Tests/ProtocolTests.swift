@@ -304,30 +304,30 @@ import Testing
         #expect(!card.answersFromNotification)
     }
 
-    @Test func aGroupHomeNamesItsAdmins() throws {
+    @Test func aGroupHomeNamesItsPeople() throws {
         let home = try decode(HomeInfo.self, """
         { "protocol": 1, "version": "0.1.5", "name": "Club", "publicKey": "k", "hosted": true, "group": { "name": "Club" } }
         """)
         #expect(home.group?.name == "Club")
         let paired = try decode(PairResponse.self, """
         { "token": "t", "device": { "id": "dev_1", "name": "Ada's iPhone", "kind": "phone", "createdAt": "2026-11-24T10:00:00.000Z",
-            "seenAt": "2026-11-24T10:00:00.000Z", "admin": { "id": "usr_ada", "name": "Ada" } },
+            "seenAt": "2026-11-24T10:00:00.000Z", "person": { "id": "usr_ada", "name": "Ada", "role": "owner" } },
           "home": { "protocol": 1, "version": "0.1.5", "name": "Club", "publicKey": "k", "group": { "name": "Club" } } }
         """)
-        #expect(paired.device.admin == Admin(id: "usr_ada", name: "Ada"))
+        #expect(paired.device.person == HomePerson(id: "usr_ada", name: "Ada", role: "owner"))
         let card = try decode(CardEnvelope.self, """
         { "card": { "id": "crd_2", "kind": "approval", "level": "needs_you", "state": "answered", "title": "Book the hall?",
             "actions": [ { "id": "yes", "label": "Book", "style": "primary" } ],
-            "answer": { "action": "yes", "by": "Ben's iPhone", "admin": { "id": "usr_ben", "name": "Ben" }, "at": "2026-11-24T10:01:00.000Z" },
+            "answer": { "action": "yes", "by": "Ben's iPhone", "person": { "id": "usr_ben", "name": "Ben" }, "at": "2026-11-24T10:01:00.000Z" },
             "agentId": "agt_1", "conversationId": "cnv_1", "messageId": "msg_1", "createdAt": "2026-11-24T10:00:00.000Z" } }
         """).card
-        #expect(card.answer?.admin?.name == "Ben")
+        #expect(card.answer?.person?.name == "Ben")
         let message = try decode(Message.self, """
         { "id": "msg_2", "conversationId": "cnv_1", "role": "you", "channel": "app",
-          "from": { "name": "Ben", "admin": "usr_ben" }, "parts": [ { "type": "text", "text": "Book it" } ],
+          "from": { "name": "Ben", "person": "usr_ben" }, "parts": [ { "type": "text", "text": "Book it" } ],
           "state": "done", "createdAt": "2026-11-24T10:02:00.000Z" }
         """)
-        #expect(message.from?.admin == "usr_ben")
+        #expect(message.from?.person == "usr_ben")
     }
 
     @Test func aConnectCardTheHomeAnsweredItself() throws {

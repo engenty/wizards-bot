@@ -134,9 +134,9 @@ function PlainCard({ card }: { card: Card }) {
         : action.label
       : undefined;
     const by = card.answer?.by;
-    // In a group home: another admin answered, and the card says who.
-    const admin = card.answer?.admin;
-    const other = admin && admin.id !== me.data?.admin?.id ? admin.name : undefined;
+    // In a group home: someone else answered, and the card says who.
+    const person = card.answer?.person;
+    const other = person && person.id !== me.data?.person?.id ? person.name : undefined;
     return (
       <section className="rounded-xl bg-paper-2 px-4 py-3 max-sm:px-3 max-sm:py-2">
         <h3 className="font-medium text-[0.9375rem]">{card.title}</h3>
@@ -149,7 +149,7 @@ function PlainCard({ card }: { card: Card }) {
               : (chosen ?? t("card.answered"))}
           {by && by !== "sign-in" ? (
             <span className="text-ink-3">
-              · {other ? t("card.byAdmin", { name: other, by }) : t("card.by", { by })}
+              · {other ? t("card.byPerson", { name: other, by }) : t("card.by", { by })}
             </span>
           ) : null}
         </p>

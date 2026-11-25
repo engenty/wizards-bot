@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { hostname, networkInterfaces, userInfo } from "node:os";
-import type { Admin, Card, HomeInfo, Message } from "@wizards-bot/protocol";
+import type { Card, HomeInfo, HomePerson, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
 import { REPLY_ACTION } from "@wizards-bot/protocol/limits";
 import { Handed } from "./agent/handed.ts";
@@ -92,7 +92,7 @@ export class Home {
   readonly setup: Setup;
   /** What a home on wizards.bot has of the Manage-App: its setup code and its claim. */
   readonly hosted: Hosted;
-  /** A home that belongs to a team: its admins, from the Manage-App. */
+  /** A home that belongs to a team: its people, from the Manage-App. */
   readonly group: Group;
   /** The address at wizards.host, when the person switched it on. */
   readonly tunnel: Tunnel;
@@ -264,7 +264,7 @@ export class Home {
       message?: string;
       said?: Trigger;
       by: string;
-      admin?: Admin;
+      person?: HomePerson;
     },
   ): Promise<Card | undefined> {
     const before = this.store.card(cardId);
@@ -281,7 +281,7 @@ export class Home {
       values: Object.keys(shown).length ? shown : undefined,
       message: input.message,
       by: input.by,
-      ...(input.admin ? { admin: input.admin } : {}),
+      ...(input.person ? { person: { id: input.person.id, name: input.person.name } } : {}),
     });
     if (!card) return undefined;
     this.notifier.resolved([card.id]);
@@ -318,8 +318,8 @@ export class Home {
       answers,
       words,
       by,
-      admin,
-    }: { answers?: string | null; words: string; by: string; admin?: Admin },
+      person,
+    }: { answers?: string | null; words: string; by: string; person?: HomePerson },
   ): void {
     const open = this.store.openCards(trigger.conversationId).filter((card) => card.reply);
     const writing = this.turns.writing(trigger.conversationId);
@@ -337,7 +337,7 @@ export class Home {
       action: REPLY_ACTION,
       message: words.trim(),
       by,
-      admin,
+      person,
       said: trigger,
     }).catch((error) => {
       if (!(error instanceof AlreadyAnswered)) console.error("[answer]", error);

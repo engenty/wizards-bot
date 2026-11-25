@@ -90,7 +90,7 @@ export class Handoffs {
 
   /** The devices an agent may ask: those whose person did not refuse it there. */
   devicesFor(agent: AgentRecord): DeviceRecord[] {
-    // A group home's devices are its admins': what one keeps is not for the turns of all.
+    // A group home's devices are its people's: what one keeps is not for the turns of all.
     if (this.home.group.isGroup()) return [];
     return this.devices().filter((device) => !device.agents?.refused.includes(agent.id));
   }
@@ -314,7 +314,7 @@ export function publicDevice(device: DeviceRecord) {
     seenAt: device.seenAt,
     ...(device.resources ? { resources: device.resources } : {}),
     ...(device.agents ? { agents: device.agents } : {}),
-    ...(device.admin ? { admin: device.admin } : {}),
+    ...(device.person ? { person: device.person } : {}),
   };
 }
 

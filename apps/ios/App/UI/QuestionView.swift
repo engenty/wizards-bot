@@ -183,8 +183,8 @@ struct QuestionView: View {
             .background(.fill.quaternary, in: .rect(cornerRadius: 20))
         } else {
             let label = card.chosen?.label ?? String(localized: "answered")
-            // In a group home: another admin answered, and the question says who.
-            let other = card.answer?.admin.flatMap { $0.id == model.admin?.id ? nil : $0.name }
+            // In a group home: someone else answered, and the question says who.
+            let other = card.answer?.person.flatMap { $0.id == model.person?.id ? nil : $0.name }
             QuietLine(symbol: "checkmark", text: Text(verbatim: [label, other].compactMap(\.self).joined(separator: " · ")))
         }
     }

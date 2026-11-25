@@ -193,15 +193,17 @@ nonisolated struct CardAnswer: Codable, Hashable, Sendable {
     var values: [String: FieldValue]?
     /// Device name or channel the answer came from.
     var by: String
-    /// In a group home: the admin whose device answered.
-    var admin: Admin? = nil
+    /// In a group home: whose device answered.
+    var person: HomePerson? = nil
     var at: String
 }
 
-/// One of the people who run a group home; a device of it belongs to one admin.
-nonisolated struct Admin: Codable, Hashable, Sendable {
+/// Someone of the team a group home belongs to; a device of it belongs to one of them.
+nonisolated struct HomePerson: Codable, Hashable, Sendable {
     var id: String
     var name: String
+    /// `owner`, `admin`, `member` or `client`; missing where only the name matters.
+    var role: String? = nil
 }
 
 /// What the empty input says while a question waits.
@@ -486,8 +488,8 @@ nonisolated struct Writer: Codable, Hashable, Sendable {
     var name: String
     var kind: EngentyKind?
     var of: String?
-    /// In a group home: the admin who wrote a message of the people's side.
-    var admin: String? = nil
+    /// In a group home: who wrote a message of the people's side.
+    var person: String? = nil
 }
 
 nonisolated struct SendMessage: Codable, Hashable, Sendable {
@@ -715,7 +717,7 @@ nonisolated struct Device: Codable, Hashable, Sendable, Identifiable {
     /// Which agents may ask it, as the person said on it.
     var agents: DeviceAgents? = nil
     /// In a group home: whose device it is.
-    var admin: Admin? = nil
+    var person: HomePerson? = nil
 }
 
 nonisolated struct PairResponse: Codable, Hashable, Sendable {

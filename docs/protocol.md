@@ -74,26 +74,40 @@ A watch pairs through its phone: the phone calls `POST /v1/devices` with
 ### A group home
 
 A group home belongs to a team, not to one person (`docs/network.md` §5). `HomeInfo.group` is
-`{ "name": "Club" }` and `name` is the team's. Its **admins** run it: each of their devices
-carries `admin: { id, name }`, also in `PairResponse.device`, so a device knows whose it is.
+`{ "name": "Club" }` and `name` is the team's. Each device of it is someone's: it carries
+`person: { id, name, role }`, also in `PairResponse.device`, so a device knows whose it is. The
+role is `owner`, `admin`, `member` or `client`. The owners and admins run the home: they are its
+**admins**.
 
-- An admin's first device pairs with a pass from the Manage-App (`docs/hosted.md`, Contract
-  11): the web app opens at `<base url>/#admin=<pass>` and sends `POST /v1/pair/admin` with
-  `PairAdmin` `{ "pass": "…", "name": "Ada's browser", "kind": "browser" }` → `PairResponse`.
-  A pass that is wrong, old, used or not an admin's answers 401 `unauthorized`.
-- Further devices pair with a code from a pairing card the admin asks for: it pairs the device
-  as that admin. A group home takes no code that is not an admin's, and no setup code.
-- Every admin's devices see every conversation of the home's agents and its rooms. A message an
-  admin wrote has `role: "you"` and `from: { "name": "Ben", "admin": "<id>" }`; a device shows
-  the writer when it is not its own admin. What someone else writes to a shared agent reaches
+- Someone's first device pairs with a pass from the Manage-App (`docs/hosted.md`, Contract 11):
+  `POST /v1/pair/pass` with `PairPass` `{ "pass": "…", "name": "Ada's browser", "kind":
+  "browser" }` → `PairResponse`. The web app does so when it opens at `<base url>/#admin=<pass>`.
+  A pass that is wrong, old, used, for another page or not of someone in the team answers 401
+  `unauthorized`.
+- Further devices pair with a code from a pairing card an admin asks for: it pairs the device
+  as that admin. A group home takes no code that is nobody's, and no setup code.
+- Every admin's devices see every conversation of the home's agents and its rooms. A message
+  someone wrote has `role: "you"` and `from: { "name": "Ben", "person": "<id>" }`; a device shows
+  the writer when it is not its own person. What someone else writes to a shared agent reaches
   no admin's device, as in any home.
-- A card waits for every admin. The first answer counts; its `answer.admin` says who gave it,
+- A card waits for every admin. The first answer counts; its `answer.person` says who gave it,
   `answer.by` on which device. The agent hears who answered.
-- Each admin reads for themselves: `unread` in `GET /v1/agents` and in `agent.updated` is what
-  the device's admin has not read, and `POST /v1/conversations/:id/read` marks it for them.
+- Each person reads for themselves: `unread` in `GET /v1/agents` and in `agent.updated` is what
+  the device's person has not read, and `POST /v1/conversations/:id/read` marks it for them.
 - A device offers nothing to the agents: `PUT /v1/device/resources` answers 409 `group_home`.
-- An admin the Manage-App no longer lists loses their devices within a minute: their token
-  answers 401 `unauthorized`.
+- A member's or a client's device reaches what is its own: `GET`, `PATCH` and `DELETE
+  /v1/device`, `GET` and `PUT /v1/look`, and `GET /v1/events`, which carries its own
+  `look.updated` only. Every other route answers 403 `admins_only`; it gets no push, and links
+  no computer. A turn for a member has only the tools that stay in the conversation, a turn for
+  a client only a question back and nothing the agent remembers.
+- Someone the Manage-App no longer lists loses their devices within a minute, and so does
+  someone who became an admin, a member or a client since: the token answers 401 `unauthorized`
+  and the event stream ends.
+
+**A page of another site**, such as the studio, reaches a home as a device paired from that page.
+The home answers cross-origin requests from an origin a device was paired from, with a bearer
+token and no cookies; `POST /v1/pair/pass` hears every origin, and the pass decides. A device
+paired this way is forgotten when it was not seen for 30 days.
 
 ## Agents and conversations
 
