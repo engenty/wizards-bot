@@ -235,17 +235,12 @@ const LINK = "transition hover:text-ink";
  * it) and a line with a link to wizards.bot on one on the person's own computer, then the Bot
  * Server's version.
  */
-export function Frame({ wide = false, children }: { wide?: boolean; children: ReactNode }) {
+export function Frame({ children }: { children: ReactNode }) {
   const [privacy, setPrivacy] = useState(false);
   const home = useHome();
   return (
     <div className="flex min-h-full flex-col bg-background">
-      <header
-        className={cn(
-          "mx-auto flex w-full items-center gap-3 px-4 pt-4 sm:px-6",
-          wide ? "max-w-6xl" : "max-w-3xl",
-        )}
-      >
+      <header className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 pt-4 sm:px-6">
         <span className="flex items-center gap-2">
           <Engenty kind="round" size={28} animated={false} />
           <span className="font-display font-semibold text-[1.0625rem] tracking-tight">
@@ -259,7 +254,7 @@ export function Frame({ wide = false, children }: { wide?: boolean; children: Re
         </span>
       </header>
       <div className="flex flex-1 flex-col">{children}</div>
-      <footer className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 pt-6 pb-5 text-[0.75rem] text-ink-3">
+      <footer className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 pt-6 pb-5 text-[0.75rem] text-ink-3">
         {home.data?.hosted ? (
           <>
             <a className={LINK} href={SITE[lang].imprint} target="_blank" rel="noreferrer">
