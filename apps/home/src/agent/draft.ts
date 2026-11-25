@@ -1,4 +1,4 @@
-import type { Message, Part } from "@wizards-bot/protocol";
+import type { Event, Message, Part } from "@wizards-bot/protocol";
 import type { Store } from "../store/store.ts";
 
 /** The agent's message while it is being written. */
@@ -54,6 +54,17 @@ export class Draft {
   source(url: string, title?: string): void {
     if (this.parts.some((part) => part.type === "source" && part.url === url)) return;
     this.add({ type: "source", url, ...(title ? { title } : {}) });
+  }
+
+  /** What the message waits for before it goes on: a model that is loaded, reads or thinks. */
+  waiting(state: Extract<Event, { type: "message.waiting" }>["state"], share?: number): void {
+    this.store.emit({
+      type: "message.waiting",
+      conversationId: this.conversationId,
+      messageId: this.id,
+      state,
+      ...(share === undefined ? {} : { share }),
+    });
   }
 
   private grow(type: "text" | "reasoning", delta: string): void {

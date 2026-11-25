@@ -2,7 +2,7 @@ import type { Agent, Message, Part } from "@wizards-bot/protocol";
 import { Check, ChevronRight, FileText, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Engenty } from "../engenty/Engenty";
-import type { Thread } from "../lib/events";
+import type { Thread, Waiting } from "../lib/events";
 import { t } from "../lib/i18n";
 import { askToNotify, canAskToNotify, notifyLater } from "../lib/notify";
 import { useThisDevice } from "../lib/queries";
@@ -42,6 +42,22 @@ function Typing() {
         />
       ))}
     </div>
+  );
+}
+
+/** What a model on the Bot Server's computer does before its first word. */
+function WaitingFor({ waiting }: { waiting: Waiting }) {
+  const { state, share } = waiting;
+  return (
+    <span className="text-[0.8125rem] text-ink-3 tabular-nums">
+      {state === "loading"
+        ? t("chat.loading")
+        : state === "thinking"
+          ? t("chat.thinking")
+          : share === undefined
+            ? t("chat.reading")
+            : t("chat.readingShare", { share: Math.round(share * 100) })}
+    </span>
   );
 }
 
@@ -184,12 +200,14 @@ function Sources({ sources }: { sources: { url: string; title?: string }[] }) {
 function MessageView({
   message,
   agent,
+  waiting,
   onDocument,
   onArtifact,
   onProblem,
 }: {
   message: Message;
   agent: Agent;
+  waiting?: Waiting;
   onDocument: (id: string) => void;
   onArtifact: (id: string) => void;
   onProblem: (text: string) => void;
@@ -267,6 +285,7 @@ function MessageView({
         {message.state === "streaming" ? (
           <div className="flex items-center gap-2.5">
             {thinking ? <Typing /> : null}
+            {thinking && waiting ? <WaitingFor waiting={waiting} /> : null}
             <Elapsed since={message.createdAt} />
           </div>
         ) : null}
@@ -388,6 +407,7 @@ export function Messages({
             key={message.id}
             message={message}
             agent={agent}
+            waiting={thread.waiting?.messageId === message.id ? thread.waiting : undefined}
             onDocument={onDocument}
             onArtifact={onArtifact}
             onProblem={onProblem}
