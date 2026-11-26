@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import { serve } from "@hono/node-server";
+
 import type { Event, PairResponse, Setup, SetupCheck } from "@wizards-bot/protocol";
 import qrcode from "qrcode-terminal";
 import { exportData, importData, MIN_PASSPHRASE } from "./backup.ts";
@@ -12,9 +12,11 @@ import { Home } from "./home.ts";
 import { Secrets } from "./identity.ts";
 import { LinkedComputer } from "./link/computer.ts";
 import { LinkHub } from "./link/hub.ts";
+import { listen } from "./listen.ts";
 import { Models } from "./models/models.ts";
 import { createServer } from "./server.ts";
 import { summary } from "./setup/setup.ts";
+import { pairingLink } from "./setup/words.ts";
 import { Db } from "./store/db.ts";
 
 const HELP = `wizards.bot ${VERSION}: your own agent, on your own Bot Server.
@@ -67,8 +69,9 @@ async function start(): Promise<void> {
   claimData(config.dataDir);
   const home = openHome();
   const app = createServer(home);
-  const server = serve({ fetch: app.fetch, port: config.port, hostname: "0.0.0.0" });
-  new LinkHub(home).attach(server as import("node:http").Server);
+  const server = listen(app.fetch, config.port, "0.0.0.0", home.certificate());
+  const hub = new LinkHub(home);
+  for (const each of server.servers) hub.attach(each);
   home.tasks.start();
   // A hosted home claims its way to the gateway on its first start.
   await home.hosted.start();
@@ -114,15 +117,14 @@ function pair(): void {
   const home = openHome();
   const code = home.store.newPairingCode();
   const address = home.address();
+  const pairing = home.pairingAddress();
+  const link = pairingLink(pairing.address, code, pairing.print);
   if (rest.includes("--json")) {
-    const link = `wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`;
     console.log(JSON.stringify({ address, code, link }));
     home.close();
     return;
   }
-  qrcode.generate(`wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`, {
-    small: true,
-  });
+  qrcode.generate(link, { small: true });
   console.log(`Address: ${address}`);
   console.log(`Code:    ${code}`);
   console.log(`Browser: ${address}/#code=${code}`);

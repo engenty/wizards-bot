@@ -8,6 +8,7 @@ import {
   X509Certificate,
 } from "node:crypto";
 import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { oid, pem, sequence, tlv } from "../der.ts";
 
 // The keys of a home's address at wizards.host: the claim key, which the name is made from, and
 // the key of the name's certificate. Both are made on this computer and never leave it.
@@ -86,32 +87,7 @@ export const makeKey = (): string =>
     .privateKey.export({ type: "pkcs8", format: "pem" })
     .toString();
 
-// ── A certificate request, in DER by hand: Node has no API for one ──────────
-
-function length(n: number): Buffer {
-  if (n < 0x80) return Buffer.from([n]);
-  const bytes: number[] = [];
-  for (let rest = n; rest > 0; rest >>= 8) bytes.unshift(rest & 0xff);
-  return Buffer.from([0x80 | bytes.length, ...bytes]);
-}
-
-function tlv(tag: number, ...parts: Buffer[]): Buffer {
-  const body = Buffer.concat(parts);
-  return Buffer.concat([Buffer.from([tag]), length(body.length), body]);
-}
-
-function oid(text: string): Buffer {
-  const [a = 0, b = 0, ...rest] = text.split(".").map(Number);
-  const bytes = [a * 40 + b];
-  for (const n of rest) {
-    const chunk = [n & 0x7f];
-    for (let v = n >> 7; v > 0; v >>= 7) chunk.unshift((v & 0x7f) | 0x80);
-    bytes.push(...chunk);
-  }
-  return tlv(0x06, Buffer.from(bytes));
-}
-
-const sequence = (...parts: Buffer[]) => tlv(0x30, ...parts);
+// ── The certificate request for the name ────────────────────────────────────
 
 /**
  * A PKCS#10 certificate request for one name, signed with an EC P-256 key: the name as the
@@ -131,8 +107,7 @@ export function csrFor(name: string, keyPem: string): string {
     sequence(oid("1.2.840.10045.4.3.2")),
     tlv(0x03, Buffer.from([0]), signature),
   );
-  const lines = der.toString("base64").match(/.{1,64}/g) ?? [];
-  return `-----BEGIN CERTIFICATE REQUEST-----\n${lines.join("\n")}\n-----END CERTIFICATE REQUEST-----\n`;
+  return pem("CERTIFICATE REQUEST", der);
 }
 
 /** When a certificate ends, or undefined when the text is not one. */

@@ -372,7 +372,7 @@ struct AvatarPicture: View {
             URLQueryItem(name: "view", value: part.rawValue),
         ])
         request.setValue("image/png", forHTTPHeaderField: "Accept")
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
+        guard let (data, response) = try? await HomeClient.session.data(for: request),
               let status = (response as? HTTPURLResponse)?.statusCode else { return }
         if status == 404 {
             has = false

@@ -143,6 +143,13 @@ private struct ArtifactPage: UIViewRepresentable {
             return .cancel
         }
 
+        /// The home's https on the person's network is trusted by its print, as for every load (`HomeTrust`).
+        func webView(
+            _ webView: WKWebView, respondTo challenge: URLAuthenticationChallenge
+        ) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+            HomeTrust.shared.answer(challenge)
+        }
+
         func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse) async -> WKNavigationResponsePolicy {
             guard response.isForMainFrame else { return .allow }
             guard let http = response.response as? HTTPURLResponse else { return .cancel }

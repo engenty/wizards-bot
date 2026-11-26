@@ -7,6 +7,10 @@ and the phone reaches it there from anywhere. It is off until the person switche
 Server on wizards.bot, or one started with an address of its own (`WIZARDS_BOT_URL`), does not
 offer it.
 
+On the home network the apps already use https: the Bot Server answers it with a key it made
+itself, and the apps trust that key alone, by the print in the pairing QR (`docs/protocol.md`,
+"On the person's network"). A browser on the network uses http.
+
 ## What happens when it is switched on
 
 1. **frpc.** The Bot Server downloads frpc ([frp](https://github.com/fatedier/frp), Apache-2.0)

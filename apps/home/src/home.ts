@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { hostname, networkInterfaces, userInfo } from "node:os";
+import { join } from "node:path";
 import type { Card, HomeInfo, HomePerson, Message } from "@wizards-bot/protocol";
 import { PROTOCOL_VERSION } from "@wizards-bot/protocol";
 import { REPLY_ACTION } from "@wizards-bot/protocol/limits";
@@ -12,6 +13,7 @@ import { type Trigger, type TurnContext, Turns } from "./agent/turns.ts";
 import { Artifacts } from "./artifacts/artifacts.ts";
 import { Avatars } from "./avatar/avatars.ts";
 import { Browser } from "./browser/browser.ts";
+import { type OwnCertificate, ownCertificate } from "./certificate.ts";
 import { type ChannelAdapter, Channels } from "./channels/channels.ts";
 import { ADAPTERS } from "./channels/index.ts";
 import { type Config, isHosted, VERSION } from "./config.ts";
@@ -101,6 +103,8 @@ export class Home {
   private readonly handling = new Set<Promise<void>>();
   /** More tools for a turn, from the parts of the home that are set up later. */
   private readonly toolSources: ((context: TurnContext) => Tool[])[] = [];
+  /** The home's own certificate, once it was asked for. */
+  private madeCertificate: OwnCertificate | undefined;
   /** Called with every finished message of an agent. */
   private readonly deliveries: ((message: Message, trigger: Trigger) => void)[] = [];
 
@@ -179,16 +183,40 @@ export class Home {
   }
 
   info(): HomeInfo {
+    const print = this.certificate()?.print;
     return {
       protocol: PROTOCOL_VERSION,
       version: VERSION,
       name: this.person(),
       handle: this.handle(),
       publicKey: this.identity.publicKey,
+      ...(print ? { print } : {}),
       hosted: isHosted(this.config),
       ...(this.group.isGroup() ? { group: { name: this.person() } } : {}),
       ...(this.group.studio() ? { studio: this.group.studio() } : {}),
     };
+  }
+
+  /**
+   * The home's own certificate for https on the person's network, made the first time. None for
+   * a home with an address of its own: that address has a certificate anyone checks.
+   */
+  certificate(): OwnCertificate | undefined {
+    if (this.config.publicUrl) return undefined;
+    this.madeCertificate ??= ownCertificate(join(this.config.dataDir, "certificate"));
+    return this.madeCertificate;
+  }
+
+  /**
+   * Where the apps pair: on this network the same address over https, with the print of the
+   * key it answers with; elsewhere `address()`, whose certificate anyone checks. A browser keeps
+   * `address()`: it cannot know the print.
+   */
+  pairingAddress(): { address: string; print?: string } {
+    const address = this.address();
+    const certificate = this.certificate();
+    if (!certificate || !address.startsWith("http://")) return { address };
+    return { address: `https://${address.slice("http://".length)}`, print: certificate.print };
   }
 
   /**

@@ -1,11 +1,13 @@
 import Foundation
 
-/// What the QR of a pairing card holds: `wizardsbot://pair?home=<base url>&code=<code>`.
+/// What the QR of a pairing card holds: `wizardsbot://pair?home=<base url>&code=<code>`, and on
+/// the person's network `&k=<print>`: the key the home's https answers with.
 nonisolated struct PairingLink: Equatable, Sendable {
     static let scheme = "wizardsbot"
 
     var home: URL
     var code: String
+    var print: String?
 
     init?(_ url: URL) {
         guard url.scheme?.lowercased() == Self.scheme, url.host()?.lowercased() == "pair",
@@ -15,6 +17,7 @@ nonisolated struct PairingLink: Equatable, Sendable {
               let code = items.first(where: { $0.name == "code" })?.value, !code.isEmpty else { return nil }
         self.home = home
         self.code = PairingCode.tidy(code)
+        print = items.first(where: { $0.name == "k" })?.value.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     init?(_ text: String) {

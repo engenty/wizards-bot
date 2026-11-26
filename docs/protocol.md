@@ -5,7 +5,9 @@ app or another computer of the same person. Devices speak HTTP and JSON to the h
 one event stream. The shapes are in `packages/protocol/src/index.ts`; this file adds the routes
 and examples. Times are ISO 8601 in UTC. Ids are opaque strings.
 
-Base URL: the home's address, e.g. `http://192.168.1.20:4747` or `https://me.example.com`.
+Base URL: the home's address, e.g. `https://192.168.1.20:4747` or `https://me.example.com`. On
+the person's network the apps use https with the home's own certificate; see "On the person's
+network".
 Every route below except `GET /health`, `GET /v1/home` and `POST /v1/pair` needs
 `Authorization: Bearer <device token>`. An artifact's page and the libraries it loads take no
 token either; see "Artifacts". Nor does a published link; see "Sharing".
@@ -29,6 +31,7 @@ Server from another program on port 4747 by it. Earlier homes answer `{ "ok": tr
   "name": "Matthias",
   "handle": "matthias@me.example.com",
   "publicKey": "…",
+  "print": "Wy-47Nd8HGtRqG5_Qh7BVSt4oKGlRJKsIVlrQ-TaSQI",
   "hosted": false
 }
 ```
@@ -38,7 +41,8 @@ engenty's imprint, privacy policy and terms. A Bot Server on someone's own compu
 
 `POST /v1/pair` with `PairRequest` → `PairResponse`. The code comes from `wizards-bot pair` in a
 terminal or from a pairing card in the chat. It is 8 characters, valid for 10 minutes, used once.
-The QR of a pairing card holds `wizardsbot://pair?home=<base url>&code=<code>`. The home's own web app pairs
+The QR of a pairing card holds `wizardsbot://pair?home=<base url>&code=<code>`, and on the
+person's network `&k=<print>` with an `https` base URL. The home's own web app pairs
 as kind `browser` from `<base url>/#code=<code>`; the code sits after the `#`, which a browser
 never sends to a server. A wrong, used or
 expired code answers 401 `unauthorized`; five wrong codes in a minute answer 429 `too_many`.
@@ -64,6 +68,30 @@ takes `WIZARDS_BOT_SETUP_CODE` once, for its first device, and only while it has
 ```
 
 `GET /v1/device` → `Device`: the device that asks, as the home knows it.
+
+### On the person's network
+
+A home without an address of its own (`WIZARDS_BOT_URL`) makes its own certificate on its first
+start: an EC P-256 key in the data folder's `certificate/key.pem` (0600), which never leaves the
+computer, and a certificate signed with it. Its port speaks https with that certificate and
+plain http, told apart by the first byte a device sends.
+
+No one else signs the certificate, so a device does not check it the usual way. It trusts the
+https of that address when the key's print is the one it knows, and nothing else: not the name,
+not the date. The **print** is the SHA-256 of the key's public half (SPKI, DER), base64url
+without padding, as `HomeInfo.print` and the pairing QR's `k` carry it.
+
+- **Scanned.** The QR's `k` comes from the person's own screen: the device pairs over https and
+  keeps the print with its token.
+- **Typed, or paired before.** A device whose address is `http://` on the person's network
+  reads `print` from `GET /v1/home`, asks `GET /v1/device` at the same address over https with
+  that print, and keeps the https address and the print when it answers. Someone who could
+  change that answer on the network could already read the http before it; from then on they
+  read nothing.
+- **A browser** keeps `http://` on the person's network: it cannot be told a print, and it would
+  show a warning for a certificate no one signed. A browser away from home uses the address at
+  wizards.host or the home's own, whose certificates it checks.
+
 `PATCH /v1/device` with `UpdateDevice` → `Device`. Sets the push token, the name and quiet hours.
 `DELETE /v1/device` signs this device out. What a device keeps and offers its agents is in
 "Devices and what they keep".

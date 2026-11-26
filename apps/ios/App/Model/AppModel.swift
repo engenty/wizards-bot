@@ -212,9 +212,10 @@ final class AppModel {
 
     // MARK: - Pairing
 
-    /// Connects this device to a home with a pairing code.
-    func pair(home: URL, code: String) async throws {
-        let client = HomeClient(baseURL: home)
+    /// Connects this device to a home with a pairing code; with the print of the key its https
+    /// answers with on the person's network, when the code came with one.
+    func pair(home: URL, code: String, print: String? = nil) async throws {
+        let client = HomeClient(baseURL: home, print: print)
         do {
             let info = try await client.home()
             guard info.protocol <= protocolVersion else {
@@ -222,7 +223,9 @@ final class AppModel {
             }
             let request = PairRequest(code: PairingCode.tidy(code), name: UIDevice.current.name, kind: .phone, push: notifier.push)
             let response = try await client.pair(request)
-            let link = HomeLink(baseURL: home, token: response.token, deviceId: response.device.id, name: response.home.name)
+            let link = HomeLink(
+                baseURL: home, token: response.token, deviceId: response.device.id, name: response.home.name, print: print
+            )
             link.store()
             adopt(link)
             justPaired = link
@@ -336,6 +339,21 @@ final class AppModel {
         }
     }
 
+    /// A link paired over http on the person's network moves to https at the same address,
+    /// trusted by the print the home names, once the home answers there (docs/protocol.md, "On
+    /// the person's network"). Whoever could change that answer could already read the http.
+    private func moveToHttps(_ info: HomeInfo) async {
+        guard let link, link.print == nil, let print = info.print, let address = link.secureAddress else { return }
+        var moved = link
+        moved.baseURL = address
+        moved.print = print
+        guard (try? await HomeClient(moved).device()) != nil, self.link == link else { return }
+        moved.store()
+        self.link = moved
+        connect()
+        watch.homeChanged()
+    }
+
     /// Loads agents, what needs the person and the open conversation.
     func refresh() async {
         guard let client else { return }
@@ -351,8 +369,10 @@ final class AppModel {
             notifier.setBadge(loadedItems.count)
             for card in loadedItems { noteCard(card) }
             models = try? await client.models()
+            let info = try? await client.home()
             // A group home names its people: whose another's message and answer are.
-            group = (try? await client.home())?.group
+            group = info?.group
+            if let info { await moveToHttps(info) }
             if group != nil { devices = try? await client.devices() }
             if let conversationId { await loadMessages(in: conversationId) }
             remember()
