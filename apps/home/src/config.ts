@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, isAbsolute, join } from "node:path";
-import { lmStudioAddress } from "@engenty/local-models/lmstudio";
-import { mlxFolder } from "@engenty/local-models/mlx";
+import { lmStudioAddress } from "@engenty/model-providers/lmstudio";
+import { mlxFolder } from "@engenty/model-providers/mlx";
 
 /**
  * The home's version: the one of the root package.json, which `pnpm release` sets. The

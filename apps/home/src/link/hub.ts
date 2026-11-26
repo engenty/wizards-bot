@@ -7,7 +7,7 @@ import {
   generateFrom,
   type StreamPart,
   type StreamResult,
-} from "@engenty/local-models/ollama";
+} from "@engenty/model-providers/ollama";
 import { levelOf } from "@engenty/tool-harness";
 import type { ModelSource } from "@wizards-bot/protocol";
 import { type WebSocket, WebSocketServer } from "ws";

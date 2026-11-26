@@ -1,7 +1,7 @@
 // What a failed test call means, in one sentence the person can act on. The client's or the
 // service's own words are matched; the sentence and what to do are the Bot Server's, in both
 // languages (words.ts).
-import { type Client, failureCode } from "@engenty/local-models/clients";
+import { type Client, failureCode } from "@engenty/model-providers/clients";
 import { type Words, w } from "./words.ts";
 
 /** What a check found: the sentence, what to do, and a command when a terminal is the way. */

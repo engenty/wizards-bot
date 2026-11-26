@@ -11,8 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@engenty/chatviews": "0.21.2",
-    "@engenty/model-setup": "0.21.2",
+    "@engenty/chatviews": "0.22.1",
+    "@engenty/model-providers": "0.22.1",
+    "@engenty/model-setup": "0.22.1",
     "@floating-ui/dom": "1.8.0",
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",

@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
-import type { CallOptions } from "@engenty/local-models/ollama";
+import type { CallOptions } from "@engenty/model-providers/ollama";
 import { Secrets } from "../identity.ts";
 import { Db } from "../store/db.ts";
 import { Models } from "./models.ts";

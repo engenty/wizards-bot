@@ -1,11 +1,18 @@
 import { totalmem } from "node:os";
-import { createGateway } from "@ai-sdk/gateway";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { detectClient } from "@engenty/local-models/clients";
-import { lmStudioFetch } from "@engenty/local-models/lmstudio";
-import { mlxModel, type Waiting } from "@engenty/local-models/mlx";
-import { type ChatModel, ollamaModel } from "@engenty/local-models/ollama";
-import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
+import { accountGateway } from "@engenty/model-providers/account";
+import { detectClient } from "@engenty/model-providers/clients";
+import { lmStudioFetch } from "@engenty/model-providers/lmstudio";
+import { mlxModel, type Waiting } from "@engenty/model-providers/mlx";
+import { type ChatModel, ollamaModel } from "@engenty/model-providers/ollama";
+import { PROVIDERS, type ProviderId } from "@engenty/model-providers/providers";
+import { compatibleModel, providerModel } from "@engenty/model-providers/providers/model";
+import {
+  fits,
+  type InstalledModel,
+  SERVERS,
+  type ServerId,
+} from "@engenty/model-providers/servers";
 import { defineEmbedder, type SearchEmbedder } from "@engenty/search-index";
 import { type Level, levelOf } from "@engenty/tool-harness";
 import {
@@ -75,20 +82,61 @@ export interface Gateway {
   models: string[];
 }
 
-export const GATEWAY_PRESETS: Record<string, Omit<Gateway, "models">> = {
-  openrouter: {
-    id: "openrouter",
-    label: "OpenRouter",
-    baseUrl: "https://openrouter.ai/api/v1",
-  },
-  vercel: {
-    id: "vercel",
-    label: "Vercel AI Gateway",
-    baseUrl: "https://ai-gateway.vercel.sh/v1",
-  },
-  openai: { id: "openai", label: "OpenAI", baseUrl: "https://api.openai.com/v1" },
-  anthropic: { id: "anthropic", label: "Anthropic", baseUrl: "https://api.anthropic.com/v1" },
+/**
+ * The provider of `@engenty/model-providers` behind a gateway's id: who it is, its first model and
+ * how a model on its key is asked come from there. The home's id of the Vercel AI Gateway stays
+ * `vercel`, as the gateways and keys it has stored name it.
+ */
+export const PROVIDER_OF: Record<string, ProviderId> = {
+  openrouter: "openrouter",
+  vercel: "gateway",
+  openai: "openai",
+  anthropic: "anthropic",
 };
+
+/** Where each known gateway answers as OpenAI's API does: what a stored gateway carries. */
+const ADDRESSES: Record<string, string> = {
+  openrouter: "https://openrouter.ai/api/v1",
+  vercel: "https://ai-gateway.vercel.sh/v1",
+  openai: "https://api.openai.com/v1",
+  anthropic: "https://api.anthropic.com/v1",
+};
+
+export const GATEWAY_PRESETS: Record<string, Omit<Gateway, "models">> = Object.fromEntries(
+  Object.entries(PROVIDER_OF).map(([id, provider]) => [
+    id,
+    { id, label: PROVIDERS[provider].name, baseUrl: ADDRESSES[id] as string },
+  ]),
+);
+
+/** A known gateway's first model when the person adds it; they may name another. */
+export const GATEWAY_MODELS: Record<string, string> = Object.fromEntries(
+  Object.entries(PROVIDER_OF).map(([id, provider]) => [id, PROVIDERS[provider].model as string]),
+);
+
+/**
+ * A model of a gateway, on its key. A known provider at its own address is asked through its
+ * own AI SDK package (`providerModel`), so what only its API has reaches the model. A gateway of
+ * the person's own, and a known one that was given another address, is asked as OpenAI's API is.
+ */
+export function gatewayModel(
+  gateway: Pick<Gateway, "id" | "baseUrl">,
+  key: string,
+  model: string,
+  doFetch?: typeof fetch,
+): LanguageModel {
+  const provider = PROVIDER_OF[gateway.id];
+  if (provider && gateway.baseUrl === ADDRESSES[gateway.id]) {
+    return providerModel(provider, key, model, doFetch ? { fetch: doFetch } : {});
+  }
+  return compatibleModel({
+    name: gateway.id,
+    baseUrl: gateway.baseUrl,
+    key,
+    model,
+    ...(doFetch ? { fetch: doFetch } : {}),
+  });
+}
 
 /**
  * The wizards account: the Manage-App's gateway, paid with the credits of the team the home's
@@ -121,19 +169,18 @@ export function accountModel(
   model: string,
   doFetch?: typeof fetch,
 ): LanguageModel {
-  return createGateway({
-    baseURL: `${account.gatewayUrl}/v4/ai`,
-    apiKey: key,
+  return accountGateway({
+    url: account.gatewayUrl,
+    key,
     ...(doFetch ? { fetch: doFetch } : {}),
   })(model);
 }
 
 /** The account's embedding model, for the search over tools. */
 export function accountEmbedder(account: Account, key: string): SearchEmbedder {
-  const model = createGateway({
-    baseURL: `${account.gatewayUrl}/v4/ai`,
-    apiKey: key,
-  }).embeddingModel("wizards/embedding");
+  const model = accountGateway({ url: account.gatewayUrl, key }).embeddingModel(
+    "wizards/embedding",
+  );
   return defineEmbedder(async (texts) => (await embedMany({ model, values: texts })).embeddings, {
     dimensions: ACCOUNT_DIMENSIONS,
     modelId: "wizards/embedding",
@@ -584,11 +631,7 @@ export class Models {
     const gateway = this.gateways().find((g) => g.id === sourceId);
     const key = this.secrets.get(`gateway.${sourceId}`);
     if (!gateway || !key) return undefined;
-    const chat = createOpenAICompatible({
-      name: gateway.id,
-      baseURL: gateway.baseUrl,
-      apiKey: key,
-    })(model);
+    const chat = gatewayModel(gateway, key, model);
     return { ref, level: levelOf({ model }), model: () => chat };
   }
 

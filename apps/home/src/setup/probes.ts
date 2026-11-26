@@ -1,15 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import type { Client } from "@engenty/local-models/clients";
-import { installedModels } from "@engenty/local-models/ollama";
-import { CLIENT_TIMEOUT, PROMPT, probe, SERVER_TIMEOUT } from "@engenty/local-models/probe";
-import { fits, SERVERS, type ServerId } from "@engenty/local-models/servers";
+import type { Client } from "@engenty/model-providers/clients";
+import { installedModels } from "@engenty/model-providers/ollama";
+import { CLIENT_TIMEOUT, PROMPT, probe, SERVER_TIMEOUT } from "@engenty/model-providers/probe";
+import { fits, SERVERS, type ServerId } from "@engenty/model-providers/servers";
 import type { LanguageModel } from "ai";
 import { generateText } from "ai";
 import type { Account, Gateway } from "../models/models.ts";
-import { ACCOUNT, accountModel } from "../models/models.ts";
+import { ACCOUNT, accountModel, gatewayModel } from "../models/models.ts";
 import { chatModels, MEMORY_SHARE, onThisComputer, suggestedModel } from "../models/ollama.ts";
 import {
   claudeSignedOut,
@@ -28,7 +27,7 @@ import { type Words, w } from "./words.ts";
 
 // One test call per model source: a tiny prompt, a timeout, and what came of it. Each call
 // costs a few tokens, so the home makes them when the person asks and at the first start,
-// never on a timer. The calls to a client and to Ollama are `@engenty/local-models`' probe;
+// never on a timer. The calls to a client and to Ollama are `@engenty/model-providers`' probe;
 // what they mean for the person is said here.
 
 export type ProbeState = "ok" | "warning" | "problem" | "absent";
@@ -411,17 +410,7 @@ export async function probeGateway(
       ),
     };
   }
-  return probeModel(
-    gateway.label,
-    model,
-    createOpenAICompatible({
-      name: gateway.id,
-      baseURL: gateway.baseUrl,
-      apiKey: key,
-      ...(doFetch ? { fetch: doFetch } : {}),
-    })(model),
-    timeout,
-  );
+  return probeModel(gateway.label, model, gatewayModel(gateway, key, model, doFetch), timeout);
 }
 
 /** A test call to the wizards account's gateway with the home's key. */
