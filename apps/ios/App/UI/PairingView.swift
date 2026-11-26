@@ -9,6 +9,8 @@ struct PairingView: View {
 
     @State private var path: [Step] = []
     @State private var address = ""
+    /// The link last scanned or handed over: its print counts for its own address.
+    @State private var scanned: PairingLink?
     @State private var code = ""
     @State private var isConnecting = false
     @State private var problem: String?
@@ -71,6 +73,7 @@ struct PairingView: View {
     private func take(_ link: PairingLink) {
         address = link.home.absoluteString
         code = link.code
+        scanned = link
         connect()
     }
 
@@ -80,7 +83,8 @@ struct PairingView: View {
         problem = nil
         Task {
             do {
-                try await model.pair(home: home, code: code)
+                // The print counts for the address it came with, not for one typed over it.
+                try await model.pair(home: home, code: code, print: scanned?.home == home ? scanned?.print : nil)
                 // Back from the connected screen leads to the camera, not to a used code.
                 path = [.connected]
             } catch {

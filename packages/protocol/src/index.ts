@@ -1131,6 +1131,12 @@ export const HomeInfo = z.object({
   handle: z.string().optional(),
   /** Ed25519 public key, base64url. */
   publicKey: z.string(),
+  /**
+   * The print of the key the home's https answers with on the person's network: SHA-256 of
+   * its public key (SPKI, DER), base64url. A device trusts that https by this print alone. None
+   * for a home with an address of its own.
+   */
+  print: z.string().optional(),
   /** A hosted Bot Server at `<name>.wizards.bot`, run by engenty: its imprint and terms apply. */
   hosted: z.boolean().optional(),
   /**

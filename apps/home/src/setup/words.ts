@@ -31,6 +31,7 @@ export function pairingCard(
   address: string,
   code: string,
   lang: Lang,
+  pairing: { address: string; print?: string } = { address },
 ): { title: string; body: string; qr: string } {
   return {
     title: say(w("Add a device", "Gerät hinzufügen"), lang),
@@ -41,13 +42,16 @@ export function pairingCard(
       ),
       lang,
     ),
-    qr: pairingLink(address, code),
+    qr: pairingLink(pairing.address, code, pairing.print),
   };
 }
 
-/** What a pairing QR holds: the address and the code for the wizards.bot app. */
-export const pairingLink = (address: string, code: string): string =>
-  `wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}`;
+/**
+ * What a pairing QR holds: the address and the code for the wizards.bot app, and on the person's
+ * network the print of the key the home's https answers with (`k`).
+ */
+export const pairingLink = (address: string, code: string, print?: string): string =>
+  `wizardsbot://pair?home=${encodeURIComponent(address)}&code=${code}${print ? `&k=${print}` : ""}`;
 
 /** The main agent's first words after the setup. */
 export function greeting(name: string, agent: string, lang: Lang): string {

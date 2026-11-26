@@ -22,7 +22,7 @@ nonisolated struct EventStream: Sendable {
         configuration.timeoutIntervalForRequest = 50
         configuration.timeoutIntervalForResource = 60 * 60 * 24
         configuration.waitsForConnectivity = false
-        return URLSession(configuration: configuration)
+        return URLSession(configuration: configuration, delegate: HomeTrust.shared, delegateQueue: nil)
     }()
 
     /// Runs until the reader stops listening.
@@ -47,7 +47,7 @@ nonisolated struct EventStream: Sendable {
                 request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
                 request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
                 if let lastEventId { request.setValue(lastEventId, forHTTPHeaderField: "Last-Event-ID") }
-                let (bytes, response) = try await Self.session.bytes(for: request)
+                let (bytes, response) = try await Self.session.bytes(for: request, delegate: HomeTrust.shared)
                 let status = (response as? HTTPURLResponse)?.statusCode ?? 0
                 if status == 401 {
                     continuation.yield(.unauthorized)

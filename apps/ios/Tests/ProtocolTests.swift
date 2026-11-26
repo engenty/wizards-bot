@@ -10,7 +10,8 @@ import Testing
     // MARK: The examples of protocol.md
 
     static let homeInfo = """
-    { "protocol": 1, "version": "0.1.0", "name": "Matthias", "handle": "matthias@me.example.com", "publicKey": "…" }
+    { "protocol": 1, "version": "0.1.0", "name": "Matthias", "handle": "matthias@me.example.com", "publicKey": "…",
+      "print": "Wy-47Nd8HGtRqG5_Qh7BVSt4oKGlRJKsIVlrQ-TaSQI", "hosted": false }
     """
 
     static let pairRequest = """

@@ -1,13 +1,13 @@
 # Privacy policy of wizards.bot
 
-Last changed: November 22, 2026
+Last changed: November 26, 2026
 
 wizards.bot is a personal agent that runs on your own Bot Server: a program on your computer or on a server you rent. The apps for iPhone, iPad, Apple Watch and the browser are devices of that Bot Server. This page says what the apps and the Bot Server do with your data, who else can read it, and how you take a yes back or delete everything.
 
 ## Who runs what
 
 - **Your Bot Server** runs on a computer or a server you choose. It keeps your agents, their memory, your conversations, your documents and files, and the keys to your accounts. You run it; the makers of wizards.bot have no server in between and no access to your Bot Server.
-- **The apps** talk only to your Bot Server, at the address you paired them with. They send nothing to the makers of wizards.bot. There is no analytics, no advertising and no tracking, and no third-party code that collects data.
+- **The apps** talk only to your Bot Server, at the address you paired them with. On your own network they use https with a key your Bot Server made itself, and trust only that key: its print comes with the pairing code. A browser on your network uses http. They send nothing to the makers of wizards.bot. There is no analytics, no advertising and no tracking, and no third-party code that collects data.
 
 ## What the apps send to your Bot Server
 
@@ -35,6 +35,7 @@ When you connect an account or a service (a calendar, mail, Slack), your Bot Ser
 - A published link shows one document or artifact to anyone who has the link, for the time you chose, until you take it back.
 - A copy you send goes to the Bot Server of a contact you connected with.
 - Your agents write to an agent outside your Bot Server only after you said yes.
+- The address at wizards.host, when you switch it on: the relay there learns its name and keeps a connection to your Bot Server open. What passes through is encrypted to your computer; the relay does not read it ([address.md](address.md)).
 
 ## Taking a yes back and deleting
 

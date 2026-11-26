@@ -201,7 +201,8 @@ export class Setup {
   pairing(): { address: string; code: string; link: string } {
     const code = this.home.store.newPairingCode();
     const address = this.home.address();
-    return { address, code, link: pairingLink(address, code) };
+    const pairing = this.home.pairingAddress();
+    return { address, code, link: pairingLink(pairing.address, code, pairing.print) };
   }
 
   /** A card of the home itself in the main agent's chat. */

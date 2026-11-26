@@ -114,7 +114,7 @@ export function buildTools(context: TurnContext): Tool[] {
           return "A pairing code is for the admin who asks for it. Ask them to write to you from one of their devices.";
         const code = store.newPairingCode(writer?.id);
         const address = home.address();
-        const shown = pairingCard(address, code, langOf(home.db));
+        const shown = pairingCard(address, code, langOf(home.db), home.pairingAddress());
         const card = store.createCard(
           {
             kind: "pairing",

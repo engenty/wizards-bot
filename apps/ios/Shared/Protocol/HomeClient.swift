@@ -7,6 +7,9 @@ nonisolated struct HomeLink: Codable, Hashable, Sendable {
     var deviceId: String
     /// The person's name as the home knows it.
     var name: String
+    /// The print of the key the home's https answers with on the person's network; the only key
+    /// trusted there (`HomeTrust`). None for an address whose certificate is checked the usual way.
+    var print: String? = nil
 }
 
 /// What can go wrong when talking to the home, in the terms a device handles.
@@ -43,20 +46,23 @@ nonisolated struct HomeClient: Sendable {
     let baseURL: URL
     let token: String?
 
-    init(baseURL: URL, token: String? = nil) {
+    /// With a `print`, the https at `baseURL` is trusted by it alone, for every client of it.
+    init(baseURL: URL, token: String? = nil, print: String? = nil) {
         self.baseURL = baseURL
         self.token = token
+        if let print { HomeTrust.shared.trust(print, at: baseURL) }
     }
 
     init(_ link: HomeLink) {
-        self.init(baseURL: link.baseURL, token: link.token)
+        self.init(baseURL: link.baseURL, token: link.token, print: link.print)
     }
 
-    private static let session: URLSession = {
+    /// For everything a device loads from its home: its prints are trusted (`HomeTrust`).
+    static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 20
         configuration.waitsForConnectivity = false
-        return URLSession(configuration: configuration)
+        return URLSession(configuration: configuration, delegate: HomeTrust.shared, delegateQueue: nil)
     }()
 
     /// For an answer that waits for the person at the home's computer.
@@ -64,7 +70,7 @@ nonisolated struct HomeClient: Sendable {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 900
         configuration.waitsForConnectivity = false
-        return URLSession(configuration: configuration)
+        return URLSession(configuration: configuration, delegate: HomeTrust.shared, delegateQueue: nil)
     }()
 
     // MARK: Home and pairing
@@ -75,6 +81,11 @@ nonisolated struct HomeClient: Sendable {
 
     func pair(_ request: PairRequest) async throws -> PairResponse {
         try await send("POST", "/v1/pair", body: request)
+    }
+
+    /// This device, as the home knows it.
+    func device() async throws -> Device {
+        try await send("GET", "/v1/device")
     }
 
     @discardableResult
@@ -401,9 +412,10 @@ nonisolated struct HomeClient: Sendable {
             (data, response) = try await session.data(for: request)
         } catch is CancellationError {
             throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
+        } catch let error as URLError where error.code == .cancelled && Task.isCancelled {
             throw CancellationError()
         } catch {
+            // Also a key that is not the one this device trusts there: `HomeTrust` cancels it.
             throw HomeError.unreachable
         }
         guard let http = response as? HTTPURLResponse else { throw HomeError.unreadable }

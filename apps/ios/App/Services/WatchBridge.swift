@@ -42,10 +42,21 @@ final class WatchBridge: NSObject, WCSessionDelegate {
             Keychain.remove(Self.account)
             return .noHome
         }
-        if let known = Keychain.read(HomeLink.self, from: Self.account), known.baseURL == phone.baseURL { return .home(known) }
+        if var known = Keychain.read(HomeLink.self, from: Self.account) {
+            if known.baseURL == phone.baseURL { return .home(known) }
+            // The phone moved to https at the same address: the watch's link follows it.
+            if known.secureAddress == phone.baseURL, let print = phone.print {
+                known.baseURL = phone.baseURL
+                known.print = print
+                Keychain.save(known, as: Self.account)
+                return .home(known)
+            }
+        }
         let name = UserDefaults.standard.string(forKey: Self.nameKey) ?? "Apple Watch"
         guard let paired = try? await HomeClient(phone).addDevice(name: name, kind: .watch) else { return .noHome }
-        let link = HomeLink(baseURL: phone.baseURL, token: paired.token, deviceId: paired.device.id, name: paired.home.name)
+        let link = HomeLink(
+            baseURL: phone.baseURL, token: paired.token, deviceId: paired.device.id, name: paired.home.name, print: phone.print
+        )
         Keychain.save(link, as: Self.account)
         return .home(link)
     }

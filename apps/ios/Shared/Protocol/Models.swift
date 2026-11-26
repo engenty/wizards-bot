@@ -668,6 +668,8 @@ nonisolated struct HomeInfo: Codable, Hashable, Sendable {
     var handle: String?
     /// Ed25519 public key, base64url.
     var publicKey: String
+    /// The print of the key the home's https answers with on the person's network.
+    var print: String? = nil
     /// A hosted Bot Server at `<name>.wizards.bot`, run by engenty.
     var hosted: Bool?
     /// A group home: it belongs to a team, and `name` is the team's.
