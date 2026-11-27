@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, test } from "node:test";
-import type { Client } from "@engenty/local-models/clients";
+import type { Client } from "@engenty/model-providers/clients";
 import type { LocalModelsState } from "@engenty/model-setup";
 import type { Setup } from "@wizards-bot/protocol";
 import { type TestHome, testHome } from "../test/fakes.ts";
@@ -114,8 +114,28 @@ describe("the setup shared with engenty wizards", () => {
     const bad = await call("POST", "/keys/openrouter", { key: "sk-bad" });
     assert.equal(bad.body.ok, false);
     assert.equal(t.home.models.gateways().length, 0);
-    t.home.setup.gatewayFetch = async () =>
-      Response.json({
+    // OpenRouter is asked as OpenAI's chat API is; OpenAI itself through its Responses API.
+    const asked: string[] = [];
+    t.home.setup.gatewayFetch = async (input) => {
+      const url = String(input instanceof Request ? input.url : input);
+      asked.push(url);
+      if (url.endsWith("/responses")) {
+        return Response.json({
+          id: "resp_1",
+          created_at: 1,
+          model: "m",
+          output: [
+            {
+              type: "message",
+              role: "assistant",
+              id: "msg_1",
+              content: [{ type: "output_text", text: "ok", annotations: [] }],
+            },
+          ],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        });
+      }
+      return Response.json({
         id: "1",
         model: "m",
         choices: [
@@ -123,13 +143,18 @@ describe("the setup shared with engenty wizards", () => {
         ],
         usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
       });
+    };
     assert.equal((await call("POST", "/keys/openrouter", { key: "sk-good" })).body.ok, true);
     assert.deepEqual(t.home.models.picked(), ["openrouter"]);
     assert.equal((await call("POST", "/keys/openai", { key: "sk-good" })).body.ok, true);
     assert.deepEqual(t.home.models.picked(), ["openrouter", "openai"]);
+    assert.deepEqual(asked, [
+      "https://openrouter.ai/api/v1/chat/completions",
+      "https://api.openai.com/v1/responses",
+    ]);
     const { body } = await call("PUT", "/models", { keys: { openrouter: "" } });
     assert.equal((body.keys as Record<string, boolean>).openrouter, false);
-    assert.deepEqual(t.home.models.candidates(), ["openai:gpt-5-mini"]);
+    assert.deepEqual(t.home.models.candidates(), ["openai:gpt-5.5"]);
   });
 
   test("a key added in the settings joins the pick, and its test keeps the models it had", async () => {

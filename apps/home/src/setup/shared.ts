@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
-import { setClientFolders } from "@engenty/local-models/clients";
-import { SERVERS, serversHere } from "@engenty/local-models/servers";
+import { setClientFolders } from "@engenty/model-providers/clients";
+import { SERVERS, serversHere } from "@engenty/model-providers/servers";
 import { OFFERED_MODELS } from "@engenty/model-setup";
 import {
   ClientSetup,
@@ -13,10 +13,9 @@ import {
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Home } from "../home.ts";
-import { GATEWAY_PRESETS, type Gateway } from "../models/models.ts";
+import { GATEWAY_MODELS, GATEWAY_PRESETS, type Gateway } from "../models/models.ts";
 import { isServer, MEMORY_SHARE } from "../models/ollama.ts";
 import { probeGateway } from "./probes.ts";
-import { GATEWAY_MODELS } from "./setup.ts";
 import { langOf, say } from "./words.ts";
 
 // The setup of what the wizards think with is engenty wizards' own (@engenty/model-setup): the

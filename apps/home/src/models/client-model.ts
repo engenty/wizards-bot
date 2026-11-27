@@ -15,7 +15,7 @@ import {
   cursorWorkspace,
   ownCursorServers,
   resolveEnv,
-} from "@engenty/local-models/clients";
+} from "@engenty/model-providers/clients";
 import {
   base64Of,
   type CallOptions,
@@ -23,11 +23,11 @@ import {
   generateFrom,
   type StreamPart,
   type StreamResult,
-} from "@engenty/local-models/ollama";
+} from "@engenty/model-providers/ollama";
 
 // An installed client (Claude Code, Codex, Cursor Agent, Antigravity) answering a turn of the home: the client runs its own
 // steps, reaches only the home's tools over MCP (named `home`) and keeps the conversation itself.
-// How each client is started and read is `@engenty/local-models`.
+// How each client is started and read is `@engenty/model-providers`.
 
 /** A client the home runs on the person's subscription. */
 export interface Subscription {

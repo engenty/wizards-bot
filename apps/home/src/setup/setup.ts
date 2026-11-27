@@ -1,13 +1,13 @@
 import { existsSync, realpathSync, statfsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { type Client, detectClient } from "@engenty/local-models/clients";
-import { pullModel } from "@engenty/local-models/ollama";
-import { SERVERS } from "@engenty/local-models/servers";
+import { type Client, detectClient } from "@engenty/model-providers/clients";
+import { pullModel } from "@engenty/model-providers/ollama";
+import { SERVERS } from "@engenty/model-providers/servers";
 import type { Card, SetupCheck, SetupPulling, Setup as SetupView } from "@wizards-bot/protocol";
 import { isHosted } from "../config.ts";
 import type { Home } from "../home.ts";
 import { isSubscription, SUBSCRIPTIONS } from "../models/client-model.ts";
-import { ACCOUNT, GATEWAY_PRESETS, ModelRefused } from "../models/models.ts";
+import { ACCOUNT, GATEWAY_MODELS, GATEWAY_PRESETS, ModelRefused } from "../models/models.ts";
 import { isServer, onThisComputer, SUGGESTED } from "../models/ollama.ts";
 import type { NewCard } from "../store/store.ts";
 import {
@@ -50,14 +50,6 @@ export class PullRefused extends Error {}
 
 /** Ollama picked on a home that has none of its own. */
 export class OllamaRefused extends Error {}
-
-/** A gateway's first model when the person adds it from the setup; they may name another. */
-export const GATEWAY_MODELS: Record<string, string> = {
-  openrouter: "openrouter/auto",
-  vercel: "anthropic/claude-sonnet-4.5",
-  openai: "gpt-5-mini",
-  anthropic: "claude-sonnet-4-5",
-};
 
 /** Folders a computer empties by itself: a home's data there may be gone after a restart. */
 function temporary(dir: string): boolean {
@@ -164,7 +156,7 @@ export class Setup {
    * does: the key goes from the card into the home's secrets, and the card's answer sets the
    * gateway up. It works while no model answers yet.
    */
-  gatewayCard(provider: keyof typeof GATEWAY_MODELS) {
+  gatewayCard(provider: string) {
     const preset = GATEWAY_PRESETS[provider];
     if (!preset) throw new Error(`No such gateway: ${provider}`);
     return this.say({

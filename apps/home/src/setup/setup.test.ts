@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { CLIENTS, type Client, forgetEnv } from "@engenty/local-models/clients";
+import { CLIENTS, type Client, forgetEnv } from "@engenty/model-providers/clients";
 import type { Event, Message, Setup } from "@wizards-bot/protocol";
 import { FakeOllama, type TestHome, testHome, textOf } from "../test/fakes.ts";
 import { explainClaude, explainCodex, explainGateway, explainOllama } from "./explain.ts";

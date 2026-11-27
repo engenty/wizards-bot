@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type { CallOptions } from "@engenty/local-models/ollama";
+import type { CallOptions } from "@engenty/model-providers/ollama";
 import {
   ASKED_OPTION,
   type ClientEvent,

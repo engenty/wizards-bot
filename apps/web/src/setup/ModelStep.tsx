@@ -1,3 +1,4 @@
+import { PROVIDERS as FACTS } from "@engenty/model-providers/providers";
 import type {
   ClientId,
   ClientSetupStatus,
@@ -52,33 +53,26 @@ export const FIGURES: Record<string, EngentyKind> = {
   own: "bean",
 };
 
+/**
+ * The home's gateways a key is taken for, and the provider of `@engenty/model-providers` each
+ * is: its name, where a key is made and how one looks come from there.
+ */
+const KEYED = {
+  openrouter: "openrouter",
+  vercel: "gateway",
+  openai: "openai",
+  anthropic: "anthropic",
+} as const;
+
 /** The gateways and providers a key is taken for. */
-export const PROVIDERS: Omit<KeyProvider, "stored">[] = [
-  {
-    id: "openrouter",
-    name: "OpenRouter",
-    keyUrl: "https://openrouter.ai/settings/keys",
-    keyPlaceholder: "sk-or-…",
-  },
-  {
-    id: "vercel",
-    name: "Vercel AI Gateway",
-    keyUrl: "https://vercel.com/dashboard/ai-gateway/api-keys",
-    keyPlaceholder: "vck_…",
-  },
-  {
-    id: "openai",
-    name: "OpenAI",
-    keyUrl: "https://platform.openai.com/api-keys",
-    keyPlaceholder: "sk-…",
-  },
-  {
-    id: "anthropic",
-    name: "Anthropic",
-    keyUrl: "https://console.anthropic.com/settings/keys",
-    keyPlaceholder: "sk-ant-…",
-  },
-];
+export const PROVIDERS: Omit<KeyProvider, "stored">[] = Object.entries(KEYED).map(
+  ([id, provider]) => ({
+    id,
+    name: FACTS[provider].name,
+    keyUrl: FACTS[provider].keyUrl,
+    keyPlaceholder: FACTS[provider].keyPlaceholder,
+  }),
+);
 
 interface Pick {
   source: string | null;

@@ -47,12 +47,15 @@ engenty wizards pins.
   after a start of the home. Where no run of Mastra waits (a subscription's client, a
   message in between), the home runs the tool again with the answer.
 - **Connections.** Mastra's `MCPClient` (`@mastra/mcp`), one per connection.
-- **Model.** An AI SDK v3 language model: Ollama on its own API, a gateway through
-  `@ai-sdk/openai-compatible`, a subscription client that steps by itself
-  (`models/client-model.ts`), a linked computer's model relayed over the link (`link/hub.ts`).
-  Ollama (its models, downloads, the chat API) and the clients (found, signed in, their command
-  lines and output) are engenty wizards' `@engenty/local-models`; the home keeps which models it
-  offers and prefers (`models/ollama.ts`), the client's conversation across turns, and the
+- **Model.** An AI SDK v3 language model: Ollama on its own API, a gateway on its key, a
+  subscription client that steps by itself (`models/client-model.ts`), a linked computer's model
+  relayed over the link (`link/hub.ts`). How each is reached is engenty wizards'
+  `@engenty/model-providers`: Ollama (its models, downloads, the chat API), the clients (found,
+  signed in, their command lines and output), the providers a person brings a key for (who they
+  are, their first model, a model on a key through the provider's own AI SDK package) and the
+  wizards account's gateway. The home keeps which models it offers and prefers
+  (`models/ollama.ts`), its gateways and their keys (`models/models.ts`; a gateway of the
+  person's own is asked as OpenAI's API is), the client's conversation across turns, and the
   setup's words.
 - **Channels.** Slack is moving to Mastra's channels (the Chat SDK's Slack adapter in Socket
   Mode, `channels/slack-mastra.ts`). Mastra is the transport only: the handlers are the home's,

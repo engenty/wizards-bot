@@ -1,4 +1,4 @@
-import type { CallOptions, StreamPart } from "@engenty/local-models/ollama";
+import type { CallOptions, StreamPart } from "@engenty/model-providers/ollama";
 import type { ModelSource } from "@wizards-bot/protocol";
 import type { ClientEvent, ClientTurn } from "../models/client-model.ts";
 

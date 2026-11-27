@@ -1,7 +1,12 @@
-import { fits, type InstalledModel, SERVERS, type ServerId } from "@engenty/local-models/servers";
+import {
+  fits,
+  type InstalledModel,
+  SERVERS,
+  type ServerId,
+} from "@engenty/model-providers/servers";
 
 // Which of Ollama's and LM Studio's models the home offers, asks first and pulls. Talking to the
-// two is `@engenty/local-models`.
+// two is `@engenty/model-providers`.
 
 /** Whether a source's id or kind is a server on a computer that runs open models. */
 export const isServer = (id: string): id is ServerId => Object.hasOwn(SERVERS, id);

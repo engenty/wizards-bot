@@ -12,16 +12,11 @@ import { Button, cn, Select } from "../ui";
 import { CheckList, Command, useTest } from "./Checks";
 import { FoldersStep } from "./Folders";
 import { Frame } from "./Frame";
-import { ModelStep } from "./ModelStep";
+import { ModelStep, PROVIDERS } from "./ModelStep";
 import { ReachStep } from "./Reach";
 import { canGoOn, type Step, stepsOf, testing, testOnOpen } from "./steps";
 
-const GATEWAYS = [
-  { value: "openrouter", label: "OpenRouter" },
-  { value: "vercel", label: "Vercel AI Gateway" },
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
-];
+const GATEWAYS = PROVIDERS.map(({ id, name }) => ({ value: id, label: name }));
 
 /** Where the setup stands: one dash per step, lit up to the one shown. */
 function Dashes({ steps, at }: { steps: Step[]; at: number }) {
