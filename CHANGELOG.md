@@ -4,6 +4,11 @@ All notable changes to wizards.bot. Generated from [Conventional Commits](https:
 by [git-cliff](https://git-cliff.org) via `pnpm release`. Pre-`1.0`: a **minor**
 bump is a notable or breaking change, **patch** is fixes and small features.
 
+## [0.1.9] - 2026-11-27
+
+- ADDED **[models]** Gateways and the wizards account through @engenty/model-providers (#89)
+- ADDED Https on the home network, trusted by the key's print in the pairing QR (#88)
+
 ## [0.1.8] - 2026-11-25
 
 - ADDED **[home]** Members of a team chat with its agents, each in a conversation of their own (#84)
